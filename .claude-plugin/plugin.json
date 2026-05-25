@@ -1,0 +1,8 @@
+{
+  "name": "agent-tools",
+  "description": "Curated collection of tools and configurations for AI coding agents",
+  "version": "1.0.0",
+  "author": {
+    "name": "Josh Reichardt"
+  }
+}
