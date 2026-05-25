@@ -1,6 +1,8 @@
 ---
 name: testing
 description: Use to choose and apply TDD or BDD based on the change, enforcing fast Red-Green-Refactor and Given-When-Then loops.
+version: 1.0.0
+tags: [testing, tdd, bdd]
 ---
 
 # Testing

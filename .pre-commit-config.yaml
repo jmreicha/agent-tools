@@ -1,5 +1,14 @@
 ---
 repos:
+  - repo: local
+    hooks:
+      - id: gen-skills-docs
+        name: Generate skills docs
+        entry: python3 script/gen-skills-docs.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.13.10
     hooks:

@@ -1,6 +1,8 @@
 ---
 name: research
 description: Use before implementing new features to gather context from documentation, real-world code examples, and web resources. Provides structured findings to inform implementation decisions.
+version: 1.0.0
+tags: [research, planning, mcp]
 ---
 
 # Research

@@ -7,7 +7,7 @@ description: |
   session boundaries. Log your own mistakes, not just user corrections. The
   finding lives in the repo at `./context/findings.md`.
 version: 1.0.0
-date: 2026-02-06
+tags: [memory, learning, session]
 ---
 
 # Finding
