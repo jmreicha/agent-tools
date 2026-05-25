@@ -1,6 +1,6 @@
 # agent-tools
 
-Curated collection of tools and configurations for AI coding agents.
+A curated collection of my various tools and configurations for AI coding agents.
 
 ## Plugin Usage
 
