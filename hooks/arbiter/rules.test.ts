@@ -162,3 +162,9 @@ test("same id in two files of one layer keeps the first file", () => {
   expect(set.errors[0].message).toContain("/u/a.yaml");
   expect(set.errors[0].path).toBe("/u/b.yaml");
 });
+
+test("old reason key points to description", () => {
+  expect(
+    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    reason: why\n"),
+  ).toContain("unknown key reason (renamed to description)");
+});

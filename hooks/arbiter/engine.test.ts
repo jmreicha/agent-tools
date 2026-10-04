@@ -16,7 +16,7 @@ rules:
   - id: aws/requires-vault
     match: { cmd: aws }
     unless: { wrapped_by: aws-vault }
-    reason: AWS goes through aws-vault.
+    description: AWS goes through aws-vault.
     hint: Use aws-vault exec lytxread -- aws.
   - id: aws/no-sso-login
     match: { cmd: aws, args: [sso, login] }
@@ -43,11 +43,15 @@ test("no match allows", () => {
   });
 });
 
-test("deny lists every fired deny rule in rule order", () => {
+test("deny lists every fired deny rule sorted by id", () => {
   const v = bash("aws sso login", VAULT);
   expect(v.action).toBe("deny");
+  expect(v.fired.map((r) => r.id)).toEqual([
+    "aws/no-sso-login",
+    "aws/requires-vault",
+  ]);
   expect(v.message).toBe(
-    "arbiter aws/requires-vault: AWS goes through aws-vault. Use aws-vault exec lytxread -- aws.\narbiter aws/no-sso-login: Never.",
+    "arbiter aws/no-sso-login: Never.\narbiter aws/requires-vault: AWS goes through aws-vault. Use aws-vault exec lytxread -- aws.",
   );
 });
 

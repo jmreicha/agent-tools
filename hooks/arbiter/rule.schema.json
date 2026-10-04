@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/jmreicha/agent-tools/main/hooks/arbiter/rule.schema.json",
+  "title": "arbiter rule file",
+  "description": "Rules arbiter enforces at every Claude Code tool call. Reference: docs/arbiter/reference.md",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "disable": {
+      "description": "Rule ids from lower layers to turn off.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/rule" }
+    }
+  },
+  "definitions": {
+    "pattern": {
+      "description": "Literal or glob (* and ?) matching the whole value, or /regex/flags matched by search.",
+      "type": "string"
+    },
+    "patterns": {
+      "oneOf": [
+        { "$ref": "#/definitions/pattern" },
+        { "type": "array", "items": { "$ref": "#/definitions/pattern" } }
+      ]
+    },
+    "matcher": {
+      "description": "Every key must match. Command keys and path cannot be mixed.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "cmd": {
+          "description": "Program name, directory stripped.",
+          "$ref": "#/definitions/patterns"
+        },
+        "args": {
+          "description": "Positional args, in order but not necessarily adjacent. A nested list means any of.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/patterns" }
+        },
+        "flags": {
+          "description": "All of these flags present, compared exactly (--context also matches --context=x).",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "wrapped_by": {
+          "description": "Runs inside any of these wrappers (sudo, env, aws-vault, op, ...).",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "env": {
+          "description": "Inline NAME=value assignments; values are patterns.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/pattern" }
+        },
+        "regex": {
+          "description": "/regex/flags searched in the sub-command's raw text.",
+          "type": "string",
+          "pattern": "^/.*/[imsu]*$"
+        },
+        "path": {
+          "description": "Glob against file_path for file tools; leading ~ is your home.",
+          "$ref": "#/definitions/patterns"
+        }
+      },
+      "not": {
+        "anyOf": [
+          { "required": ["path", "cmd"] },
+          { "required": ["path", "args"] },
+          { "required": ["path", "flags"] },
+          { "required": ["path", "wrapped_by"] },
+          { "required": ["path", "env"] },
+          { "required": ["path", "regex"] }
+        ]
+      }
+    },
+    "matchers": {
+      "description": "A matcher, or a list meaning any of them.",
+      "oneOf": [
+        { "$ref": "#/definitions/matcher" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/matcher" }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "match"],
+      "properties": {
+        "id": {
+          "description": "Unique within a layer; a higher layer with the same id replaces it. Convention: <area>/<name>.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$"
+        },
+        "tool": {
+          "description": "Tool names this rule applies to (default Bash). /regex/ for MCP tools.",
+          "$ref": "#/definitions/patterns"
+        },
+        "match": {
+          "description": "When the rule applies.",
+          "$ref": "#/definitions/matchers"
+        },
+        "unless": {
+          "description": "Excuses a match on the same sub-command or path.",
+          "$ref": "#/definitions/matchers"
+        },
+        "action": {
+          "description": "What happens when the rule fires (default deny). rewrite is not implemented yet and acts as deny.",
+          "enum": ["deny", "ask", "warn", "rewrite"]
+        },
+        "to": {
+          "description": "Rewrite target; only with action: rewrite.",
+          "type": "string"
+        },
+        "description": {
+          "description": "What the rule enforces and why; Claude reads it.",
+          "type": "string"
+        },
+        "hint": {
+          "description": "What to do instead; Claude reads it.",
+          "type": "string"
+        },
+        "tests": {
+          "description": "Expected outcome -> inputs (Bash command, or a path for path rules). allow means the rule must not fire.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "deny": { "type": "array", "items": { "type": "string" } },
+            "ask": { "type": "array", "items": { "type": "string" } },
+            "warn": { "type": "array", "items": { "type": "string" } },
+            "allow": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
+}

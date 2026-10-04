@@ -18,7 +18,7 @@ ERROR:
   - WHEN: "the text is not valid YAML"
     MUST: "return no rules and one error carrying the path, the line, and the parser's message"
   - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id` or `match`, a duplicate `id`, an unknown `action`, an invalid regex, or a matcher mixing `path` with command fields"
-    MUST: "return no rules and one error per problem, each carrying the path, the rule `id` when known, the line when known, and what is wrong"
+    MUST: "return no rules and one error per problem, naming `description` as the replacement when a rule uses the old key `reason`, each carrying the path, the rule `id` when known, the line when known, and what is wrong"
   - WHEN: "the file is empty or contains only comments"
     MUST: "return no rules and no errors"
   - MUST-NOT: "throw for any input text"
@@ -60,7 +60,7 @@ content: |
     unless   a matcher, or a list of matchers meaning any of them.
     action   deny | ask | warn | rewrite. Default deny.
     to       string. Rewrite target, only allowed with action rewrite.
-    reason   string. Why the rule exists.
+    description  string. What the rule enforces and why; shown to Claude and in /arbiter list.
     hint     string. What to do instead.
     tests    mapping from deny | ask | warn | allow to a list of input strings.
 

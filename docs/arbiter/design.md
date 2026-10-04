@@ -5,8 +5,7 @@ reasoning behind each choice.
 
 The normative behavior lives in the yass specs under `hooks/arbiter/*.yass.yaml` (start at
 `root.yass.yaml`; browse with `yass list` / `yass query`). Where this overview and a spec
-disagree, the spec wins. Worked rules from `~/.claude/CLAUDE.md` are in
-[examples/claude-md.yaml](examples/claude-md.yaml).
+disagree, the spec wins. Personal rules (e.g. those codified from `~/.claude/CLAUDE.md`) belong in the user layer, `~/.claude/rules/arbiter/`.
 
 ## Architecture
 
@@ -37,7 +36,7 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
    - Edit/Write/Read: test `path` against `e.file_path`.
    - Other tools (incl. MCP): only rule-level `tool` matching applies.
 3. Strictest outcome wins: `deny` > `ask` > `warn` > none.
-   - `deny` → `{ deny: <reasons + hints of every matching deny rule> }`
+   - `deny` → `{ deny: <descriptions + hints of every matching deny rule> }`
    - `ask` → `$.ui.ask(…)`; anything but explicit approval, including no one to ask, denies.
    - `warn` → `$.ui.log(…)`, then `next(e)`.
    - none → `next(e)`.
@@ -46,13 +45,13 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
 ## Rule schema
 
 ```yaml
-# ~/.claude/rules/arbiter/cloud.yaml
+# ~/.claude/rules/arbiter/rules.yaml
 disable: [general/ask-reset-hard] # ids from lower layers
 
 rules:
   - id: aws/no-sso-login
     match: { cmd: aws, args: [sso, login] }
-    reason: "aws sso login leaves plaintext credentials on disk."
+    description: "aws sso login leaves plaintext credentials on disk."
     hint: "Use `aws-vault exec <profile> -- aws ...`."
     tests:
       deny: ["aws sso login --profile prod"]
@@ -70,7 +69,7 @@ rules:
     match: { cmd: aws-vault, args: [exec] }
     unless: { args: [exec, "lytxread*"] }
     action: ask
-    reason: "Elevated AWS role requested."
+    description: "Elevated AWS role requested."
 
   - id: k8s/require-context
     match: { cmd: kubectl }
@@ -95,17 +94,17 @@ rules:
 
 ### Rule fields
 
-| Field    | Required | Meaning                                                                                                                                                                       |
-| -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`     | yes      | Unique within a layer. Same id in a higher layer replaces the rule. Convention: `<area>/<name>`.                                                                              |
-| `tool`   | no       | String, list, or `/regex/`. Default `Bash`.                                                                                                                                   |
-| `match`  | yes      | Matcher, or list of matchers (any-of): when the rule applies.                                                                                                                 |
-| `unless` | no       | Matcher or list (any-of): if it also matches, the rule does not fire.                                                                                                         |
-| `action` | no       | `deny` (default), `ask`, `warn`, `rewrite` (stub → deny, logs "not implemented").                                                                                             |
-| `to`     | no       | Rewrite target; accepted, unused in v1.                                                                                                                                       |
-| `reason` | no       | Why the rule exists; shown to Claude and in `/arbiter check`.                                                                                                                 |
-| `hint`   | no       | What to do instead; shown to Claude.                                                                                                                                          |
-| `tests`  | no       | Map of expected outcome (`deny`/`ask`/`warn`/`allow`) → list of inputs, evaluated against this rule alone. Input is a command string for Bash rules, a path for `path` rules. |
+| Field         | Required | Meaning                                                                                                                                                                       |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | Unique within a layer. Same id in a higher layer replaces the rule. Convention: `<area>/<name>`.                                                                              |
+| `tool`        | no       | String, list, or `/regex/`. Default `Bash`.                                                                                                                                   |
+| `match`       | yes      | Matcher, or list of matchers (any-of): when the rule applies.                                                                                                                 |
+| `unless`      | no       | Matcher or list (any-of): if it also matches, the rule does not fire.                                                                                                         |
+| `action`      | no       | `deny` (default), `ask`, `warn`, `rewrite` (stub → deny, logs "not implemented").                                                                                             |
+| `to`          | no       | Rewrite target; accepted, unused in v1.                                                                                                                                       |
+| `description` | no       | What the rule enforces and why; shown to Claude, in `/arbiter list` and `/arbiter check`.                                                                                     |
+| `hint`        | no       | What to do instead; shown to Claude.                                                                                                                                          |
+| `tests`       | no       | Map of expected outcome (`deny`/`ask`/`warn`/`allow`) → list of inputs, evaluated against this rule alone. Input is a command string for Bash rules, a path for `path` rules. |
 
 ### Matcher fields
 
@@ -155,7 +154,7 @@ YAML files do not leak into context.
 | Command                      | Does                                                                                         |
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | `/arbiter`                   | Open the pane: recent verdicts, rule counts per layer, load errors.                          |
-| `/arbiter check <command>`   | Dry run. Prints the verdict Claude would get and each matching rule with its layer and file. |
+| `/arbiter check "<command>"` | Dry run. Prints the verdict Claude would get and each matching rule with its layer and file. |
 | `/arbiter list [filter\|id]` | Effective rules with layer and disabled state; given an id, prints its YAML.                 |
 | `/arbiter test`              | Run every rule's inline tests; print failures.                                               |
 | `/arbiter reload`            | Re-read all layers.                                                                          |
@@ -163,17 +162,19 @@ YAML files do not leak into context.
 Example:
 
 ```
-/arbiter check aws s3 ls --profile prod
-DENY  aws/requires-vault   (user: ~/.claude/rules/arbiter/cloud.yaml)
-  hint: Wrap AWS calls: `aws-vault exec lytxread -- aws ...`.
+/arbiter check "aws s3 ls --profile prod"
+DENY  "aws s3 ls --profile prod"
+  aws/requires-vault  (user: ~/.claude/rules/arbiter/rules.yaml)
+    description: AWS access goes through aws-vault.
+    hint: Run `aws-vault exec lytxread -- aws ...`, not `aws --profile`.
 ```
 
 ## Testing
 
 - Unit tests (`*.test.ts`, `claude plugin test`) for `shell.ts`, `rules.ts`, `engine.ts`, and
   `index.ts` (stubbed mods API).
-- `script/arbiter-test` runs `/arbiter test` through the real mod with the shipped pack, your user
-  rules, and `docs/arbiter/examples/` as a temp project layer. It fails on any failing rule test
+- `script/arbiter-test` runs `/arbiter test` through the real mod with the shipped `rules/` and your user
+  rules (from a temp dir, so no project layer). It fails on any failing rule test
   or skipped rule file. (Test files can't read from disk, so this can't be a `*.test.ts`.)
 - `/arbiter test` runs the same check in-session.
 

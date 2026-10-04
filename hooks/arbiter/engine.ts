@@ -92,7 +92,7 @@ function fires(
 }
 
 function line(r: Rule): string {
-  const text = [r.reason, r.hint].filter(Boolean).join(" ");
+  const text = [r.description, r.hint].filter(Boolean).join(" ");
   return text ? `arbiter ${r.id}: ${text}` : `arbiter ${r.id}`;
 }
 
@@ -108,9 +108,9 @@ export function evaluate(
       : [];
   const file =
     typeof input.file_path === "string" ? input.file_path : undefined;
-  const fired = rules.filter(
-    (r) => toolIs(r.tool, tool) && fires(r, subs, file, home),
-  );
+  const fired = rules
+    .filter((r) => toolIs(r.tool, tool) && fires(r, subs, file, home))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const action of ["deny", "ask", "warn"] as const) {
     const hits = fired.filter(
       (r) => (r.action === "rewrite" ? "deny" : r.action) === action,

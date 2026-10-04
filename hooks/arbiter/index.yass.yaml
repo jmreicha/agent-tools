@@ -45,30 +45,54 @@ SIDE-EFFECT:
 spec: command
 INPUT:
   - MUST: "register `/arbiter` taking an optional subcommand and its arguments"
-  - WHEN: "there is no subcommand"
+  - WHEN: "there is no subcommand, or it is `help`"
+    MUST: "reply with a status line giving the effective rule count and the error count, then each subcommand with a one-line description, aligned in columns"
+  - WHEN: "the subcommand is `pane`"
     MUST: "open the pane"
     SEE: pane
   - WHEN: "the subcommand is `check` followed by a command string"
-    MUST: "evaluate that string as a Bash call without running it, and reply with the action in capitals, then for each fired rule its `id`, layer, path, reason, and hint"
+    MUST: "strip one surrounding pair of matching single or double quotes from the command string, evaluate it as a Bash call without running it, and reply with a header of the action in capitals and the quoted command, then for each fired rule its `id`, layer, path with `~` for the home directory, description, and hint"
+  - WHEN: "the subcommand is `check` with no command string"
+    MUST: "reply with the usage of `check`, what it does, and one example, showing the command in double quotes"
   - WHEN: "the subcommand is `list`, optionally followed by a filter"
-    MUST: "reply with every effective and disabled rule whose `id` contains the filter, one per line with `id`, action, layer, and whether it is disabled"
+    MUST: "reply with a line counting the rules shown, then a table, columns aligned under an `ID ACTION LAYER DESCRIPTION` header, of every effective and disabled rule whose `id` contains the filter, sorted by `id`, marking a disabled rule's description with the layer that disabled it"
   - WHEN: "the subcommand is `list` followed by an exact rule `id`"
     MUST: "reply with that rule's definition rendered as YAML"
   - WHEN: "the subcommand is `test`"
-    MUST: "run every effective rule's tests and reply with the count passed and each failure, plus the count of skipped rule files and each one with its error, so a broken file cannot pass silently"
+    MUST: "run every effective rule's tests and reply with the count passed and each failure sorted by rule `id` then input, plus the count of skipped rule files and each one with its error sorted by path, so a broken file cannot pass silently"
     SEE: engine@runRuleTests
+  - WHEN: "the subcommand is `init`"
+    MUST: "reply with an onboarding note listing each layer's directory, with `~` for the home directory, and its rule count or `not created`, then a minimal example rule file starting with the `yaml-language-server` schema line, the commands to run next (`reload`, `check`, `test`), the path of the guide `hooks/arbiter/README.md`, and the path of the commented examples `hooks/arbiter/examples/rules.yaml`, without creating any file"
   - WHEN: "the subcommand is `reload`"
     MUST: "reload rules and reply with the count of rules per layer and the count of errors"
     SEE: load
   - WHEN: "the subcommand is anything else"
-    MUST: "reply with the list of subcommands and their usage"
+    MUST: "reply with `unknown subcommand <name>` followed by the help text"
 RETURN:
   - MUST: "reply as command text without starting a Claude turn"
+  - MUST: "have its reply drawn in color"
+    SEE: colorize
 ---
 spec: pane
 RETURN:
   - MUST: "show the count of effective rules per layer and the count of disabled rules"
-  - MUST: "show every load error and warning with its path and message"
+  - MUST: "show every load error and warning in yellow with its path and message, sorted by path then line"
+  - MUST: "color each recorded verdict's action like the verdict words in command output"
   - MUST: "show the recorded verdicts, newest first, each with time, action, rule ids, and the command or path"
 SIDE-EFFECT:
   - MUST: "redraw when a verdict is recorded or rules reload"
+---
+spec: colorize
+INPUT:
+  - MUST: "handle `ui.render` for `CommandOutput` rows, acting only on rows whose `command` is `arbiter` and passing every other row on unchanged"
+RETURN:
+  - MUST: "redraw the row's text line by line with the same words and spacing, so only color and weight change"
+  - MUST: "show a leading `<plugin>: ` prefix dimmed"
+  - MUST: "color a leading verdict word: `DENY` red, `ASK` and `WARN` yellow, `ALLOW` green, each bold"
+  - MUST: "color `FAIL` lines red and `SKIPPED` lines yellow"
+  - MUST: "color error-handling lines yellow: `unknown subcommand …`, `usage: …`, and `no rules match`"
+  - MUST: "color the `N/M rule tests passed` line green when every test passed and nothing was skipped, otherwise yellow"
+  - MUST: "bold the header row of a `list` table and color its ACTION cells like verdict words"
+  - MUST: "dim the `description:` and `hint:` labels and the `(layer: path)` part of a fired-rule line"
+INVARIANT:
+  - MUST-NOT: "change the text Claude Code records for the row, only how it is drawn"

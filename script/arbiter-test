@@ -1,12 +1,34 @@
 #!/usr/bin/env bash
-# Runs every rule's inline tests through the real mod: shipped pack,
-# your user rules, and docs/arbiter/examples (as a temp project layer).
+# Runs every rule's inline tests through the real mod: shipped rules/, your
+# user rules, and hooks/arbiter/examples (as a temp project layer). Then checks
+# rule.schema.json still matches rules.ts.
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/.claude/rules/arbiter"
-cp "$repo"/docs/arbiter/examples/*.yaml "$tmp/.claude/rules/arbiter/"
+cp "$repo"/hooks/arbiter/examples/*.yaml "$tmp/.claude/rules/arbiter/"
 out=$(cd "$tmp" && claude --plugin-dir "$repo" -p "/arbiter test" </dev/null)
 echo "$out"
 grep -Eq '^agent-tools: ([0-9]+)/\1 rule tests passed$' <<<"$out"
+
+python3 - "$repo/hooks/arbiter" <<'PY'
+import json, re, sys
+d = sys.argv[1]
+src = open(f"{d}/rules.ts").read()
+defs = json.load(open(f"{d}/rule.schema.json"))["definitions"]
+want = {
+    "RULE_KEYS": set(defs["rule"]["properties"]),
+    "MATCHER_KEYS": set(defs["matcher"]["properties"]),
+    "ACTIONS": set(defs["rule"]["properties"]["action"]["enum"]),
+    "OUTCOMES": set(defs["rule"]["properties"]["tests"]["properties"]),
+}
+bad = []
+for name, keys in want.items():
+    body = re.search(rf"const {name} = \[(.*?)\]", src, re.S).group(1)
+    have = set(re.findall(r'"([^"]+)"', body))
+    if have != keys:
+        bad.append(f"{name}: rules.ts {sorted(have)} vs schema {sorted(keys)}")
+print("schema: in sync with rules.ts" if not bad else "schema drift:\n  " + "\n  ".join(bad))
+sys.exit(1 if bad else 0)
+PY

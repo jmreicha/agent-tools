@@ -33,10 +33,10 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 | R4  | Rules express "forbid X" (`match`) and "X requires Y" (`match` + `unless`).                                                                                      |
 | R5  | Matchers cover `cmd`, `args`, `flags`, `wrapped_by`, `env`, `regex` (raw-text fallback), `path` (Edit/Write/Read), and rule-level `tool` (incl. MCP tool names). |
 | R6  | Actions: `deny` (default), `ask`, `warn`. `rewrite` is accepted by the schema and behaves as `deny` until implemented.                                           |
-| R7  | Deny messages give Claude the `reason` and `hint` so it can self-correct; all matching deny hints are returned together.                                         |
+| R7  | Deny messages give Claude the `description` and `hint` so it can self-correct; all matching deny hints are returned together.                                    |
 | R8  | Each rule can carry inline `tests:`; they run via `/arbiter test` and `claude plugin test` (CI).                                                                 |
 | R9  | A broken rules file is skipped loudly (toast + pane), never silently; a runtime guard failure denies (fails closed).                                             |
-| R10 | Commands: `/arbiter` (pane), `/arbiter check <command>`, `/arbiter list [filter\|id]`, `/arbiter test`, `/arbiter reload`.                                       |
+| R10 | Commands: `/arbiter` (help), `/arbiter init`, `/arbiter pane`, `/arbiter check "<command>"`, `/arbiter list [filter\|id]`, `/arbiter test`, `/arbiter reload`.   |
 | R11 | A pane shows recent verdicts, rule counts per layer, and load errors.                                                                                            |
 | R12 | Ship a small `general` pack (≈3–5 rules) that users can disable by id.                                                                                           |
 
@@ -49,6 +49,9 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 - A typo in one rules file never disables the others, and is visible within the session.
 
 ## Later / open
+
+- **Matching MCP tool calls.** `tool` can name an MCP tool, but no matcher applies to its
+  arguments, so such a rule can never fire. Needs an `input` matcher (or similar) over call args.
 
 - `rewrite` action (stubbed in v1).
 - Session gates, e.g. "ran tests before finishing" (`classic.Stop`): undecided.

@@ -156,28 +156,12 @@ Run `/reload-plugins` inside Claude Code to pick up new skills.
 
 ## arbiter
 
-A mod that enforces YAML rules at every tool call. Rules load from three layers, lowest to highest:
+A mod that turns the "always/never" lines in `CLAUDE.md` into rules Claude Code enforces at every
+tool call: deny with a hint, ask first, or warn. Rules are YAML with inline tests, layered across
+plugin, user, and project folders.
 
-| Layer   | Location                              |
-| ------- | ------------------------------------- |
-| plugin  | `rules/*.yaml` (ships `general/*`)    |
-| user    | `~/.claude/rules/arbiter/*.yaml`      |
-| project | `<repo>/.claude/rules/arbiter/*.yaml` |
+- [Guide](hooks/arbiter/README.md): what it is, why you'd use it, quick start, and recipes.
+- [Examples](hooks/arbiter/examples/rules.yaml): commented, tested rules to copy from.
+- [Rule reference](docs/arbiter/reference.md): every field, matcher, and command.
 
-```yaml
-disable: [general/ask-reset-hard]
-rules:
-  - id: aws/requires-vault
-    match: { cmd: aws }
-    unless: { wrapped_by: aws-vault }
-    hint: Run `aws-vault exec <profile> -- aws ...`.
-    tests:
-      deny: ["aws s3 ls"]
-      allow: ["aws-vault exec dev -- aws s3 ls"]
-```
-
-Commands: `/arbiter` (pane), `/arbiter check <command>`, `/arbiter list [filter|id]`, `/arbiter test`, `/arbiter reload`.
-
-Tests: `claude plugin test` (unit) and `script/arbiter-test` (every rule's inline tests through the real mod).
-
-Requires Claude Code ≥ 2.1.287. Spec: `hooks/arbiter/*.yass.yaml`. Design: `docs/arbiter/`. Not a security boundary: it catches habits, not an agent trying to evade it.
+Requires Claude Code ≥ 2.1.287. Run `/arbiter init` in a session to get started.

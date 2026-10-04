@@ -11,7 +11,7 @@ INPUT:
     CONFORMS: rules@loadLayers::RETURN
   - MUST: "consider only rules whose `tool` matches the tool name, comparing strings exactly and /regex/ by search"
 RETURN:
-  - MUST: "return a verdict with an `action` of `allow`, `deny`, `ask`, or `warn`, every rule that fired whatever its action, and a `message`"
+  - MUST: "return a verdict with an `action` of `allow`, `deny`, `ask`, or `warn`, every rule that fired whatever its action, sorted by `id`, and a `message`"
   - WHEN: "the tool is Bash"
     MUST: "parse the `command` argument and test each rule against each sub-command"
     SEE: shell@parse
@@ -31,7 +31,7 @@ RETURN:
   - MUST: "treat a fired `rewrite` rule as `deny`"
   - MUST: "choose the verdict's `action` as the strictest among fired rules, in the order deny, ask, warn, and `allow` when none fired"
   - WHEN: "the action is `deny`"
-    MUST: "set `message` to one line per fired deny rule, in rule order, of the form `arbiter <id>: <reason> <hint>`, omitting a missing reason or hint"
+    MUST: "set `message` to one line per fired deny rule, sorted by `id`, of the form `arbiter <id>: <description> <hint>`, omitting a missing description or hint"
   - WHEN: "the action is `ask` or `warn`"
     MUST: "set `message` to the same line form, built from the fired rules of that action"
   - WHEN: "the action is `allow`"

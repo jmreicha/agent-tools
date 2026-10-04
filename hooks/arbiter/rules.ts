@@ -20,7 +20,7 @@ export type Rule = {
   unless: Matcher[];
   action: Action;
   to?: string;
-  reason?: string;
+  description?: string;
   hint?: string;
   tests: Partial<Record<Outcome, string[]>>;
   layer: Layer;
@@ -54,7 +54,7 @@ const RULE_KEYS = [
   "unless",
   "action",
   "to",
-  "reason",
+  "description",
   "hint",
   "tests",
 ];
@@ -139,7 +139,12 @@ function checkRule(r: unknown, i: number, out: string[]) {
     return;
   }
   for (const k of Object.keys(r))
-    if (!RULE_KEYS.includes(k)) out.push(`unknown key ${k}`);
+    if (!RULE_KEYS.includes(k))
+      out.push(
+        k === "reason"
+          ? "unknown key reason (renamed to description)"
+          : `unknown key ${k}`,
+      );
   if (!isStr(r.id) || !ID.test(r.id)) out.push(`id must match ${ID.source}`);
   if ("tool" in r) {
     if (!strOrStrs(r.tool))
@@ -163,7 +168,7 @@ function checkRule(r: unknown, i: number, out: string[]) {
     out.push(`action must be one of ${ACTIONS.join(", ")}`);
   if ("to" in r && (r.action !== "rewrite" || !isStr(r.to)))
     out.push("to must be a string and needs action: rewrite");
-  for (const k of ["reason", "hint"] as const)
+  for (const k of ["description", "hint"] as const)
     if (k in r && !isStr(r[k])) out.push(`${k} must be a string`);
   if ("tests" in r) {
     if (!isObj(r.tests)) out.push("tests must be a mapping");
@@ -244,22 +249,20 @@ export function parseRuleFile(
   });
   if (errors.length) return fail(errors);
 
-  const rules = (raw as Record<string, unknown>[]).map(
-    (r): Rule => ({
-      id: r.id as string,
-      tool: (r.tool as string | string[] | undefined) ?? "Bash",
-      match: [r.match].flat() as Matcher[],
-      unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
-      action: (r.action as Action | undefined) ?? "deny",
-      to: r.to as string | undefined,
-      reason: r.reason as string | undefined,
-      hint: r.hint as string | undefined,
-      tests: (r.tests as Rule["tests"] | undefined) ?? {},
-      layer,
-      path,
-      source: r,
-    }),
-  );
+  const rules = (raw as Record<string, unknown>[]).map((r): Rule => ({
+    id: r.id as string,
+    tool: (r.tool as string | string[] | undefined) ?? "Bash",
+    match: [r.match].flat() as Matcher[],
+    unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
+    action: (r.action as Action | undefined) ?? "deny",
+    to: r.to as string | undefined,
+    description: r.description as string | undefined,
+    hint: r.hint as string | undefined,
+    tests: (r.tests as Rule["tests"] | undefined) ?? {},
+    layer,
+    path,
+    source: r,
+  }));
   return {
     path,
     layer,

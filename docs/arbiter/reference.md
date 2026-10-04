@@ -1,0 +1,186 @@
+# arbiter reference
+
+Every field of an arbiter rule file and how arbiter evaluates it. For what arbiter is and why
+you'd use it, start with the [guide](../../hooks/arbiter/README.md). The normative behavior lives
+in the yass specs under `hooks/arbiter/`; this page describes the same rules for people writing
+them. For commented rules you can copy, see
+[`examples/rules.yaml`](../../hooks/arbiter/examples/rules.yaml). Editors can validate rule files against
+[`rule.schema.json`](../../hooks/arbiter/rule.schema.json).
+
+## Rule file
+
+A YAML mapping with two optional keys and no others.
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jmreicha/agent-tools/main/hooks/arbiter/rule.schema.json
+disable: [general/ask-reset-hard]
+rules:
+  - id: aws/requires-vault
+    match: { cmd: aws }
+    unless: { wrapped_by: aws-vault }
+```
+
+| Key       | Type          | Meaning                                |
+| --------- | ------------- | -------------------------------------- |
+| `disable` | list of ids   | Turn off rules defined in lower layers |
+| `rules`   | list of rules | The rules this file defines            |
+
+An empty file, or one with only comments, is fine.
+
+## Rule
+
+| Field         | Required | Type                          | Default | Meaning                                                          |
+| ------------- | -------- | ----------------------------- | ------- | ---------------------------------------------------------------- |
+| `id`          | yes      | string                        |         | Unique within a layer. Lowercase, `<area>/<name>` by convention. |
+| `tool`        |          | pattern or list of patterns   | `Bash`  | Tool names the rule applies to. Exact names, or `/regex/`.       |
+| `match`       | yes      | matcher or list of matchers   |         | When the rule applies.                                           |
+| `unless`      |          | matcher or list of matchers   |         | What excuses a match.                                            |
+| `action`      |          | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                |
+| `to`          |          | string                        |         | Rewrite target. Only with `action: rewrite`; unused for now.     |
+| `description` |          | string                        |         | What the rule enforces and why. Claude reads it.                 |
+| `hint`        |          | string                        |         | What to do instead. Claude reads it.                             |
+| `tests`       |          | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).         |
+
+`id` must match `^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$`. A rule using the old `reason` key is
+rejected with `unknown key reason (renamed to description)`.
+
+## Matcher
+
+A mapping of one or more of these keys. Every key in a matcher must match. A list of matchers
+under `match` or `unless` means any of them.
+
+| Key          | Type                       | Matches                                                             |
+| ------------ | -------------------------- | ------------------------------------------------------------------- |
+| `cmd`        | pattern or list            | The program, with any directory stripped (`/usr/bin/aws` is `aws`). |
+| `args`       | list of patterns or lists  | Positional arguments, in this order but not necessarily adjacent.   |
+| `flags`      | list of strings            | All of these flags present. `--context` also matches `--context=x`. |
+| `wrapped_by` | string or list             | The command runs inside any of these [wrappers](#wrappers).         |
+| `env`        | mapping of name to pattern | Leading `NAME=value` assignments, e.g. `{ AWS_PROFILE: "prod*" }`.  |
+| `regex`      | `/regex/flags`             | Searched in the simple command's raw text.                          |
+| `path`       | pattern or list            | The tool call's `file_path`. A leading `~` is your home.            |
+
+`cmd`, `args`, `flags`, `wrapped_by`, `env`, and `regex` are command keys and only match Bash
+calls. `path` only matches calls with a `file_path` (Edit, Write, Read). Calls with neither, such
+as MCP tools, can be named in `tool` but have nothing to match yet. The two kinds can't share
+a matcher.
+
+**args.** Flags are removed before matching, but flag _values_ stay, so
+`kubectl --context prod delete pod web` has positionals `[prod, delete, pod, web]`. That is why
+`args` matches in order rather than as a prefix. A nested list is any-of at that position:
+`[config, [set-context, set-cluster]]`.
+
+**flags.** Compared exactly as written, so `-f` doesn't match `-rf`. List both spellings when a
+tool accepts them, as separate matchers if needed.
+
+## Patterns
+
+A pattern is a string. Written `/body/` or `/body/flags` (flags from `i`, `m`, `s`, `u`), it's a
+JavaScript regular expression matched by search. Anything else is a glob matched against the whole
+value: `*` matches any run of characters, `?` one character.
+
+```yaml
+cmd: [terraform, tofu] # exact names
+args: ["delete-*"] # glob
+env: { AWS_PROFILE: "prod*" } # glob
+tool: /^mcp__prod__/ # regex
+regex: "/drop\\s+table/i" # regex, case-insensitive
+```
+
+## Evaluation
+
+For each tool call:
+
+1. Rules whose `tool` matches the call's tool name are considered.
+2. A Bash command is [parsed](#shell-parsing) into simple commands. A rule fires when, for some
+   simple command, `match` matches and `unless` does not match that same simple command. Path
+   rules do the same with `file_path`.
+3. The strictest action among fired rules wins: `deny`, then `ask`, then `warn`. `rewrite` counts
+   as `deny`.
+
+| Action | Effect                                                                                 |
+| ------ | -------------------------------------------------------------------------------------- |
+| `deny` | The call doesn't run. Claude reads one line per fired deny rule.                       |
+| `ask`  | The call waits for you to pick Allow or Refuse. Dismissing it, or `claude -p`, denies. |
+| `warn` | The call runs, and a line is logged to the transcript.                                 |
+
+Each line Claude reads has the form `arbiter <id>: <description> <hint>`, sorted by id, with a
+missing description or hint left out.
+
+If arbiter itself throws or times out while deciding, the call is denied with
+`arbiter failed (<kind>): <message>`.
+
+## Shell parsing
+
+- Commands split on unquoted `&&`, `||`, `;`, `|`, `|&`, `&`, newlines, and subshell parentheses.
+- Quoted text is data: `echo "aws s3 ls"` contains one command, `echo`.
+- `$(...)`, backticks, `<(...)`, and the script of `bash -c` / `sh -c` / `zsh -c` are parsed as
+  commands, and substitutions come before the command that contains them.
+- Heredoc bodies are data, so commit messages written with `<<'EOF'` never trigger rules.
+- Comments, redirections and their targets, and leading reserved words (`if`, `then`, `do`, `!`,
+  ...) are ignored. A bare `--` ends flags.
+- If a command can't be parsed (an unclosed quote or substitution, a heredoc with no end), the
+  whole command becomes one simple command with only raw text, so only `regex` rules can match.
+
+### Wrappers
+
+A wrapper and the command it runs become two simple commands. The wrapped one records the wrapper
+name, outermost first, and inherits wrappers through `bash -c` and substitutions.
+
+| Wrapper     | Consumes before the wrapped command                                         |
+| ----------- | --------------------------------------------------------------------------- |
+| `sudo`      | flags, with values for `-u -g -U -C -h -p -r -t -D`                         |
+| `env`       | flags, with values for `-u -C -S`; `NAME=value` words go to the wrapped env |
+| `time`      | flags, with values for `-f -o`                                              |
+| `nice`      | flags, with a value for `-n`                                                |
+| `timeout`   | flags, with values for `-s -k --signal --kill-after`; then the duration     |
+| `xargs`     | flags, with values for `-I -n -P -L -d -E -s -a`                            |
+| `aws-vault` | `exec` only: everything through `--`, or `exec`, its flags, and the profile |
+| `op`        | `run` only, with a `--`: everything through `--`                            |
+
+So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, lytxread]` and
+`aws` with args `[s3, ls]` and `wrapped_by: aws-vault`.
+
+## Layers
+
+| Order | Layer   | Folder                          |
+| ----- | ------- | ------------------------------- |
+| 1     | plugin  | `<plugin>/rules/`               |
+| 2     | user    | `~/.claude/rules/arbiter/`      |
+| 3     | project | `<repo>/.claude/rules/arbiter/` |
+
+- Files in a layer load in alphabetical order.
+- A rule in a higher layer replaces a lower rule with the same id.
+- `disable` removes rules from lower layers only. An id no lower layer defines is a warning.
+- Two files in the same layer defining the same id is an error: the second file is skipped.
+- A file with any error is skipped as a whole and reported. Other files still load.
+- The project layer is skipped when it's the same folder as the user layer (a session started in
+  your home directory).
+
+## Tests
+
+```yaml
+tests:
+  deny: ["kubectl get pods"]
+  ask: []
+  warn: []
+  allow: ["kubectl --context prod get pods"]
+```
+
+Each input is evaluated against that rule alone. Inputs are Bash commands, or paths for rules
+whose matchers use `path` (a leading `~` is expanded). An input passes when the outcome equals its
+key; `allow` means the rule didn't fire. A `rewrite` rule's inputs go under `deny`.
+
+## Commands
+
+| Command                      | Output                                                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `/arbiter`, `/arbiter help`  | Rule and error counts, then the command list.                                            |
+| `/arbiter init`              | Each layer's folder and rule count, an example rule file, and next steps.                |
+| `/arbiter list [filter]`     | Rules whose id contains `filter`, sorted by id, as an ID/ACTION/LAYER/DESCRIPTION table. |
+| `/arbiter list <id>`         | That rule's YAML.                                                                        |
+| `/arbiter check "<command>"` | The verdict, then each fired rule with its file, description, and hint.                  |
+| `/arbiter test`              | Passed/total, then skipped files by path and failures by id.                             |
+| `/arbiter reload`            | Re-reads rule files and prints counts per layer.                                         |
+| `/arbiter pane`              | Opens a pane with counts, load errors, and the last 100 verdicts.                        |
+
+Quotes around the `check` command are optional; one surrounding pair is removed.

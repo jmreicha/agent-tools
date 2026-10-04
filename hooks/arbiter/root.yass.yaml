@@ -23,7 +23,7 @@ INPUT:
     SEE: index@command
 RETURN:
   - MUST: "let a tool call run unchanged when no rule matches it"
-  - MUST: "refuse a tool call that a `deny` rule matches, giving Claude each matching rule's reason and hint so it can retry correctly"
+  - MUST: "refuse a tool call that a `deny` rule matches, giving Claude each matching rule's description and hint so it can retry correctly"
     SEE: engine@evaluate
   - MUST: "hold a tool call that an `ask` rule matches until the user approves or refuses it"
     SEE: index@guard

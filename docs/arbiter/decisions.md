@@ -182,3 +182,91 @@ which calls `/arbiter test` via `claude -p`.
 
 **Consequences.** Pack tests need an authenticated `claude` CLI, so they're not part of
 `claude plugin test`.
+
+---
+
+## Personal rules live only in the user layer
+
+**Status:** accepted · 2026-10-04
+
+**Context.** The rules codified from `~/.claude/CLAUDE.md` (aws-vault, lytxread, kubectl
+context) were briefly shipped in the plugin's `rules/`, which would turn them on for anyone who
+installs the plugin.
+
+**Decision.** The plugin ships only the small `general/*` pack. Personal rules go in
+`~/.claude/rules/arbiter/`, in one `rules.yaml`; ids are the namespace, so no per-topic files.
+
+**Consequences.** New users start with three rules and `/arbiter init` to show where theirs go.
+
+---
+
+## `description` replaces `reason`
+
+**Status:** accepted · 2026-10-04
+
+**Context.** "Reason" read awkwardly in `/arbiter list` and in the deny line Claude sees.
+
+**Decision.** The field is `description`. A file still using `reason` is rejected with
+`unknown key reason (renamed to description)` rather than accepted silently.
+
+**Consequences.** Old rule files fail loudly once and are fixed by renaming the key.
+
+---
+
+## `/arbiter` is help; output is sorted and quoted
+
+**Status:** accepted · 2026-10-04
+
+**Context.** A bare `/arbiter` opened a pane, which was surprising, and long outputs were hard to
+scan.
+
+**Decision.** `/arbiter` and `/arbiter help` print counts and the command list; the pane moved to
+`/arbiter pane`. Each reply starts with a summary line so Claude Code's `<plugin>: ` prefix
+doesn't break table alignment. `list`, fired rules, test failures, and skipped files are sorted;
+help, layers, and pane verdicts keep their meaningful order. `check` takes an optionally quoted
+command and echoes it back.
+
+**Consequences.** Output is plain text that Claude can still read; layout tricks stay minimal.
+
+---
+
+## Colored output through the `CommandOutput` render site
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Command replies are plain transcript text with no color field.
+
+**Decision.** A `ui.render` hook on `CommandOutput` rows for `arbiter` redraws the same text with
+color: verdicts (deny red, ask/warn yellow, allow green), failures red, error handling (skipped
+files, unknown subcommands, usage) yellow, labels and paths dim. Other commands' rows pass through.
+
+**Consequences.** Color is display-only; the recorded text Claude reads is unchanged. Surfaces
+that don't draw mods (e.g. `claude -p`) show plain text.
+
+---
+
+## JSON Schema for editors, kept in sync by script
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Rule authors had no autocomplete or validation until `/arbiter reload`.
+
+**Decision.** Ship `hooks/arbiter/rule.schema.json` and reference it from rule files with a
+`yaml-language-server` modeline. `rules.ts` stays the validator; `script/arbiter-test` fails if
+the schema's keys drift from it (test files can't import JSON).
+
+**Consequences.** The modeline URL only resolves once `main` is pushed and public.
+
+---
+
+## Tested, commented examples
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Doc snippets go stale silently, and most users start from a working file.
+
+**Decision.** `hooks/arbiter/examples/rules.yaml` holds commented recipes with inline tests,
+using `example/` ids. It never loads by default; `script/arbiter-test` loads it as a temp project
+layer so a broken example fails the check. Overrides are documented but have no example.
+
+**Consequences.** Examples and docs can disagree only in prose, not in behavior.

@@ -1,0 +1,227 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jmreicha/agent-tools/main/hooks/arbiter/rule.schema.json
+#
+# Example arbiter rules. Nothing here loads on its own: copy the file, or the
+# rules you want, into one of these folders and run /arbiter reload.
+#
+#   ~/.claude/rules/arbiter/        your rules, in every repo
+#   <repo>/.claude/rules/arbiter/   rules for one repo, committed with it
+#
+# Rename the ids when you copy them. Ids are how higher layers replace or
+# disable a rule, so pick names you'll recognize: <area>/<what-it-does>.
+#
+# Every rule below has a tests: block. /arbiter test runs them, and
+# script/arbiter-test runs this file's tests so the examples can't go stale.
+# Field-by-field reference: docs/arbiter/reference.md
+
+# Turn off rules from lower layers by id. Here: the shipped rule that asks
+# before `git reset --hard`, for a repo where that's routine.
+# disable: [general/ask-reset-hard]
+
+rules:
+  # --- Forbid a command ----------------------------------------------------
+  # A rule with no `unless` fires whenever `match` does. `args` lists
+  # positional arguments in order; flags in between don't matter, so
+  # `aws --region x sso login` matches too.
+  - id: example/no-sso-login
+    match: { cmd: aws, args: [sso, login] }
+    # description and hint are what Claude reads when the call is denied.
+    # Say why, then what to do instead, so Claude can retry correctly.
+    description: aws sso login leaves plaintext credentials on disk.
+    hint: Use `aws-vault exec <profile> -- aws ...` instead.
+    tests:
+      deny:
+        - aws sso login
+        - aws --region us-east-1 sso login
+      allow:
+        - aws sso list-accounts
+        # Quoted text is data, never a command, so this doesn't trip the rule.
+        - git commit -m "stop using aws sso login"
+
+  # --- Use X instead of Y -------------------------------------------------
+  # The most common CLAUDE.md line ("use uv, not pip") is a plain forbid rule
+  # where the hint does the work: Claude reads it and retries with the right
+  # tool. `cmd` takes a list for several spellings of the same thing.
+  - id: example/use-uv-not-pip
+    match:
+      - { cmd: [pip, pip3] }
+      # `python -m pip`: -m is a flag, and its value `pip` lands in args.
+      - { cmd: [python, python3], flags: [-m], args: [pip] }
+    description: This project manages Python packages with uv.
+    hint: Use `uv add <package>` or `uv pip install <package>` instead of pip.
+    tests:
+      deny:
+        - pip install requests
+        - pip3 install -r requirements.txt
+        - python -m pip install requests
+      allow:
+        - uv add requests
+        - uv pip install requests
+        - python -m pytest
+
+  # --- Require a wrapper ---------------------------------------------------
+  # "X requires Y" is `match` plus `unless`. arbiter unwraps known wrappers
+  # (aws-vault exec, op run, sudo, env, timeout, xargs, ...) and records them,
+  # so `wrapped_by` can check what a command runs inside.
+  - id: example/aws-requires-vault
+    match: { cmd: aws }
+    unless: { wrapped_by: aws-vault }
+    description: AWS access goes through aws-vault.
+    hint: Run `aws-vault exec <profile> -- aws ...`, not `aws --profile`.
+    tests:
+      deny:
+        - aws s3 ls --profile prod
+        # Commands are found after &&, in pipes, and inside $(...).
+        - cd infra && aws s3 ls | head
+        - echo $(aws sts get-caller-identity)
+      allow:
+        - aws-vault exec dev -- aws s3 ls
+        # Wrappers carry through bash -c.
+        - aws-vault exec dev -- bash -c 'aws s3 ls | head'
+
+  # --- Require a flag, with exceptions -------------------------------------
+  # A list under `unless` means any of them excuses the call. Within one
+  # matcher every key must match, so `{ args: [version], flags: [--client] }`
+  # needs both.
+  - id: example/kubectl-context
+    match: { cmd: kubectl }
+    unless:
+      # `flags` matches --context and --context=prod alike.
+      - { flags: [--context] }
+      # kubectl config subcommands don't talk to a cluster.
+      - { args: [config] }
+      - { args: [version], flags: [--client] }
+    description: kubectl must target an explicit context.
+    hint: Pass `--context <existing-context>` (see `kubectl config get-contexts`).
+    tests:
+      deny:
+        - kubectl get pods
+        - kubectl -n kube-system get pods
+      allow:
+        - kubectl --context prod get pods
+        - kubectl get pods --context=prod
+        - kubectl config get-contexts
+        - kubectl version --client
+
+  # --- Ask before something risky ------------------------------------------
+  # action: ask holds the call until you pick Allow or Refuse. In `claude -p`
+  # there is nobody to ask, so it denies. A nested list in `args` is any-of
+  # at that position.
+  - id: example/ask-destructive-kubectl
+    match: { cmd: kubectl, args: [[delete, drain, scale, apply, patch]] }
+    action: ask
+    description: This kubectl command changes cluster state.
+    tests:
+      ask:
+        # Flag values stay in the positionals, which is why args match in
+        # order rather than as a prefix: here they are [prod, delete, pod, web].
+        - kubectl --context prod delete pod web
+        - kubectl --context prod apply -f deploy.yaml
+      allow:
+        - kubectl --context prod get pods
+        # Patterns match whole arguments, so delete-worker isn't delete.
+        - kubectl --context prod logs deploy/delete-worker
+
+  # --- Keep git history in your hands -------------------------------------
+  # Agents like to branch and commit on their own. This asks first, so a
+  # commit you requested still goes through. Use action: deny to forbid it.
+  - id: example/ask-branch-or-commit
+    match:
+      - { cmd: git, args: [switch] }
+      # "*" means "any argument", so this needs a target after checkout.
+      - { cmd: git, args: [checkout, "*"] }
+      - { cmd: git, args: [checkout], flags: [-b] }
+      # `git branch <name>` creates a branch; bare `git branch` only lists,
+      # and has no argument after `branch`, so it doesn't match.
+      - { cmd: git, args: [branch, "*"] }
+      - { cmd: git, args: [worktree, add] }
+      - { cmd: git, args: [commit] }
+    unless:
+      # `git checkout -- <file>` restores files. The parser drops `--`, so
+      # only the raw text can tell it apart: a regex excuses that one form.
+      - { cmd: git, args: [checkout], regex: "/\\s--(\\s|$)/" }
+    action: ask
+    description: Branches, switches, and commits need an explicit request.
+    hint: Leave changes in the working tree and ask before branching or committing.
+    tests:
+      ask:
+        - git switch -c feat/x
+        - git checkout main
+        - git checkout -b feat/x
+        - git branch feat/x
+        - git commit -m "msg"
+        # A heredoc commit, the way Claude writes them. Use a double-quoted
+        # YAML string so \n is a newline; in single quotes it stays a
+        # literal backslash-n and the heredoc never ends.
+        - "git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\""
+      allow:
+        - git status
+        - git branch
+        - git branch --show-current
+        - git checkout -- README.md
+
+  # --- Warn without blocking -----------------------------------------------
+  # action: warn lets the call run and logs a line you can see. Useful while
+  # trying out a new rule before making it deny.
+  - id: example/warn-npm-global
+    match: { cmd: npm, args: [install], flags: [-g] }
+    action: warn
+    description: Global npm installs change the machine, not the project.
+    tests:
+      warn: ["npm install -g typescript"]
+      allow: ["npm install typescript"]
+
+  # --- Match on inline environment -----------------------------------------
+  # `env` checks leading NAME=value assignments. Values are patterns: a plain
+  # string with * or ? is a glob over the whole value.
+  - id: example/no-prod-profile-env
+    match: { env: { AWS_PROFILE: "prod*" } }
+    description: Don't select a prod AWS profile through the environment.
+    hint: Use `aws-vault exec <profile> -- ...` and choose the profile there.
+    tests:
+      deny: ["AWS_PROFILE=prod-admin terraform plan"]
+      allow: ["AWS_PROFILE=dev terraform plan"]
+
+  # --- Protect a file ------------------------------------------------------
+  # Path rules check file tools (Edit, Write, Read) instead of Bash. `tool`
+  # defaults to Bash, so set it. A leading ~ is your home directory.
+  - id: example/kubeconfig-readonly
+    tool: [Edit, Write]
+    match: { path: "~/.kube/config" }
+    description: Claude must not edit ~/.kube/config.
+    hint: Use an existing context, or ask the user to change kube config.
+    tests:
+      # Test inputs for path rules are paths.
+      deny: ["~/.kube/config"]
+      allow: ["~/.kube/config.d/notes"]
+
+  # --- Keep secrets out of reads ------------------------------------------
+  # Path rules can cover Read as well as Edit and Write, and `path` takes a
+  # list. A glob `*` matches across `/`, so `*/.env` means a .env file in any
+  # folder. `unless` works on paths too: here it lets the template through.
+  - id: example/no-secret-files
+    tool: [Read, Edit, Write]
+    match: { path: ["*/.env", "*/.env.*", "~/.ssh/*"] }
+    unless: { path: "*/.env.example" }
+    description: Secret files stay out of the conversation.
+    hint: Ask the user for the specific value you need, or read .env.example.
+    tests:
+      deny:
+        - /repo/.env
+        - /repo/.env.local
+        - ~/.ssh/id_ed25519
+      allow:
+        - /repo/.env.example
+        - /repo/src/env.ts
+        - ~/.sshrc
+
+  # --- Fall back to a regex ------------------------------------------------
+  # `regex` searches one simple command's raw text, for things structure
+  # can't express. Write it as /body/flags; i makes it case-insensitive.
+  # Combine it with cmd so it doesn't fire on unrelated commands.
+  - id: example/ask-drop-table
+    match: { cmd: psql, regex: "/drop\\s+table/i" }
+    action: ask
+    description: This drops a database table.
+    tests:
+      ask: ['psql -c "DROP TABLE users"']
+      allow: ['psql -c "select 1"', 'echo "drop table users"']
