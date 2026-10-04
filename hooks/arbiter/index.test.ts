@@ -5,6 +5,7 @@ const USER = `${HOME}/.claude/rules/arbiter`;
 
 type Opts = {
   unlistable?: string;
+  toolThrows?: boolean;
   files?: Record<string, string>;
   root?: string;
   answer?: string;
@@ -48,6 +49,7 @@ async function boot($: any, on: any, o: Opts = {}) {
     return { value: undefined };
   });
   on("tool.call", ($: any, e: any) => {
+    if (o.toolThrows && e.tool === "Bash") throw new Error("tool exploded");
     if (e.tool !== "AskUserQuestion") return { result: "ran" };
     return o.answer
       ? { result: { answers: { [e.questions[0].question]: o.answer } } }
@@ -510,4 +512,15 @@ test("colorize list header and action cells", async ($, on) => {
   expect((await ui.find({ type: "Text", text: "ask     " })).props.color).toBe(
     "yellow",
   );
+});
+
+test("a failure after the tool ran keeps the tool's own outcome", async ($, on) => {
+  await boot($, on, { files: RULES, toolThrows: true });
+  let outcome: unknown;
+  try {
+    outcome = await $.tool.call({ tool: "Bash", command: "ls" });
+  } catch (err) {
+    outcome = "rejected";
+  }
+  expect(JSON.stringify(outcome ?? null)).not.toContain("arbiter failed");
 });

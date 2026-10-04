@@ -34,6 +34,27 @@ tested. arbiter fills those gaps:
 - **Hundreds of rules stay manageable.** Rules have ids, live in plugin, user, and project layers,
   and can be turned off by id from any higher layer.
 
+### Built on Claude Code mods
+
+arbiter is a [Claude Code mod](https://code.claude.com/docs/en/plugins/mods/overview): functions
+that run inside Claude Code and sit directly in the path of every tool call. That's what makes the
+rest possible. The usual alternatives work from outside:
+
+|                                   | `CLAUDE.md` | Permission rules       | Settings hooks (`PreToolUse`) | arbiter (mod)                         |
+| --------------------------------- | ----------- | ---------------------- | ----------------------------- | ------------------------------------- |
+| Enforced                          | No          | Yes                    | Yes                           | Yes                                   |
+| Matches                           | n/a         | Globs on raw text      | Whatever your script does     | Parsed shell, paths, tools            |
+| Tells Claude why and what instead | n/a         | No                     | Via stderr/JSON               | Yes, per rule                         |
+| Asks you mid-call                 | n/a         | Allow/deny prompt only | Can return "ask"              | Yes, with the rule's reason           |
+| Commands and UI                   | n/a         | No                     | No                            | `/arbiter`, colored output, live pane |
+| Runs                              | n/a         | In Claude Code         | A process per call            | In process, no spawn                  |
+| Fails safe if it breaks           | n/a         | n/a                    | Your script's job             | Yes: a crash denies the call          |
+
+Because it runs in process, arbiter adds no process spawn per tool call, covers subagents and
+`claude -p` runs too, can pause a call to ask you, answers `/arbiter` commands without starting a
+Claude turn, and reloads its rules without a restart. Settings hooks can block calls as well, but
+each check is a separate program you write, parse JSON for, and debug on your own.
+
 arbiter is a guardrail for habits and honest mistakes, not a security boundary. An agent set on
 getting around it can (`eval`, scripts on disk, base64).
 
@@ -181,8 +202,9 @@ failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
 ## Limits
 
 - Rules see one simple command at a time, so pipelines (`curl ... | sh`) can't be expressed yet.
-- Wrappers outside the built-in list (`command`, `exec`, `nohup`, `watch`, `doas`) hide the
-  command from `cmd`-based rules.
+- Wrappers outside the built-in list (for example `stdbuf`, `ionice`, `script`) hide the command
+  from `cmd`-based rules. The list covers `sudo`, `doas`, `env`, `time`, `nice`, `nohup`,
+  `timeout`, `xargs`, `watch`, `exec`, `command`, `builtin`, `aws-vault exec`, and `op run`.
 - Heredoc bodies are treated as data, even unquoted ones that would expand `$(...)`.
 - `action: rewrite` is accepted but acts as `deny` until it's implemented.
 - Rules only fire on Bash commands and on file tools' `file_path`. A rule for an MCP tool can name

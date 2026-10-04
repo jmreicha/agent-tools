@@ -54,6 +54,13 @@ content: |
   nice        flags, with a value for -n
   timeout     flags, with values for -s -k --signal --kill-after; then one duration word
   xargs       flags, with values for -I -n -P -L -d -E -s -a
+  nohup       flags
+  doas        flags, with values for -u -C
+  exec        flags, with a value for -a
+  watch       flags, with values for -n --interval; a single remaining word holding
+              spaces is parsed as a command, as `watch 'kubectl get pods'` runs it
+  command     flags, but not a wrapper when -v or -V is among them (those only look
+  builtin     up the name and run nothing)
 
   For every wrapper, a bare `--` among its flags ends them and is consumed.
   aws-vault   only for `aws-vault exec`: everything through the first `--`; with no `--`,

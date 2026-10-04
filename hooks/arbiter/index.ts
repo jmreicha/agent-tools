@@ -402,9 +402,13 @@ export function register(on) {
   });
 
   on("tool.call", async ($, e, next) => guardCall($, e, next)).catch(
-    async ($, e, next) => ({
-      deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
-    }),
+    async ($, e, next) =>
+      // Once the tool has run, replay its real outcome rather than claim a refusal.
+      next.called
+        ? next(e)
+        : {
+            deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
+          },
   );
 
   on("command.run", { command: "arbiter" }, async ($, e) => runCommand($, e));

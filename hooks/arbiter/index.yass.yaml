@@ -37,6 +37,8 @@ RETURN:
 ERROR:
   - WHEN: "the ask cannot be shown or is dismissed, including in `claude -p`"
     MUST: "answer with `{ deny: message }`"
+  - WHEN: "the guard throws or times out after the call was passed on"
+    MUST: "return the call's own result through the `.catch` handler's replay-safe `next`, never a refusal, since the tool already ran"
   - WHEN: "the guard throws or times out"
     MUST: 'answer with `{ deny: "arbiter failed (<kind>): <message>" }` through the hook''s `.catch` handler'
 SIDE-EFFECT:

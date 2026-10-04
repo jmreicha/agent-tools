@@ -53,6 +53,16 @@ const WRAPPERS: Record<string, Unwrap> = {
       rest.length,
     ),
   xargs: flagsThen(["-I", "-n", "-P", "-L", "-d", "-E", "-s", "-a"]),
+  nohup: flagsThen([]),
+  doas: flagsThen(["-u", "-C"]),
+  exec: flagsThen(["-a"]),
+  watch: flagsThen(["-n", "--interval"]),
+  // `command -v aws` only looks the name up; nothing runs.
+  command: (rest) => {
+    const n = flagsThen([])(rest)!;
+    return rest.slice(0, n).some((f) => f === "-v" || f === "-V") ? null : n;
+  },
+  builtin: flagsThen([]),
   "aws-vault": (rest) => {
     if (rest[0] !== "exec") return null;
     const dd = rest.indexOf("--");
@@ -263,11 +273,15 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
   const cmd = words[i].split("/").pop()!;
   const rest = words.slice(i + 1);
   const n = WRAPPERS[cmd]?.(rest) ?? null;
-  if (n !== null)
-    return [
-      make(raw, cmd, rest.slice(0, n), env, wrappers),
-      ...build(rest.slice(n), raw, [...wrappers, cmd]),
-    ];
+  if (n !== null) {
+    const inner = rest.slice(n);
+    // watch runs a single quoted argument through sh -c.
+    const nested =
+      cmd === "watch" && inner.length === 1 && /\s/.test(inner[0])
+        ? new Lexer(inner[0]).list(false, [...wrappers, cmd])
+        : build(inner, raw, [...wrappers, cmd]);
+    return [make(raw, cmd, rest.slice(0, n), env, wrappers), ...nested];
+  }
   const sub = make(raw, cmd, rest, env, wrappers);
   const script = SHELLS.has(cmd) ? cScript(rest) : null;
   return script === null

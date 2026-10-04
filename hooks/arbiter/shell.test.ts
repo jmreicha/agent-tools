@@ -151,3 +151,17 @@ test("unterminated input falls back to one raw sub-command", () => {
     expect(parse(s)).toEqual(raw(s));
   }
 });
+
+test("more wrappers: nohup, doas, exec, watch, command, builtin", () => {
+  const wrapped = (s: string) =>
+    parse(s).find((c) => c.cmd === "aws")?.wrappers;
+  expect(wrapped("nohup aws s3 ls")).toEqual(["nohup"]);
+  expect(wrapped("doas -u root aws s3 ls")).toEqual(["doas"]);
+  expect(wrapped("exec -a name aws s3 ls")).toEqual(["exec"]);
+  expect(wrapped("watch -n 5 aws s3 ls")).toEqual(["watch"]);
+  expect(wrapped("watch 'aws s3 ls'")).toEqual(["watch"]);
+  expect(wrapped("command aws s3 ls")).toEqual(["command"]);
+  expect(wrapped("builtin aws s3 ls")).toEqual(["builtin"]);
+  expect(cmds("command -v aws")).toEqual(["command"]);
+  expect(cmds("command -V aws")).toEqual(["command"]);
+});

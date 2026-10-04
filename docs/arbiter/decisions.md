@@ -86,8 +86,9 @@ file; convention `<area>/<name>`.
 guard crash would silently drop enforcement.
 
 **Decision.** A file that fails to parse or validate is skipped with a toast and pane entry; other
-files still apply. A guard that throws or times out denies via `.catch`. `ask` with no one to
-answer denies.
+files still apply. A guard that throws or times out before passing the call on denies via
+`.catch`; one that fails after the tool ran replays the tool's real result (the handler's
+replay-safe `next`), since a refusal would be a lie. `ask` with no one to answer denies.
 
 **Consequences.** A broken file means its rules are off until fixed, but never silently.
 

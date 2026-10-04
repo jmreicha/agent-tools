@@ -107,7 +107,8 @@ Each line Claude reads has the form `arbiter <id>: <description> <hint>`, sorted
 missing description or hint left out.
 
 If arbiter itself throws or times out while deciding, the call is denied with
-`arbiter failed (<kind>): <message>`.
+`arbiter failed (<kind>): <message>`. If it fails after the call was already passed on, the
+tool has run, so the call keeps its real result instead.
 
 ## Shell parsing
 
@@ -126,16 +127,22 @@ If arbiter itself throws or times out while deciding, the call is denied with
 A wrapper and the command it runs become two simple commands. The wrapped one records the wrapper
 name, outermost first, and inherits wrappers through `bash -c` and substitutions.
 
-| Wrapper     | Consumes before the wrapped command                                         |
-| ----------- | --------------------------------------------------------------------------- |
-| `sudo`      | flags, with values for `-u -g -U -C -h -p -r -t -D`                         |
-| `env`       | flags, with values for `-u -C -S`; `NAME=value` words go to the wrapped env |
-| `time`      | flags, with values for `-f -o`                                              |
-| `nice`      | flags, with a value for `-n`                                                |
-| `timeout`   | flags, with values for `-s -k --signal --kill-after`; then the duration     |
-| `xargs`     | flags, with values for `-I -n -P -L -d -E -s -a`                            |
-| `aws-vault` | `exec` only: everything through `--`, or `exec`, its flags, and the profile |
-| `op`        | `run` only, with a `--`: everything through `--`                            |
+| Wrapper     | Consumes before the wrapped command                                                |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `sudo`      | flags, with values for `-u -g -U -C -h -p -r -t -D`                                |
+| `env`       | flags, with values for `-u -C -S`; `NAME=value` words go to the wrapped env        |
+| `time`      | flags, with values for `-f -o`                                                     |
+| `nice`      | flags, with a value for `-n`                                                       |
+| `timeout`   | flags, with values for `-s -k --signal --kill-after`; then the duration            |
+| `xargs`     | flags, with values for `-I -n -P -L -d -E -s -a`                                   |
+| `aws-vault` | `exec` only: everything through `--`, or `exec`, its flags, and the profile        |
+| `op`        | `run` only, with a `--`: everything through `--`                                   |
+| `nohup`     | flags                                                                              |
+| `doas`      | flags, with values for `-u -C`                                                     |
+| `exec`      | flags, with a value for `-a`                                                       |
+| `watch`     | flags, with values for `-n --interval`; one quoted argument is parsed as a command |
+| `command`   | flags; not a wrapper with `-v`/`-V`, which only look the name up                   |
+| `builtin`   | flags                                                                              |
 
 So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, lytxread]` and
 `aws` with args `[s3, ls]` and `wrapped_by: aws-vault`.
