@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://textla.dev/yass/v1.schema.json
+---
+description: >
+  arbiter is a Claude Code mod, shipped in the agent-tools plugin, that enforces rules written
+  in a small YAML language at every tool call Claude makes. A rule names a command, flag, path,
+  or tool to stop, optionally excused when a condition holds, and says what Claude should do
+  instead. Rules come from three layers (plugin, user, project) so they stay manageable at
+  hundreds of rules, and each rule carries inline tests.
+version: v1
+related:
+  - ../../docs/arbiter/requirements.md
+  - ../../docs/arbiter/design.md
+  - ../../docs/arbiter/decisions.md
+---
+spec: Arbiter
+INPUT:
+  - MUST: "take every tool call Claude is about to make in a session, including calls made by subagents and calls to MCP tools"
+    SEE: index@guard
+  - MUST: "take its rules from `*.yaml` files in three layers, lowest to highest: the plugin's `rules/` directory, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`"
+    SEE: rules@loadLayers
+  - WHEN: "the user runs `/arbiter`"
+    MUST: "dispatch to the arbiter command"
+    SEE: index@command
+RETURN:
+  - MUST: "let a tool call run unchanged when no rule matches it"
+  - MUST: "refuse a tool call that a `deny` rule matches, giving Claude each matching rule's reason and hint so it can retry correctly"
+    SEE: engine@evaluate
+  - MUST: "hold a tool call that an `ask` rule matches until the user approves or refuses it"
+    SEE: index@guard
+  - MUST: "let a tool call that only `warn` rules match run, after logging a line the user can see"
+    SEE: index@guard
+ERROR:
+  - WHEN: "a rule file is malformed"
+    MUST: "skip that file, report it to the user, and keep enforcing every other file"
+    SEE: rules@parseRuleFile
+  - WHEN: "arbiter itself throws or times out while deciding a tool call"
+    MUST: "refuse the tool call"
+    SEE: index@guard
+SIDE-EFFECT:
+  - MUST: "keep the most recent verdicts in memory for the user to inspect"
+    SEE: index@pane
+INVARIANT:
+  - MUST: "follow the runtime constraints for a Claude Code mod"
+    USES: Runtime
+  - MUST-NOT: "be presented as a security boundary, since matching shell text can be evaded by an agent that tries; it targets habits and honest mistakes"
+---
+design: Runtime
+type: constraint
+content: |
+  - Runs as a Claude Code mod (Claude Code >= v2.1.287). The hooks module is an ES module
+    exporting `register(on, options)`, listed in `hooks/hooks.json` under `modules`.
+  - All I/O goes through the mods API `$` (`$.fs.read`, `$.ui.*`, `$.command.register`).
+  - `shell.ts`, `rules.ts`, and `engine.ts` are pure: no `$`, no I/O, no clock, no globals.
+    Only `index.ts` touches `$`.
+  - No runtime dependency is fetched at install time. A YAML parser, if not hand-written,
+    is vendored into the plugin.
+  - Tests are `*.test.ts` files run by `claude plugin test`.

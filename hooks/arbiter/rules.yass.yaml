@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://textla.dev/yass/v1.schema.json
+---
+description: >
+  Reads arbiter rule files, validates them against the rule format, and merges the three
+  layers into one effective rule set with disable and override by id.
+version: v1
+---
+spec: parseRuleFile
+INPUT:
+  - MUST: "take the text of one rule file, the file's path, and the layer it belongs to (`plugin`, `user`, or `project`)"
+RETURN:
+  - MUST: "return the file's rules, its `disable` list, and a list of errors"
+  - MUST: "accept files written in the rule format"
+    USES: RuleFormat
+  - MUST: "default a rule's `tool` to `Bash` and its `action` to `deny` when omitted"
+  - MUST: "record on each rule the layer and path it came from"
+ERROR:
+  - WHEN: "the text is not valid YAML"
+    MUST: "return no rules and one error carrying the path, the line, and the parser's message"
+  - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id` or `match`, a duplicate `id`, an unknown `action`, an invalid regex, or a matcher mixing `path` with command fields"
+    MUST: "return no rules and one error per problem, each carrying the path, the rule `id` when known, the line when known, and what is wrong"
+  - WHEN: "the file is empty or contains only comments"
+    MUST: "return no rules and no errors"
+  - MUST-NOT: "throw for any input text"
+---
+spec: loadLayers
+INPUT:
+  - MUST: "take, for each layer, the parsed results of every `*.yaml` file in that layer's directory"
+    CONFORMS: parseRuleFile::RETURN
+  - MUST: "treat a layer whose directory does not exist as a layer with no files"
+RETURN:
+  - MUST: "apply layers in the order plugin, user, project, and files within a layer in alphabetical order of file name"
+  - MUST: "replace a rule from a lower layer with a rule of the same `id` from a higher layer"
+  - MUST: "remove a rule from the effective set when a strictly higher layer lists its `id` under `disable`"
+  - MUST-NOT: "let `disable` remove a rule defined in the same layer or a higher one"
+  - MUST: "return the effective rules, plus the list of disabled rules with the layer that disabled each, plus every error and warning"
+ERROR:
+  - WHEN: "a file returned errors from parsing"
+    MUST: "leave that file's rules and `disable` list out entirely and keep its errors"
+  - WHEN: "two files in the same layer define the same `id`"
+    MUST: "keep the rule from the file that sorts first, leave out the second file entirely, and add an error naming both paths"
+  - WHEN: "a `disable` entry names an `id` that no lower layer defines"
+    MUST: "add a warning, not an error"
+---
+design: RuleFormat
+type: schema
+content: |
+  A rule file is a YAML mapping with two optional top-level keys and no others:
+
+    disable: [<id>, ...]     ids from lower layers to turn off
+    rules:   [<rule>, ...]
+
+  A rule is a mapping with these keys and no others:
+
+    id       required. String matching ^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$, by
+             convention <area>/<name>. Unique within a file.
+    tool     string, list of strings, or /regex/. Tool names the rule applies to.
+             Default Bash.
+    match    required. A matcher, or a list of matchers meaning any of them.
+    unless   a matcher, or a list of matchers meaning any of them.
+    action   deny | ask | warn | rewrite. Default deny.
+    to       string. Rewrite target, only allowed with action rewrite.
+    reason   string. Why the rule exists.
+    hint     string. What to do instead.
+    tests    mapping from deny | ask | warn | allow to a list of input strings.
+
+  A matcher is a mapping with one or more of these keys and no others. Command fields and
+  `path` must not appear in the same matcher.
+
+    cmd         string, list of strings, or /regex/       (command field)
+    args        list; each element is a string, a glob, or
+                a nested list meaning any of those          (command field)
+    flags       list of flag names, e.g. [--context]        (command field)
+    wrapped_by  string or list of strings                   (command field)
+    env         mapping of NAME to string or glob           (command field)
+    regex       /regex/                                     (command field)
+    path        string glob or list of globs; leading ~ means the user's home
+
+  A string written /body/ or /body/flags (flags from i, m, s, u) is a JavaScript regular
+  expression. A glob uses * (any run of characters) and ? (one character) and matches the
+  whole value.

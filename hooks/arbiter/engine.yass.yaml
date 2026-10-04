@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://textla.dev/yass/v1.schema.json
+---
+description: >
+  Decides the verdict for one tool call against the effective rule set, and runs a rule's
+  inline tests.
+version: v1
+---
+spec: evaluate
+INPUT:
+  - MUST: "take a tool name, the tool call's arguments, and the effective rule set"
+    CONFORMS: rules@loadLayers::RETURN
+  - MUST: "consider only rules whose `tool` matches the tool name, comparing strings exactly and /regex/ by search"
+RETURN:
+  - MUST: "return a verdict with an `action` of `allow`, `deny`, `ask`, or `warn`, the list of rules that fired, and a `message`"
+  - WHEN: "the tool is Bash"
+    MUST: "parse the `command` argument and test each rule against each sub-command"
+    SEE: shell@parse
+  - WHEN: "the tool call has a `file_path` argument"
+    MUST: "test `path` matchers against `file_path` after expanding a leading `~` to the user's home"
+  - MUST: "fire a rule for a sub-command or path when its `match` matches and its `unless` does not match the same sub-command or path"
+  - MUST: "treat a list of matchers under `match` or `unless` as matching when any one of them matches"
+  - MUST: "match a matcher only when every key it has matches"
+  - MUST: "match `cmd` against the sub-command's `cmd`"
+  - MUST: "match `args` when its elements match positional arguments in order, not necessarily adjacent, each element by exact string, glob, or any-of for a nested list"
+  - MUST: "match `flags` when every listed flag is among the sub-command's `flags`"
+  - MUST: "match `wrapped_by` when any listed name is among the sub-command's `wrappers`"
+  - MUST: "match `env` when every listed name is in the sub-command's `env` with a value matching its string or glob"
+  - MUST: "match `regex` by searching the sub-command's `raw`"
+  - MUST-NOT: "match a matcher holding command fields against a tool call that is not Bash, or a `path` matcher against a call with no `file_path`"
+  - MUST: "treat a fired `rewrite` rule as `deny`"
+  - MUST: "choose the verdict's `action` as the strictest among fired rules, in the order deny, ask, warn, and `allow` when none fired"
+  - WHEN: "the action is `deny`"
+    MUST: "set `message` to one line per fired deny rule, in rule order, of the form `arbiter <id>: <reason> <hint>`, omitting a missing reason or hint"
+  - WHEN: "the action is `ask` or `warn`"
+    MUST: "set `message` to the same line form, built from the fired rules of that action"
+  - WHEN: "the action is `allow`"
+    MUST: "set `message` to an empty string"
+INVARIANT:
+  - MUST: "return the same verdict for the same inputs"
+---
+spec: runRuleTests
+INPUT:
+  - MUST: "take one rule and the user's home directory"
+RETURN:
+  - MUST: "evaluate each input listed in the rule's `tests`, using a rule set holding only that rule"
+    SEE: evaluate
+  - MUST: "use the input as the Bash `command` when the rule's matchers hold command fields, and as `file_path` when they hold `path`, expanding a leading `~` in the input to the given home directory"
+  - MUST: "use the rule's first `tool` name as the tool name, or `Bash` when `tool` is a regex"
+  - MUST: "pass an input when the verdict's action equals the key it is listed under, where `allow` means the rule did not fire and a `rewrite` rule's inputs are listed under `deny`"
+  - MUST: "return one result per input with the rule `id`, the input, the expected and actual action, and whether it passed"
+  - MUST: "return an empty list for a rule without `tests`"

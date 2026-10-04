@@ -23,6 +23,8 @@ into the hundreds.
 
 ## Requirements (v1)
 
+Summary only; the yass specs in `hooks/arbiter/` are normative.
+
 | #   | Requirement                                                                                                                                                      |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | R1  | Rules are YAML files loaded from three layers: plugin-shipped, user (`~/.claude/rules/arbiter/*.yaml`), project (`<repo>/.claude/rules/arbiter/*.yaml`).         |

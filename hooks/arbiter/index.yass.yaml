@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=https://textla.dev/yass/v1.schema.json
+---
+description: >
+  The mod's hooks module. Loads rules, guards every tool call, registers the `/arbiter`
+  command, and draws the pane. The only file that talks to Claude Code.
+version: v1
+---
+spec: load
+INPUT:
+  - MUST: "run on `session.start` and on `/arbiter reload`"
+RETURN:
+  - MUST: "read every `*.yaml` file directly inside the plugin's `rules/`, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`, where `<project>` is the session's project root"
+  - MUST: "parse each file and merge the layers into the effective rule set used by the guard"
+    SEE: rules@loadLayers
+SIDE-EFFECT:
+  - WHEN: "loading produced any errors"
+    MUST: "show one toast naming how many files were skipped, and list each error in the pane"
+  - MUST-NOT: "read rule files again until the next session start or `/arbiter reload`"
+ERROR:
+  - WHEN: "a rule file cannot be read"
+    MUST: "record an error naming the path and skip that file"
+---
+spec: guard
+INPUT:
+  - MUST: "handle `tool.call` for every tool"
+RETURN:
+  - MUST: "evaluate the call against the effective rule set"
+    SEE: engine@evaluate
+  - WHEN: "the verdict is `allow`"
+    MUST: "pass the call on unchanged"
+  - WHEN: "the verdict is `deny`"
+    MUST: "answer the call with `{ deny: message }` without passing it on"
+  - WHEN: "the verdict is `ask`"
+    MUST: "ask the user with the message and the options `Allow` and `Refuse`, pass the call on only if the user picks `Allow`, and otherwise answer with `{ deny: message }`"
+  - WHEN: "the verdict is `warn`"
+    MUST: "log the message to the transcript, then pass the call on unchanged"
+ERROR:
+  - WHEN: "the ask cannot be shown or is dismissed, including in `claude -p`"
+    MUST: "answer with `{ deny: message }`"
+  - WHEN: "the guard throws or times out"
+    MUST: 'answer with `{ deny: "arbiter failed (<kind>): <message>" }` through the hook''s `.catch` handler'
+SIDE-EFFECT:
+  - MUST: "record every verdict other than `allow` with its time, tool, rule ids, and the command or path, keeping the most recent 100"
+---
+spec: command
+INPUT:
+  - MUST: "register `/arbiter` taking an optional subcommand and its arguments"
+  - WHEN: "there is no subcommand"
+    MUST: "open the pane"
+    SEE: pane
+  - WHEN: "the subcommand is `check` followed by a command string"
+    MUST: "evaluate that string as a Bash call without running it, and reply with the action in capitals, then for each fired rule its `id`, layer, path, reason, and hint"
+  - WHEN: "the subcommand is `list`, optionally followed by a filter"
+    MUST: "reply with every effective and disabled rule whose `id` contains the filter, one per line with `id`, action, layer, and whether it is disabled"
+  - WHEN: "the subcommand is `list` followed by an exact rule `id`"
+    MUST: "reply with that rule's YAML as written in its file"
+  - WHEN: "the subcommand is `test`"
+    MUST: "run every effective rule's tests and reply with the count passed and each failure"
+    SEE: engine@runRuleTests
+  - WHEN: "the subcommand is `reload`"
+    MUST: "reload rules and reply with the count of rules per layer and the count of errors"
+    SEE: load
+  - WHEN: "the subcommand is anything else"
+    MUST: "reply with the list of subcommands and their usage"
+RETURN:
+  - MUST: "reply as command text without starting a Claude turn"
+---
+spec: pane
+RETURN:
+  - MUST: "show the count of effective rules per layer and the count of disabled rules"
+  - MUST: "show every load error and warning with its path and message"
+  - MUST: "show the recorded verdicts, newest first, each with time, action, rule ids, and the command or path"
+SIDE-EFFECT:
+  - MUST: "redraw when a verdict is recorded or rules reload"

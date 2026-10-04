@@ -119,3 +119,36 @@ different event and DSL shape. A classifier adds latency and cost.
 **Decision.** The dry-run command is `/arbiter check <command>`. It prints the verdict Claude
 would get (reason + hint) and the matching rules with layer and file, not raw YAML.
 `/arbiter list <id>` prints a rule's YAML when the source is needed.
+
+---
+
+## yass specs are the normative behavior
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Markdown requirements drift and can't be validated. [yass](https://github.com/shakefu/yass)
+expresses behavior as MUST/MUST-NOT obligations per public symbol, validated by `yass validate`
+and `yass lint`, which map directly onto tests.
+
+**Decision.** One `.yass.yaml` per code file under `hooks/arbiter/`, rooted at
+`hooks/arbiter/root.yass.yaml` so the rest of the repo is not governed by it. Markdown keeps the
+overview and the why; specs win on conflict.
+
+**Consequences.** yass is early-stage, so its format may change. Writing the specs surfaced two
+design gaps that were fixed: heredoc bodies must be data, and `args` matches positionals in order
+rather than as a prefix, because flag values (`--context x`) land among positionals.
+
+---
+
+## `match` and `unless` accept a list (any-of)
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Real rules needed OR: `kubectl` is excused by `--context` _or_ `config` subcommands;
+"no new contexts" covers both `kubectl config set-context` and `aws eks update-kubeconfig`.
+
+**Decision.** `match` and `unless` take a matcher or a list of matchers, meaning any of them.
+Fields within one matcher stay ANDed.
+
+**Consequences.** No general boolean expression language. Revisit only if a real rule needs
+nesting.

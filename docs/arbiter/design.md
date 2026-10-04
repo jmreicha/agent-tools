@@ -3,6 +3,11 @@
 See [requirements.md](requirements.md) for scope and [decisions.md](decisions.md) for the
 reasoning behind each choice.
 
+The normative behavior lives in the yass specs under `hooks/arbiter/*.yass.yaml` (start at
+`root.yass.yaml`; browse with `yass list` / `yass query`). Where this overview and a spec
+disagree, the spec wins. Worked rules from `~/.claude/CLAUDE.md` are in
+[examples/claude-md.yaml](examples/claude-md.yaml).
+
 ## Architecture
 
 ```
@@ -94,8 +99,8 @@ rules:
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `id`     | yes      | Unique within a layer. Same id in a higher layer replaces the rule. Convention: `<area>/<name>`.                                                                              |
 | `tool`   | no       | String, list, or `/regex/`. Default `Bash`.                                                                                                                                   |
-| `match`  | yes      | Matcher: when the rule applies.                                                                                                                                               |
-| `unless` | no       | Matcher: if it also matches, the rule does not fire.                                                                                                                          |
+| `match`  | yes      | Matcher, or list of matchers (any-of): when the rule applies.                                                                                                                 |
+| `unless` | no       | Matcher or list (any-of): if it also matches, the rule does not fire.                                                                                                         |
 | `action` | no       | `deny` (default), `ask`, `warn`, `rewrite` (stub → deny, logs "not implemented").                                                                                             |
 | `to`     | no       | Rewrite target; accepted, unused in v1.                                                                                                                                       |
 | `reason` | no       | Why the rule exists; shown to Claude and in `/arbiter check`.                                                                                                                 |
@@ -106,19 +111,21 @@ rules:
 
 Fields in one matcher are ANDed; a list value means "any of".
 
-| Field        | Matches against                                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `cmd`        | argv[0] after unwrapping. String, list, or `/regex/`.                                                              |
-| `args`       | Positional prefix with flags removed. Elements are literals or globs; a nested list means any-of at that position. |
-| `flags`      | All listed flags present. `--context` also matches `--context=x`.                                                  |
-| `wrapped_by` | A wrapper around this sub-command (`aws-vault`, `sudo`, `env`, `op`, …).                                           |
-| `env`        | Inline assignments, e.g. `{ AWS_PROFILE: "*" }`.                                                                   |
-| `regex`      | Raw sub-command text. Fallback for anything structure can't express.                                               |
-| `path`       | Glob against `file_path`; `~` expanded.                                                                            |
+| Field        | Matches against                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cmd`        | argv[0] after unwrapping. String, list, or `/regex/`.                                                                                          |
+| `args`       | Positionals in order, not necessarily adjacent (flag values count as positionals). Elements are literals or globs; a nested list means any-of. |
+| `flags`      | All listed flags present. `--context` also matches `--context=x`.                                                                              |
+| `wrapped_by` | A wrapper around this sub-command (`aws-vault`, `sudo`, `env`, `op`, …).                                                                       |
+| `env`        | Inline assignments, e.g. `{ AWS_PROFILE: "*" }`.                                                                                               |
+| `regex`      | Raw sub-command text. Fallback for anything structure can't express.                                                                           |
+| `path`       | Glob against `file_path`; `~` expanded.                                                                                                        |
 
 ### Shell parsing
 
 - Split on `&&`, `||`, `;`, `|`, newlines; recurse into `$(…)`, backticks, and `bash -c "…"`.
+- Heredoc bodies and quoted text are data, never commands (so a commit message mentioning
+  `aws sso login` is not denied).
 - Tokenize respecting single/double quotes and escapes. Leading `VAR=val` → `env`.
 - Unwrap built-in wrappers, recording each in `wrappers`: `sudo`, `env`, `time`, `nice`,
   `timeout <n>`, `xargs`, `aws-vault exec <profile> --`, `op run --`.
