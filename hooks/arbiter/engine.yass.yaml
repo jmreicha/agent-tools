@@ -7,11 +7,11 @@ version: v1
 ---
 spec: evaluate
 INPUT:
-  - MUST: "take a tool name, the tool call's arguments, and the effective rule set"
+  - MUST: "take a tool name, the tool call's arguments, the effective rule set, and the user's home directory"
     CONFORMS: rules@loadLayers::RETURN
   - MUST: "consider only rules whose `tool` matches the tool name, comparing strings exactly and /regex/ by search"
 RETURN:
-  - MUST: "return a verdict with an `action` of `allow`, `deny`, `ask`, or `warn`, the list of rules that fired, and a `message`"
+  - MUST: "return a verdict with an `action` of `allow`, `deny`, `ask`, or `warn`, every rule that fired whatever its action, and a `message`"
   - WHEN: "the tool is Bash"
     MUST: "parse the `command` argument and test each rule against each sub-command"
     SEE: shell@parse
@@ -20,9 +20,10 @@ RETURN:
   - MUST: "fire a rule for a sub-command or path when its `match` matches and its `unless` does not match the same sub-command or path"
   - MUST: "treat a list of matchers under `match` or `unless` as matching when any one of them matches"
   - MUST: "match a matcher only when every key it has matches"
+  - MUST: "compare a pattern string as a /regex/ by search when written `/body/flags`, otherwise as a whole-value glob"
   - MUST: "match `cmd` against the sub-command's `cmd`"
   - MUST: "match `args` when its elements match positional arguments in order, not necessarily adjacent, each element by exact string, glob, or any-of for a nested list"
-  - MUST: "match `flags` when every listed flag is among the sub-command's `flags`"
+  - MUST: "match `flags` when every listed flag is among the sub-command's `flags`, compared exactly, so `-f` does not match `-rf`"
   - MUST: "match `wrapped_by` when any listed name is among the sub-command's `wrappers`"
   - MUST: "match `env` when every listed name is in the sub-command's `env` with a value matching its string or glob"
   - MUST: "match `regex` by searching the sub-command's `raw`"
@@ -45,7 +46,7 @@ RETURN:
   - MUST: "evaluate each input listed in the rule's `tests`, using a rule set holding only that rule"
     SEE: evaluate
   - MUST: "use the input as the Bash `command` when the rule's matchers hold command fields, and as `file_path` when they hold `path`, expanding a leading `~` in the input to the given home directory"
-  - MUST: "use the rule's first `tool` name as the tool name, or `Bash` when `tool` is a regex"
+  - MUST: "use `Bash` as the tool name for command rules and `Edit` for path rules, with the rule's `tool` replaced by that name for the test"
   - MUST: "pass an input when the verdict's action equals the key it is listed under, where `allow` means the rule did not fire and a `rewrite` rule's inputs are listed under `deny`"
   - MUST: "return one result per input with the rule `id`, the input, the expected and actual action, and whether it passed"
   - MUST: "return an empty list for a rule without `tests`"

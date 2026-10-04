@@ -152,3 +152,33 @@ Fields within one matcher stay ANDed.
 
 **Consequences.** No general boolean expression language. Revisit only if a real rule needs
 nesting.
+
+---
+
+## Rules see one simple command at a time
+
+**Status:** accepted · 2026-10-04
+
+**Context.** `curl … | sh` was planned for the shipped pack, but the parser splits pipelines
+into separate sub-commands and `regex` matches each sub-command's own `raw`.
+
+**Decision.** v1 rules match single sub-commands. Pipeline-aware matching (e.g. a `piped_to`
+field) waits for a real rule that needs it. `general/no-curl-pipe-sh` was dropped.
+
+**Consequences.** Rules about what a command's output is fed into can't be written yet.
+
+---
+
+## Vendored js-yaml; pack tests run through the real mod
+
+**Status:** accepted · 2026-10-04
+
+**Context.** A hooks module may import only its own files and `claude-code`; test files can't
+import `node:fs`.
+
+**Decision.** Vendor js-yaml 4.1.0's single-file ESM build at `hooks/arbiter/vendor/`
+(excluded from pre-commit). Run every rule file's inline tests with `script/arbiter-test`,
+which calls `/arbiter test` via `claude -p`.
+
+**Consequences.** Pack tests need an authenticated `claude` CLI, so they're not part of
+`claude plugin test`.

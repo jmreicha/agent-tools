@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Runs every rule's inline tests through the real mod: shipped pack,
+# your user rules, and docs/arbiter/examples (as a temp project layer).
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/.claude/rules/arbiter"
+cp "$repo"/docs/arbiter/examples/*.yaml "$tmp/.claude/rules/arbiter/"
+out=$(cd "$tmp" && claude --plugin-dir "$repo" -p "/arbiter test" </dev/null)
+echo "$out"
+grep -Eq '^agent-tools: ([0-9]+)/\1 rule tests passed$' <<<"$out"

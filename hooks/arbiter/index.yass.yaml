@@ -9,7 +9,7 @@ spec: load
 INPUT:
   - MUST: "run on `session.start` and on `/arbiter reload`"
 RETURN:
-  - MUST: "read every `*.yaml` file directly inside the plugin's `rules/`, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`, where `<project>` is the session's project root"
+  - MUST: "read every `*.yaml` file directly inside the plugin's `rules/`, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`, where `<project>` is the session's project root, skipping the project layer when its directory is the user layer's directory"
   - MUST: "parse each file and merge the layers into the effective rule set used by the guard"
     SEE: rules@loadLayers
 SIDE-EFFECT:
@@ -53,9 +53,9 @@ INPUT:
   - WHEN: "the subcommand is `list`, optionally followed by a filter"
     MUST: "reply with every effective and disabled rule whose `id` contains the filter, one per line with `id`, action, layer, and whether it is disabled"
   - WHEN: "the subcommand is `list` followed by an exact rule `id`"
-    MUST: "reply with that rule's YAML as written in its file"
+    MUST: "reply with that rule's definition rendered as YAML"
   - WHEN: "the subcommand is `test`"
-    MUST: "run every effective rule's tests and reply with the count passed and each failure"
+    MUST: "run every effective rule's tests and reply with the count passed and each failure, plus the count of skipped rule files and each one with its error, so a broken file cannot pass silently"
     SEE: engine@runRuleTests
   - WHEN: "the subcommand is `reload`"
     MUST: "reload rules and reply with the count of rules per layer and the count of errors"

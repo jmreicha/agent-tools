@@ -10,17 +10,20 @@ spec: parse
 INPUT:
   - MUST: "take one string, the `command` argument of a Bash tool call, as Claude passed it"
 RETURN:
-  - MUST: "return an ordered list of sub-commands, one per simple command in the input, in the order they appear in the text"
+  - MUST: "return an ordered list of sub-commands, one per simple command in the input, in the order they appear in the text, except that substitution sub-commands come before the sub-command containing them because they run first"
   - MUST: "give each sub-command the fields `raw`, `cmd`, `args`, `flags`, `env`, and `wrappers`"
-  - MUST: "set `raw` to the sub-command's source text with surrounding whitespace trimmed"
+  - MUST: "set `raw` to the simple command's source text with surrounding whitespace trimmed; a wrapper and the command it wraps share the same `raw`"
   - MUST: "end a simple command at each unquoted `&&`, `||`, `;`, `|`, `&`, or newline"
   - MUST: "split words on unquoted runs of space (0x20) and tab (0x09)"
   - MUST: "treat text inside single quotes as literal, and text inside double quotes as literal except for `$(...)` and backtick substitutions"
   - MUST: "remove quotes and backslash escapes from words before storing them"
-  - MUST: "parse the body of every `$(...)` and backtick substitution, quoted or not, as a command and append its sub-commands to the result"
+  - MUST: "parse the body of every `$(...)` and backtick substitution, quoted or not, as a command, adding its sub-commands to the result"
   - MUST: "parse the script argument of `bash -c`, `sh -c`, or `zsh -c` as a command and append its sub-commands to the result"
   - MUST: 'treat the body of a heredoc (`<<WORD`, `<<-WORD`, `<<''WORD''`, `<<"WORD"`) as data, never as commands'
   - MUST: "ignore an unquoted `#` that starts a word, and the rest of that line"
+  - MUST: "skip leading shell reserved words (`!`, `{`, `}`, `if`, `then`, `else`, `elif`, `fi`, `do`, `done`, `while`, `until`) before choosing `cmd`"
+  - MUST: "treat unquoted `(` and `)` that open and close a subshell as command boundaries"
+  - MUST: "parse the body of a `<(...)` or `>(...)` process substitution as a command"
   - MUST: "move leading `NAME=value` words into `env` as a name-to-value map, before `cmd` is chosen"
   - MUST: "set `cmd` to the first remaining word, with any directory part removed, so `/usr/bin/aws` becomes `aws`"
   - MUST: "put each word that starts with `-` and is not exactly `-` into `flags`, storing only the part before the first `=`"
@@ -31,7 +34,7 @@ RETURN:
   - MUST: "give a wrapper invocation sub-command only the words that wrapper consumes, so `aws-vault exec lytxread -- aws s3 ls` yields `aws-vault` with `args` `[exec, lytxread]` and `aws` with `args` `[s3, ls]`"
   - MUST: "set `wrappers` on a wrapped sub-command to the names of every wrapper around it, outermost first, including wrappers inherited through `bash -c` and substitutions"
   - MUST: "set `wrappers` to an empty list on a sub-command that has no wrapper"
-  - MUST: "drop simple commands that contain no words, so empty input, whitespace-only input, and empty segments such as a trailing `;` produce no sub-commands"
+  - MUST: "drop simple commands that contain no command word, such as only assignments or reserved words, so empty input, whitespace-only input, and empty segments such as a trailing `;` produce no sub-commands"
   - MUST: "treat redirections (`>`, `>>`, `<`, `2>`, `&>`, `2>&1`) and their targets as neither `args` nor `flags`"
 ERROR:
   - WHEN: "the input has an unterminated quote or substitution, or a heredoc with no terminator"
@@ -45,14 +48,17 @@ type: table
 content: |
   name        consumed before the wrapped command
   ----------  -----------------------------------------------------------
-  sudo        flags; `-u`/`-g` and their values
-  env         flags and NAME=value words (these go into the wrapped `env`)
-  time        flags
-  nice        flags; `-n` and its value
-  timeout     flags; one duration word
-  xargs       flags; `-I`/`-n`/`-P` and their values
-  aws-vault   only for `aws-vault exec`: flags, one profile word, then `--`
-  op          only for `op run`: flags, then `--`
+  sudo        flags, with values for -u -g -U -C -h -p -r -t -D
+  env         flags, with values for -u -C -S (NAME=value words then go into the wrapped `env`)
+  time        flags, with values for -f -o
+  nice        flags, with a value for -n
+  timeout     flags, with values for -s -k --signal --kill-after; then one duration word
+  xargs       flags, with values for -I -n -P -L -d -E -s -a
+
+  For every wrapper, a bare `--` among its flags ends them and is consumed.
+  aws-vault   only for `aws-vault exec`: everything through the first `--`; with no `--`,
+              `exec`, its flags (no values), and one profile word
+  op          only for `op run` with a `--`: everything through the first `--`
 
   A wrapper with nothing after what it consumes is a sub-command with no wrapped command.
   `aws-vault` subcommands other than `exec`, and `op` subcommands other than `run`, are

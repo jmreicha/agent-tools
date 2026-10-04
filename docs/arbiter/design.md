@@ -47,7 +47,7 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
 
 ```yaml
 # ~/.claude/rules/arbiter/cloud.yaml
-disable: [general/no-curl-pipe-sh] # ids from lower layers
+disable: [general/ask-reset-hard] # ids from lower layers
 
 rules:
   - id: aws/no-sso-login
@@ -170,24 +170,23 @@ DENY  aws/requires-vault   (user: ~/.claude/rules/arbiter/cloud.yaml)
 
 ## Testing
 
-- Unit tests (`*.test.ts`, `claude plugin test`) for `shell.ts`, `rules.ts`, `engine.ts`.
-- One test loads every layer and runs each rule's inline `tests:`, so CI fails on regression.
+- Unit tests (`*.test.ts`, `claude plugin test`) for `shell.ts`, `rules.ts`, `engine.ts`, and
+  `index.ts` (stubbed mods API).
+- `script/arbiter-test` runs `/arbiter test` through the real mod with the shipped pack, your user
+  rules, and `docs/arbiter/examples/` as a temp project layer. It fails on any failing rule test
+  or skipped rule file. (Test files can't read from disk, so this can't be a `*.test.ts`.)
 - `/arbiter test` runs the same check in-session.
 
 ## Shipped `general` pack (initial)
 
 `general/no-force-push` (`git push --force`/`-f`, hint `--force-with-lease`),
-`general/no-rm-rf-root` (`rm -rf /`, `~`, `$HOME`), `general/no-curl-pipe-sh`
-(`curl|wget … | sh|bash`). Kept small on purpose.
+`general/no-rm-rf-root` (`rm` of `/`, `~`, `$HOME`), `general/ask-reset-hard` (ask before
+`git reset --hard`). Kept small on purpose.
 
 ## Open items
 
-1. **YAML parser**: spike whether a mod can bundle a vendored parser (e.g. `yaml`) or needs a
-   small subset parser.
-2. **Local imports**: confirm a hooks module can import sibling `.ts` files; if not, build to a
-   single file.
-3. **Gates** (`classic.Stop`): undecided.
-4. **Classifier**: compare `$.model.classify` and Jev (via `$.http.fetch`). Likely shape: an
+1. **Gates** (`classic.Stop`): undecided.
+2. **Classifier**: compare `$.model.classify` and Jev (via `$.http.fetch`). Likely shape: an
    opt-in `judge:` matcher field with a yes/no question and a probability threshold, evaluated
    only after structural matching narrows the call. Jev sends command text to a third party, so
    it needs secret redaction first and must fail closed on timeout.

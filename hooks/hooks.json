@@ -1,0 +1,4 @@
+{
+  "description": "arbiter: enforce YAML rules at every tool call",
+  "modules": ["./arbiter/index.ts"]
+}

@@ -1,4 +1,5 @@
 ---
+exclude: ^hooks/arbiter/vendor/
 repos:
   - repo: local
     hooks:

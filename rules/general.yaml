@@ -1,0 +1,45 @@
+# Shipped with arbiter. Disable any rule from a higher layer:
+#   disable: [general/no-force-push]
+rules:
+  - id: general/no-force-push
+    match:
+      - { cmd: git, args: [push], flags: [--force] }
+      - { cmd: git, args: [push], flags: [-f] }
+    reason: Force-pushing rewrites shared history.
+    hint: Use `git push --force-with-lease` instead.
+    tests:
+      deny:
+        [
+          "git push --force",
+          "git push -f origin main",
+          "git push origin main --force",
+        ]
+      allow:
+        [
+          "git push",
+          "git push --force-with-lease",
+          'git commit -m "no --force here"',
+        ]
+
+  - id: general/no-rm-rf-root
+    match: { cmd: rm, args: ['/^(\/|~|\$HOME|\$\{HOME\})\/?\*?$/'] }
+    reason: This deletes the root or home directory.
+    hint: Name the specific path to delete.
+    tests:
+      deny:
+        [
+          "rm -rf /",
+          "sudo rm -rf ~",
+          "rm -rf $HOME/",
+          "rm -rf /*",
+          "rm -rf ${HOME}",
+        ]
+      allow: ["rm -rf ./build", "rm -rf /tmp/x", "rm -rf ~/scratch"]
+
+  - id: general/ask-reset-hard
+    match: { cmd: git, args: [reset], flags: [--hard] }
+    action: ask
+    reason: git reset --hard discards uncommitted work.
+    tests:
+      ask: ["git reset --hard HEAD~1"]
+      allow: ["git reset --soft HEAD~1", "git reset HEAD file"]
