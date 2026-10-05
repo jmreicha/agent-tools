@@ -331,3 +331,21 @@ pipeline matches it. `path` matchers on Bash also test redirect targets, with `$
 **Consequences.** `bash <(curl …)`, `sh -c "$(curl …)"`, and other non-pipe ways of feeding a
 shell don't match `piped_to`. Ordinary arguments (`cat ~/.aws/credentials`) still aren't paths to
 `path` rules. Inline tests of a path rule exercise `file_path` only, not redirects.
+
+---
+
+## Shell edge cases: only what honest use produces
+
+**Status:** accepted · 2026-10-05
+
+**Context.** Shell offers endless spellings of one action; chasing all of them is whack-a-mole,
+and arbiter is not a security boundary.
+
+**Decision.** Handle a form only when Claude would write it in normal work. Added: Bash arguments
+as `path` candidates (`cat .env`, `cp x ~/.kube/config`), `eval`, here-strings to a shell,
+`find -exec`, and substitutions feeding their command's pipeline (`bash <(curl …)`). Skipped:
+`ssh host '<cmd>'` (runs elsewhere), heredocs fed to a shell, variables as command names.
+
+**Consequences.** A Bash path rule blocks reads and writes alike, and matches any argument word,
+so a broad pattern can fire on unrelated text; keep path patterns specific. New cases are added
+when seen, with a test.

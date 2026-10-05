@@ -81,7 +81,7 @@ function matchSub(m: Matcher, s: SubCommand, subs: SubCommand[]): boolean {
   return true;
 }
 
-// A redirect target as a path: home spelled out, relative made ./ so */x globs match.
+// A redirect target or argument as a path: home spelled out, relative made ./ so */x globs match.
 const target = (t: string, home: string) => {
   const p = expandHome(t.replace(/^\$(\{HOME\}|HOME)(?=\/|$)/, "~"), home);
   return p.startsWith("/") ? p : `./${p}`;
@@ -104,7 +104,9 @@ function fires(
   if (subs.some((s) => onSub(r.match, s) && !onSub(r.unless, s))) return true;
   const files = [
     ...(file === undefined ? [] : [file]),
-    ...subs.flatMap((s) => s.redirects.map((t) => target(t, home))),
+    ...subs.flatMap((s) =>
+      [...s.redirects, ...s.args].map((t) => target(t, home)),
+    ),
   ];
   return files.some((f) => onFile(r.match, f) && !onFile(r.unless, f));
 }

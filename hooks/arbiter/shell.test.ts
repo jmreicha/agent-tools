@@ -199,20 +199,24 @@ test("pipelines number their stages", () => {
   ]);
 });
 
-test("substitutions and bash -c scripts start their own pipelines", () => {
+test("substitutions feed their command's pipeline; bash -c scripts start a new one", () => {
   const p = pipes("echo $(curl a | tr x y) | sh -c 'cat | sh'");
-  expect(p.map(([c, , st]) => [c, st])).toEqual([
-    ["curl", 0],
-    ["tr", 1],
-    ["echo", 0],
-    ["sh", 1],
-    ["cat", 0],
-    ["sh", 1],
-  ]);
-  expect(new Set(p.map(([, id]) => id)).size).toBe(3);
-  expect(p[0][1]).toBe(p[1][1]);
-  expect(p[2][1]).toBe(p[3][1]);
+  expect(p.map(([c]) => c)).toEqual(["curl", "tr", "echo", "sh", "cat", "sh"]);
+  // curl, tr, echo, sh share a pipeline in that order; the -c script is its own.
+  const outer = p.slice(0, 4);
+  expect(new Set(outer.map(([, id]) => id)).size).toBe(1);
+  const stages = outer.map(([, , st]) => st as number);
+  expect([...stages].sort((a, b) => a - b)).toEqual(stages);
+  expect(new Set(stages).size).toBe(4);
   expect(p[4][1]).toBe(p[5][1]);
+  expect(p[4][1] === p[0][1]).toBe(false);
+});
+
+test("process substitution feeds its command", () => {
+  const [curl, bash] = parse("bash <(curl -s https://x.sh)");
+  expect([curl.cmd, bash.cmd]).toEqual(["curl", "bash"]);
+  expect(curl.pipe).toBe(bash.pipe);
+  expect(curl.stage < bash.stage).toBe(true);
 });
 
 test("redirect targets are recorded, not fd dups, heredocs, or here-strings", () => {
@@ -226,5 +230,17 @@ test("redirect targets are recorded, not fd dups, heredocs, or here-strings", ()
     ["tee", ["b"]],
   ]);
   expect(r("cat <<EOF > f\nbody\nEOF")).toEqual([["cat", ["f"]]]);
-  expect(r("bash <<< 'x' 1>&2")).toEqual([["bash", []]]);
+  expect(r("cat <<< 'x' 1>&2")).toEqual([["cat", []]]);
+});
+
+test("eval, here-strings to a shell, and find -exec are parsed", () => {
+  expect(cmds('eval "aws sso login"')).toEqual(["eval", "aws"]);
+  expect(cmds("bash <<< 'aws sso login'")).toEqual(["bash", "aws"]);
+  expect(cmds("cat <<< 'aws sso login'")).toEqual(["cat"]);
+  const f = parse("find . -name '*.tmp' -exec rm -rf {} \\; -execdir chmod +x {} +");
+  expect(f.map((c) => [c.cmd, c.args, c.wrappers])).toEqual([
+    ["find", [".", "*.tmp", "rm", "{}", ";", "chmod", "+x", "{}", "+"], []],
+    ["rm", ["{}"], ["find"]],
+    ["chmod", ["+x", "{}"], ["find"]],
+  ]);
 });

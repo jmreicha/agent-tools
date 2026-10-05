@@ -15,6 +15,9 @@ export type SubCommand = {
 // Pipeline ids, unique within one parse() call.
 let pipes = 0;
 
+// What one simple command's words yield besides the words themselves.
+type Extras = { redirects: string[]; herestrings: string[]; outputs: SubCommand[] };
+
 class ShellError extends Error {}
 
 const RESERVED = new Set([
@@ -122,14 +125,20 @@ class Lexer {
       this.blanks();
       const start = this.i;
       const words: string[] = [];
-      const redirects: string[] = [];
-      this.words(words, out, wrappers, redirects);
+      const x: Extras = { redirects: [], herestrings: [], outputs: [] };
+      const fed = out.length;
+      this.words(words, out, wrappers, x);
+      feed(out.slice(fed), pipe, stage);
+      out.push(...x.outputs);
       const built = build(words, this.s.slice(start, this.i).trim(), wrappers);
       // pipe -1 marks this simple command's own subs; nested scripts are already numbered.
       const own = built.filter((b) => b.pipe === -1);
       for (const b of own) Object.assign(b, { pipe, stage });
-      own.at(-1)?.redirects.push(...redirects);
+      const last = own.at(-1);
+      last?.redirects.push(...x.redirects);
       out.push(...built);
+      if (last && SHELLS.has(last.cmd))
+        for (const h of x.herestrings) out.push(...new Lexer(h).list(false, wrappers));
       if (this.i >= this.s.length) {
         if (inSub || depth > 0) throw new ShellError("unterminated (");
         if (this.heredocs.length)
@@ -169,7 +178,7 @@ class Lexer {
     words: string[],
     out: SubCommand[],
     wrappers: string[],
-    redirects: string[],
+    x: Extras,
   ) {
     for (;;) {
       this.blanks();
@@ -185,15 +194,15 @@ class Lexer {
         return;
       if (c === "&") {
         if (this.s[this.i + 1] !== ">") return;
-        this.redirect(out, wrappers, redirects);
-      } else if (c === "<" || c === ">") this.redirect(out, wrappers, redirects);
+        this.redirect(out, wrappers, x);
+      } else if (c === "<" || c === ">") this.redirect(out, wrappers, x);
       else if (c === "#")
         while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
       else {
         const w = this.word(out, wrappers);
         const next = this.s[this.i];
         if (/^\d+$/.test(w) && (next === "<" || next === ">"))
-          this.redirect(out, wrappers, redirects);
+          this.redirect(out, wrappers, x);
         else words.push(w);
       }
     }
@@ -264,13 +273,14 @@ class Lexer {
     return this.s.slice(start, this.i);
   }
 
-  private redirect(out: SubCommand[], wrappers: string[], redirects: string[]) {
+  private redirect(out: SubCommand[], wrappers: string[], x: Extras) {
     REDIRECT.lastIndex = this.i;
     const op = REDIRECT.exec(this.s)![0];
     this.i += op.length;
     if ((op === "<" || op === ">") && this.s[this.i] === "(") {
       this.i++;
-      out.push(...this.list(true, wrappers));
+      // <(…) feeds the command; >(…) is fed by it, so it stays its own pipeline.
+      (op === "<" ? out : x.outputs).push(...this.list(true, wrappers));
       return;
     }
     if ((op === ">&" || op === "<&") && /[0-9-]/.test(this.s[this.i] ?? "")) {
@@ -282,7 +292,8 @@ class Lexer {
     if (target === "") throw new ShellError(`missing target after ${op}`);
     if (op === "<<" || op === "<<-")
       this.heredocs.push({ delim: target, strip: op === "<<-" });
-    else if (op !== "<<<") redirects.push(target);
+    else if (op === "<<<") x.herestrings.push(target);
+    else x.redirects.push(target);
   }
 
   private readHeredocs() {
@@ -324,10 +335,42 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
     return [make(raw, cmd, rest.slice(0, n), env, wrappers), ...nested];
   }
   const sub = make(raw, cmd, rest, env, wrappers);
-  const script = SHELLS.has(cmd) ? cScript(rest) : null;
+  if (cmd === "find") return [sub, ...findExec(rest, raw, wrappers)];
+  const script = SHELLS.has(cmd)
+    ? cScript(rest)
+    : cmd === "eval"
+      ? rest.join(" ")
+      : null;
   return script === null
     ? [sub]
     : [sub, ...new Lexer(script).list(false, wrappers)];
+}
+
+const EXEC = new Set(["-exec", "-execdir", "-ok", "-okdir"]);
+
+// Commands find runs: the words after -exec up to `;` or `+`.
+function findExec(rest: string[], raw: string, wrappers: string[]): SubCommand[] {
+  const out: SubCommand[] = [];
+  for (let i = 0; i < rest.length; i++) {
+    if (!EXEC.has(rest[i])) continue;
+    let j = i + 1;
+    while (j < rest.length && rest[j] !== ";" && rest[j] !== "+") j++;
+    out.push(...build(rest.slice(i + 1, j), raw, [...wrappers, "find"]));
+    i = j;
+  }
+  return out;
+}
+
+// Substitution output feeds the command it sits in: move those subs into its
+// pipeline between the previous stage and its own, keeping their order.
+function feed(subs: SubCommand[], pipe: number, stage: number) {
+  const max = new Map<number, number>();
+  for (const s of subs) max.set(s.pipe, Math.max(max.get(s.pipe) ?? 0, s.stage));
+  for (const s of subs)
+    Object.assign(s, {
+      stage: stage - 1 + (s.stage + 1) / (max.get(s.pipe)! + 2),
+      pipe,
+    });
 }
 
 function make(

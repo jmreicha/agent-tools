@@ -64,5 +64,8 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
   outputs with probabilities, 70–500 ms, proprietary, limited early access).
 - File-watch auto-reload of rules.
 - Configurable wrapper list.
-- Bash arguments as paths for `path` rules (`cat ~/.aws/credentials`); `eval`, `find -exec`, and
-  here-strings fed to a shell; `bash <(curl …)` as a pipe.
+- `ssh host '<command>'`: the remote command is not parsed.
+
+Shell edge cases are handled only when they show up in honest use (forms Claude writes while doing
+normal work), never to chase deliberate evasion; see Non-goals. Add one when it is seen, with a
+test.

@@ -62,13 +62,13 @@ under `match` or `unless` means any of them.
 | `piped_to`   | matcher of command keys    | A later stage of the same pipeline, e.g. `{ cmd: [sh, bash] }`.                     |
 
 `cmd`, `args`, `flags`, `wrapped_by`, `env`, `regex`, and `piped_to` are command keys and only
-match Bash calls. `path` matches a call's `file_path` (Edit, Write, Read) and, on Bash, the target
-of every file redirection (`>`, `>>`, `<`, `&>`, ...), so add `Bash` to `tool` to catch
-`echo x > ~/.kube/config`. In redirect targets `$HOME` and `${HOME}` count as `~`, and a relative
-target is matched as `./target`, so `*/.env` catches `> .env`. Other arguments, such as the file
-in `cat ~/.aws/credentials`, are not checked yet. Calls with neither, such
-as MCP tools, can be named in `tool` but have nothing to match yet. The two kinds can't share
-a matcher.
+match Bash calls. `path` matches a call's `file_path` (Edit, Write, Read) and, on Bash, every
+file redirection target (`>`, `>>`, `<`, `&>`, ...) and positional argument, so with `Bash` in
+`tool` it catches `echo x > ~/.kube/config`, `cp x ~/.kube/config`, and `cat .env`. `$HOME` and
+`${HOME}` count as `~`, and a relative word is matched as `./word`, so `*/.env` catches `.env`.
+Bash can't tell reading from writing, so such a rule blocks both. Calls that are neither, such as
+MCP tools, can be named in `tool` but have nothing to match yet. The two kinds can't share a
+matcher.
 
 **args.** Flags are removed before matching, but flag _values_ stay, so
 `kubectl --context prod delete pod web` has positionals `[prod, delete, pod, web]`. That is why
@@ -77,9 +77,9 @@ a matcher.
 
 **piped_to.** Fires when the matched command's output feeds a later stage of the same pipeline,
 through `|` or `|&`, directly or not: `curl x | tee f | sh` matches
-`{ cmd: curl, piped_to: { cmd: sh } }`. Wrapped stages count (`| sudo bash`). Substitutions and
-`bash -c` scripts are separate pipelines, and `bash <(curl …)` or `sh -c "$(curl …)"` are not
-pipes, so they don't match.
+`{ cmd: curl, piped_to: { cmd: sh } }`. Wrapped stages count (`| sudo bash`). A `$(…)`, backtick,
+or `<(…)` substitution feeds the command it sits in, so `bash <(curl …)` and
+`sh -c "$(curl …)"` match too. A `bash -c` script is its own pipeline.
 
 **flags.** Compared exactly as written, so `-f` doesn't match `-rf`. List both spellings when a
 tool accepts them, as separate matchers if needed.
@@ -126,10 +126,14 @@ tool has run, so the call keeps its real result instead.
 
 - Commands split on unquoted `&&`, `||`, `;`, `|`, `|&`, `&`, newlines, and subshell parentheses.
 - Quoted text is data: `echo "aws s3 ls"` contains one command, `echo`.
-- `$(...)`, backticks, `<(...)`, and the script of `bash -c` / `sh -c` / `zsh -c` are parsed as
-  commands, and substitutions come before the command that contains them.
+- `$(...)`, backticks, `<(...)`, `>(...)`, the script of `bash -c` / `sh -c` / `zsh -c`, the
+  arguments of `eval`, and a `<<<` here-string given to a shell are parsed as commands.
+  Substitutions come before the command that contains them.
+- `find … -exec cmd … ;` (also `-execdir`, `-ok`, `-okdir`, ending in `;` or `+`) yields `cmd` as
+  a command wrapped by `find`.
+- Redirect targets are recorded for `path` rules; fd duplications like `2>&1` are not.
 - Heredoc bodies are data, so commit messages written with `<<'EOF'` never trigger rules.
-- Comments, redirections and their targets, and leading reserved words (`if`, `then`, `do`, `!`,
+- Comments, redirections, and leading reserved words (`if`, `then`, `do`, `!`,
   ...) are ignored. A bare `--` ends flags.
 - If a command can't be parsed (an unclosed quote or substitution, a heredoc with no end), the
   whole command becomes one simple command with only raw text, so only `regex` rules can match.

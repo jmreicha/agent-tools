@@ -159,7 +159,8 @@ friends.
 ```
 
 **Protect a file.** Path rules apply to the tools listed in `tool`: Edit, Write, and Read check
-`file_path`, and Bash checks redirect targets (`echo x > ~/.kube/config`).
+`file_path`, and Bash checks redirect targets and arguments (`echo x > ~/.kube/config`,
+`cp x ~/.kube/config`).
 
 ```yaml
 - id: k8s/kubeconfig-readonly
@@ -169,10 +170,9 @@ friends.
 ```
 
 Include `Bash` when the rule protects the file itself (config, secrets, generated files), so a
-shell redirect can't route around it. Leave it out when the rule is about _how_ the file is
-edited (a generator that writes with `>` should still work), or when the pattern matches common
-output targets like `*.log` or `/tmp/*`. Plain arguments (`cp x ~/.kube/config`) aren't checked
-yet.
+shell command can't route around it. Bash can't tell reading from writing, so it blocks both.
+Leave it out when the rule is about _how_ the file is edited (a generator that writes with `>`
+should still work), or when the pattern matches common output targets like `*.log` or `/tmp/*`.
 
 **Fall back to a regex** when structure can't express it. `regex` searches one simple command's
 text.
@@ -226,7 +226,6 @@ failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
   `timeout`, `xargs`, `watch`, `exec`, `command`, `builtin`, `aws-vault exec`, and `op run`.
 - Heredoc bodies are treated as data, even unquoted ones that would expand `$(...)`.
 - `action: rewrite` is accepted but acts as `deny` until it's implemented.
-- Path rules see file tools' `file_path` and Bash redirect targets, not other Bash arguments.
 - Rules only fire on Bash commands and on file tools' `file_path`. A rule for an MCP tool can name
   it in `tool`, but has nothing to match yet.
 

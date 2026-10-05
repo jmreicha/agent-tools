@@ -19,6 +19,9 @@ RETURN:
   - MUST: "remove quotes and backslash escapes from words before storing them"
   - MUST: "parse the body of every `$(...)` and backtick substitution, quoted or not, as a command, adding its sub-commands to the result"
   - MUST: "parse the script argument of `bash -c`, `sh -c`, or `zsh -c` as a command and append its sub-commands to the result"
+  - MUST: "parse the arguments of `eval`, joined by single spaces, as a command and append its sub-commands to the result"
+  - MUST: "parse the word of a `<<<` here-string given to `bash`, `sh`, or `zsh` as a command and append its sub-commands to the result"
+  - MUST: "parse the words after each `-exec`, `-execdir`, `-ok`, or `-okdir` of `find`, up to a `;` or `+` word, as a wrapped command, appending its sub-commands with `find` added to `wrappers`"
   - MUST: 'treat the body of a heredoc (`<<WORD`, `<<-WORD`, `<<''WORD''`, `<<"WORD"`) as data, never as commands'
   - MUST: "ignore an unquoted `#` that starts a word, and the rest of that line"
   - MUST: "skip leading shell reserved words (`!`, `{`, `}`, `if`, `then`, `else`, `elif`, `fi`, `do`, `done`, `while`, `until`) before choosing `cmd`"
@@ -41,7 +44,8 @@ RETURN:
   - MUST-NOT: "put heredoc delimiters, here-string words, or file-descriptor duplications such as `2>&1` into `redirects`"
   - MUST: "give every sub-command of one pipeline the same `pipe` number, unique within one `parse` call, and a `stage` counting from 0 that increases by one at each unquoted `|` or `|&`"
   - MUST: "give the wrapper and wrapped sub-commands of one simple command the same `pipe` and `stage`"
-  - MUST: "start a new pipeline for the sub-commands of each substitution, process substitution, and `bash -c` script"
+  - MUST: "start a new pipeline for the sub-commands of each `bash -c` script"
+  - MUST: "place the sub-commands of a `$(…)`, backtick, or `<(…)` substitution inside a simple command's words into that command's pipeline at stages after the previous stage and before the command's own, keeping their relative order, since their output feeds the command"
 ERROR:
   - WHEN: "the input has an unterminated quote or substitution, or a heredoc with no terminator"
     MUST: "return exactly one sub-command whose `raw` is the whole input and whose `cmd` is empty, so only regex rules can match it"
