@@ -54,7 +54,7 @@ function inOrder(want: (string | string[])[], have: string[]): boolean {
   return true;
 }
 
-function matchSub(m: Matcher, s: SubCommand): boolean {
+function matchSub(m: Matcher, s: SubCommand, subs: SubCommand[]): boolean {
   if (m.cmd !== undefined && !like(m.cmd, s.cmd)) return false;
   if (m.args !== undefined && !inOrder(m.args, s.args)) return false;
   if (m.flags !== undefined && !m.flags.every((f) => s.flags.includes(f)))
@@ -70,8 +70,22 @@ function matchSub(m: Matcher, s: SubCommand): boolean {
   )
     return false;
   if (m.regex !== undefined && !pattern(m.regex).test(s.raw)) return false;
+  if (
+    m.piped_to !== undefined &&
+    !subs.some(
+      (t) =>
+        t.pipe === s.pipe && t.stage > s.stage && matchSub(m.piped_to!, t, subs),
+    )
+  )
+    return false;
   return true;
 }
+
+// A redirect target as a path: home spelled out, relative made ./ so */x globs match.
+const target = (t: string, home: string) => {
+  const p = expandHome(t.replace(/^\$(\{HOME\}|HOME)(?=\/|$)/, "~"), home);
+  return p.startsWith("/") ? p : `./${p}`;
+};
 
 function fires(
   r: Rule,
@@ -80,7 +94,7 @@ function fires(
   home: string,
 ): boolean {
   const onSub = (ms: Matcher[], s: SubCommand) =>
-    ms.some((m) => m.path === undefined && matchSub(m, s));
+    ms.some((m) => m.path === undefined && matchSub(m, s, subs));
   const onFile = (ms: Matcher[], f: string) =>
     ms.some(
       (m) =>
@@ -88,7 +102,11 @@ function fires(
         list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
     );
   if (subs.some((s) => onSub(r.match, s) && !onSub(r.unless, s))) return true;
-  return file !== undefined && onFile(r.match, file) && !onFile(r.unless, file);
+  const files = [
+    ...(file === undefined ? [] : [file]),
+    ...subs.flatMap((s) => s.redirects.map((t) => target(t, home))),
+  ];
+  return files.some((f) => onFile(r.match, f) && !onFile(r.unless, f));
 }
 
 function line(r: Rule): string {

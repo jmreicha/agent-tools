@@ -29,17 +29,18 @@ An empty file, or one with only comments, is fine.
 
 ## Rule
 
-| Field         | Required | Type                          | Default | Meaning                                                          |
-| ------------- | -------- | ----------------------------- | ------- | ---------------------------------------------------------------- |
-| `id`          | yes      | string                        |         | Unique within a layer. Lowercase, `<area>/<name>` by convention. |
-| `tool`        |          | pattern or list of patterns   | `Bash`  | Tool names the rule applies to. Exact names, or `/regex/`.       |
-| `match`       | yes      | matcher or list of matchers   |         | When the rule applies.                                           |
-| `unless`      |          | matcher or list of matchers   |         | What excuses a match.                                            |
-| `action`      |          | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                |
-| `to`          |          | string                        |         | Rewrite target. Only with `action: rewrite`; unused for now.     |
-| `description` |          | string                        |         | What the rule enforces and why. Claude reads it.                 |
-| `hint`        |          | string                        |         | What to do instead. Claude reads it.                             |
-| `tests`       |          | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).         |
+| Field         | Required | Type                          | Default | Meaning                                                                                                                 |
+| ------------- | -------- | ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes      | string                        |         | Unique within a layer. Lowercase, `<area>/<name>` by convention.                                                        |
+| `tool`        |          | pattern or list of patterns   | `Bash`  | Tool names the rule applies to. Exact names, or `/regex/`.                                                              |
+| `match`       | yes      | matcher or list of matchers   |         | When the rule applies.                                                                                                  |
+| `unless`      |          | matcher or list of matchers   |         | What excuses a match.                                                                                                   |
+| `action`      |          | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                                                                       |
+| `to`          |          | string                        |         | Rewrite target. Only with `action: rewrite`; unused for now.                                                            |
+| `description` |          | string                        |         | What the rule enforces and why. Claude reads it.                                                                        |
+| `hint`        |          | string                        |         | What to do instead. Claude reads it.                                                                                    |
+| `enabled`     |          | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`; `/arbiter test` still runs its tests. |
+| `tests`       |          | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).                                                                |
 
 `id` must match `^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$`. A rule using the old `reason` key is
 rejected with `unknown key reason (renamed to description)`.
@@ -49,18 +50,23 @@ rejected with `unknown key reason (renamed to description)`.
 A mapping of one or more of these keys. Every key in a matcher must match. A list of matchers
 under `match` or `unless` means any of them.
 
-| Key          | Type                       | Matches                                                             |
-| ------------ | -------------------------- | ------------------------------------------------------------------- |
-| `cmd`        | pattern or list            | The program, with any directory stripped (`/usr/bin/aws` is `aws`). |
-| `args`       | list of patterns or lists  | Positional arguments, in this order but not necessarily adjacent.   |
-| `flags`      | list of strings            | All of these flags present. `--context` also matches `--context=x`. |
-| `wrapped_by` | string or list             | The command runs inside any of these [wrappers](#wrappers).         |
-| `env`        | mapping of name to pattern | Leading `NAME=value` assignments, e.g. `{ AWS_PROFILE: "prod*" }`.  |
-| `regex`      | `/regex/flags`             | Searched in the simple command's raw text.                          |
-| `path`       | pattern or list            | The tool call's `file_path`. A leading `~` is your home.            |
+| Key          | Type                       | Matches                                                                             |
+| ------------ | -------------------------- | ----------------------------------------------------------------------------------- |
+| `cmd`        | pattern or list            | The program, with any directory stripped (`/usr/bin/aws` is `aws`).                 |
+| `args`       | list of patterns or lists  | Positional arguments, in this order but not necessarily adjacent.                   |
+| `flags`      | list of strings            | All of these flags present. `--context` also matches `--context=x`.                 |
+| `wrapped_by` | string or list             | The command runs inside any of these [wrappers](#wrappers).                         |
+| `env`        | mapping of name to pattern | Leading `NAME=value` assignments, e.g. `{ AWS_PROFILE: "prod*" }`.                  |
+| `regex`      | `/regex/flags`             | Searched in the simple command's raw text.                                          |
+| `path`       | pattern or list            | The tool call's `file_path`, and Bash redirect targets. A leading `~` is your home. |
+| `piped_to`   | matcher of command keys    | A later stage of the same pipeline, e.g. `{ cmd: [sh, bash] }`.                     |
 
-`cmd`, `args`, `flags`, `wrapped_by`, `env`, and `regex` are command keys and only match Bash
-calls. `path` only matches calls with a `file_path` (Edit, Write, Read). Calls with neither, such
+`cmd`, `args`, `flags`, `wrapped_by`, `env`, `regex`, and `piped_to` are command keys and only
+match Bash calls. `path` matches a call's `file_path` (Edit, Write, Read) and, on Bash, the target
+of every file redirection (`>`, `>>`, `<`, `&>`, ...), so add `Bash` to `tool` to catch
+`echo x > ~/.kube/config`. In redirect targets `$HOME` and `${HOME}` count as `~`, and a relative
+target is matched as `./target`, so `*/.env` catches `> .env`. Other arguments, such as the file
+in `cat ~/.aws/credentials`, are not checked yet. Calls with neither, such
 as MCP tools, can be named in `tool` but have nothing to match yet. The two kinds can't share
 a matcher.
 
@@ -68,6 +74,12 @@ a matcher.
 `kubectl --context prod delete pod web` has positionals `[prod, delete, pod, web]`. That is why
 `args` matches in order rather than as a prefix. A nested list is any-of at that position:
 `[config, [set-context, set-cluster]]`.
+
+**piped_to.** Fires when the matched command's output feeds a later stage of the same pipeline,
+through `|` or `|&`, directly or not: `curl x | tee f | sh` matches
+`{ cmd: curl, piped_to: { cmd: sh } }`. Wrapped stages count (`| sudo bash`). Substitutions and
+`bash -c` scripts are separate pipelines, and `bash <(curl …)` or `sh -c "$(curl …)"` are not
+pipes, so they don't match.
 
 **flags.** Compared exactly as written, so `-f` doesn't match `-rf`. List both spellings when a
 tool accepts them, as separate matchers if needed.
@@ -228,3 +240,10 @@ shows one toast and never blocks the call. Files older than 90 days are pruned a
 (the current session's file and symbolic links never are); `/arbiter history prune [days]` prunes
 on demand. Query the raw log with `jq`, e.g.
 `jq -s 'map(select(.action=="deny"))' ~/.claude/arbiter/history/*.jsonl`.
+
+## Indicators
+
+A denied call, or an ask you refuse, shows a toast such as
+`arbiter denied aws sso login (aws/no-sso-login)`, using the [history](#history) target. The status
+line keeps a per-session count, e.g. `arbiter: 2 denied · 1 asked`, and stays empty until
+something fires. Warnings already log a line, and asks already prompt.

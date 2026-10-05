@@ -40,6 +40,9 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 | R11 | A pane shows recent verdicts, rule counts per layer, and load errors.                                                                                                                                                                                                              |
 | R12 | Ship a small `general` pack (≈3–5 rules) that users can disable by id.                                                                                                                                                                                                             |
 | R13 | Every `deny`/`ask`/`warn` hit is logged per session with rule ids, action, tool, ask outcome, and a redacted target; `/arbiter history` reports per-rule counts for tuning and audit; files older than 90 days are pruned at session start and by `/arbiter history prune [days]`. |
+| R14 | A rule can be switched off in place with `enabled: false` (default `true`); its tests still run.                                                                                                                                                                                   |
+| R15 | A blocked call shows a toast, and the status line counts denied and asked calls per session.                                                                                                                                                                                       |
+| R16 | Rules can match a command piped into another (`piped_to`), and `path` rules see Bash redirect targets.                                                                                                                                                                             |
 
 ## Success criteria
 
@@ -61,3 +64,5 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
   outputs with probabilities, 70–500 ms, proprietary, limited early access).
 - File-watch auto-reload of rules.
 - Configurable wrapper list.
+- Bash arguments as paths for `path` rules (`cat ~/.aws/credentials`); `eval`, `find -exec`, and
+  here-strings fed to a shell; `bash <(curl …)` as a pipe.

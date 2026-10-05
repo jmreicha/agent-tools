@@ -296,3 +296,38 @@ never blocks the call. No tamper protection.
 up to two leading lowercase word arguments (`aws s3 rm`), never other arguments; file tools keep
 the path; other tools keep nothing beyond their name. Automatic pruning means hits older than 90
 days are gone; keep copies elsewhere if an audit needs longer.
+
+---
+
+## `enabled` field and blocked-call indicators
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Turning a rule off meant commenting it out or using `disable:` from a higher layer.
+And a denied call left no visible trace for the user; only Claude saw the message.
+
+**Decision.** Rules take `enabled` (default `true`); `false` moves the rule to the disabled list
+after layers merge, so a higher layer can still redefine it and a `disable:` entry for it is no
+warning. Its tests keep running. A deny or refused ask shows one toast with the redacted target;
+the status line counts denied and asked calls per session. Warn and ask get nothing new.
+
+**Consequences.** Toasts are per blocked call; if that proves noisy, drop them and keep the status
+line.
+
+---
+
+## Pipelines and redirect targets in the parser
+
+**Status:** accepted · 2026-10-04
+
+**Context.** `curl … | sh` parsed as two unrelated commands, and `echo x > ~/.kube/config` dropped
+its target, so path rules never saw writes made through Bash.
+
+**Decision.** Each sub-command carries `pipe` (an id per pipeline) and `stage` (its position), and
+`redirects` (file redirection targets). A `piped_to` matcher fires when a later stage of the same
+pipeline matches it. `path` matchers on Bash also test redirect targets, with `$HOME` treated as
+`~` and relative targets prefixed `./`.
+
+**Consequences.** `bash <(curl …)`, `sh -c "$(curl …)"`, and other non-pipe ways of feeding a
+shell don't match `piped_to`. Ordinary arguments (`cat ~/.aws/credentials`) still aren't paths to
+`path` rules. Inline tests of a path rule exercise `file_path` only, not redirects.

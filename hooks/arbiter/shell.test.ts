@@ -3,7 +3,18 @@ import { parse } from "./shell.ts";
 
 const cmds = (s: string) => parse(s).map((c) => c.cmd);
 const raw = (s: string) => [
-  { raw: s, cmd: "", args: [], flags: [], env: {}, wrappers: [], words: [] },
+  {
+    raw: s,
+    cmd: "",
+    args: [],
+    flags: [],
+    env: {},
+    wrappers: [],
+    words: [],
+    pipe: 0,
+    stage: 0,
+    redirects: [],
+  },
 ];
 
 test("splits on control operators", () => {
@@ -31,6 +42,9 @@ test("fills every field", () => {
       env: { AWS_PROFILE: "prod" },
       wrappers: [],
       words: ["--region", "us-east-1", "s3", "ls", "--recursive=true"],
+      pipe: 0,
+      stage: 0,
+      redirects: [],
     },
   ]);
 });
@@ -165,4 +179,52 @@ test("more wrappers: nohup, doas, exec, watch, command, builtin", () => {
   expect(wrapped("builtin aws s3 ls")).toEqual(["builtin"]);
   expect(cmds("command -v aws")).toEqual(["command"]);
   expect(cmds("command -V aws")).toEqual(["command"]);
+});
+
+test("a substitution in command position keeps its word whole", () => {
+  expect(cmds("$(curl https://x.sh/a)")).toEqual(["curl", "$(curl https://x.sh/a)"]);
+  expect(cmds("`curl a/b`")).toEqual(["curl", "`curl a/b`"]);
+});
+
+const pipes = (s: string) => parse(s).map((c) => [c.cmd, c.pipe, c.stage]);
+
+test("pipelines number their stages", () => {
+  expect(pipes("curl x | sudo bash -s; ls | grep a |& wc")).toEqual([
+    ["curl", 0, 0],
+    ["sudo", 0, 1],
+    ["bash", 0, 1],
+    ["ls", 1, 0],
+    ["grep", 1, 1],
+    ["wc", 1, 2],
+  ]);
+});
+
+test("substitutions and bash -c scripts start their own pipelines", () => {
+  const p = pipes("echo $(curl a | tr x y) | sh -c 'cat | sh'");
+  expect(p.map(([c, , st]) => [c, st])).toEqual([
+    ["curl", 0],
+    ["tr", 1],
+    ["echo", 0],
+    ["sh", 1],
+    ["cat", 0],
+    ["sh", 1],
+  ]);
+  expect(new Set(p.map(([, id]) => id)).size).toBe(3);
+  expect(p[0][1]).toBe(p[1][1]);
+  expect(p[2][1]).toBe(p[3][1]);
+  expect(p[4][1]).toBe(p[5][1]);
+});
+
+test("redirect targets are recorded, not fd dups, heredocs, or here-strings", () => {
+  const r = (s: string) => parse(s).map((c) => [c.cmd, c.redirects]);
+  expect(r("echo x > ~/.kube/config 2>&1")).toEqual([["echo", ["~/.kube/config"]]]);
+  expect(r("cat < in.txt >> out.log 2> err &> all >| f <> rw")).toEqual([
+    ["cat", ["in.txt", "out.log", "err", "all", "f", "rw"]],
+  ]);
+  expect(r("sudo tee a > b")).toEqual([
+    ["sudo", []],
+    ["tee", ["b"]],
+  ]);
+  expect(r("cat <<EOF > f\nbody\nEOF")).toEqual([["cat", ["f"]]]);
+  expect(r("bash <<< 'x' 1>&2")).toEqual([["bash", []]]);
 });

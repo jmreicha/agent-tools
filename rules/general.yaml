@@ -6,6 +6,8 @@ rules:
     match:
       - { cmd: git, args: [push], flags: [--force] }
       - { cmd: git, args: [push], flags: [-f] }
+      # A leading + on a refspec force-pushes that ref.
+      - { cmd: git, args: [push, "+*"] }
     description: Force-pushing rewrites shared history.
     hint: Use `git push --force-with-lease` instead.
     tests:
@@ -14,6 +16,8 @@ rules:
           "git push --force",
           "git push -f origin main",
           "git push origin main --force",
+          "git push origin +main",
+          "git push origin +HEAD:main",
         ]
       allow:
         [

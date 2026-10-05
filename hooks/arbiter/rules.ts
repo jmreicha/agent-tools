@@ -12,6 +12,7 @@ export type Matcher = {
   env?: Record<string, string>;
   regex?: string;
   path?: string | string[];
+  piped_to?: Matcher;
 };
 export type Rule = {
   id: string;
@@ -22,6 +23,7 @@ export type Rule = {
   to?: string;
   description?: string;
   hint?: string;
+  enabled: boolean;
   tests: Partial<Record<Outcome, string[]>>;
   layer: Layer;
   path: string;
@@ -42,7 +44,8 @@ export type ParsedFile = {
 };
 export type RuleSet = {
   rules: Rule[];
-  disabled: { rule: Rule; by: Layer }[];
+  // by "self": the rule has enabled: false.
+  disabled: { rule: Rule; by: Layer | "self" }[];
   errors: Problem[];
   warnings: Problem[];
 };
@@ -56,6 +59,7 @@ const RULE_KEYS = [
   "to",
   "description",
   "hint",
+  "enabled",
   "tests",
 ];
 const MATCHER_KEYS = [
@@ -66,6 +70,7 @@ const MATCHER_KEYS = [
   "env",
   "regex",
   "path",
+  "piped_to",
 ];
 const ACTIONS = ["deny", "ask", "warn", "rewrite"];
 const OUTCOMES = ["deny", "ask", "warn", "allow"];
@@ -123,6 +128,11 @@ function checkMatcher(m: unknown, where: string, out: string[]) {
     if (isStr(m.regex) && REGEX.test(m.regex)) patterns.push(m.regex);
     else out.push(`${where}.regex must be written /body/flags`);
   }
+  if ("piped_to" in m) {
+    checkMatcher(m.piped_to, `${where}.piped_to`, out);
+    if (isObj(m.piped_to) && "path" in m.piped_to)
+      out.push(`${where}.piped_to: path is not allowed in piped_to`);
+  }
   if ("path" in m) {
     if (strOrStrs(m.path)) patterns.push(...[m.path].flat());
     else out.push(`${where}.path must be a string or list of strings`);
@@ -170,6 +180,8 @@ function checkRule(r: unknown, i: number, out: string[]) {
     out.push("to must be a string and needs action: rewrite");
   for (const k of ["description", "hint"] as const)
     if (k in r && !isStr(r[k])) out.push(`${k} must be a string`);
+  if ("enabled" in r && typeof r.enabled !== "boolean")
+    out.push("enabled must be true or false");
   if ("tests" in r) {
     if (!isObj(r.tests)) out.push("tests must be a mapping");
     else
@@ -258,6 +270,7 @@ export function parseRuleFile(
     to: r.to as string | undefined,
     description: r.description as string | undefined,
     hint: r.hint as string | undefined,
+    enabled: r.enabled !== false,
     tests: (r.tests as Rule["tests"] | undefined) ?? {},
     layer,
     path,
@@ -319,5 +332,7 @@ export function loadLayers(files: ParsedFile[]): RuleSet {
     }
     for (const r of added) byId.set(r.id, r);
   }
-  return { rules: [...byId.values()], disabled, errors, warnings };
+  const all = [...byId.values()];
+  for (const r of all) if (!r.enabled) disabled.push({ rule: r, by: "self" });
+  return { rules: all.filter((r) => r.enabled), disabled, errors, warnings };
 }

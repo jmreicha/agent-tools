@@ -30,6 +30,9 @@ RETURN:
     MUST: "pass the call on unchanged"
   - WHEN: "the verdict is `deny`"
     MUST: "answer the call with `{ deny: message }` without passing it on"
+  - WHEN: "the verdict is `deny`, or `ask` and refused"
+    MUST: "show a toast `arbiter denied <target> (<rule ids>)`, where `<target>` is the history target, or the tool name when there is none"
+    SEE: history
   - WHEN: "the verdict is `ask`"
     MUST: "ask the user with the message and the options `Allow` and `Refuse`, pass the call on only if the user picks `Allow`, and otherwise answer with `{ deny: message }`"
   - WHEN: "the verdict is `warn`"
@@ -42,6 +45,7 @@ ERROR:
   - WHEN: "the guard throws or times out"
     MUST: 'answer with `{ deny: "arbiter failed (<kind>): <message>" }` through the hook''s `.catch` handler'
 SIDE-EFFECT:
+  - MUST: "keep a status line counting this session's denied and asked calls, `arbiter: <n> denied · <m> asked`, leaving out a zero part and showing nothing while both are zero"
   - MUST: "record every verdict other than `allow` with its time, tool, rule ids, and the command or path, keeping the most recent 100"
   - MUST: "append every verdict other than `allow` to the session's history once its outcome is known"
     SEE: history
@@ -59,11 +63,11 @@ INPUT:
   - WHEN: "the subcommand is `check` with no command string"
     MUST: "reply with the usage of `check`, what it does, and one example, showing the command in double quotes"
   - WHEN: "the subcommand is `list`, optionally followed by a filter"
-    MUST: "reply with a line counting the rules shown, then a table, columns aligned under an `ID ACTION LAYER DESCRIPTION` header, of every effective and disabled rule whose `id` contains the filter, sorted by `id`, marking a disabled rule's description with the layer that disabled it"
+    MUST: "reply with a line counting the rules shown, then a table, columns aligned under an `ID ACTION LAYER DESCRIPTION` header, of every effective and disabled rule whose `id` contains the filter, sorted by `id`, marking a disabled rule's description with the layer that disabled it, or with `enabled: false` when the rule disabled itself"
   - WHEN: "the subcommand is `list` followed by an exact rule `id`"
     MUST: "reply with that rule's definition rendered as YAML"
   - WHEN: "the subcommand is `test`"
-    MUST: "run every effective rule's tests and reply with the count passed and each failure sorted by rule `id` then input, plus the count of skipped rule files and each one with its error sorted by path, so a broken file cannot pass silently"
+    MUST: "run the tests of every effective rule and every rule with `enabled: false`, and reply with the count passed and each failure sorted by rule `id` then input, plus the count of skipped rule files and each one with its error sorted by path, so a broken file cannot pass silently"
     SEE: engine@runRuleTests
   - WHEN: "the subcommand is `init`"
     MUST: "reply with an onboarding note listing each layer's directory, with `~` for the home directory, and its rule count or `not created`, then a minimal example rule file starting with the `yaml-language-server` schema line, the commands to run next (`reload`, `check`, `test`), the path of the guide `hooks/arbiter/README.md`, and the path of the commented examples `hooks/arbiter/examples/rules.yaml`, without creating any file"

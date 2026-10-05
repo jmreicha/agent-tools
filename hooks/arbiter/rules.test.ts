@@ -168,3 +168,36 @@ test("old reason key points to description", () => {
     messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    reason: why\n"),
   ).toContain("unknown key reason (renamed to description)");
 });
+
+test("enabled defaults to true and must be a boolean", () => {
+  expect(parse(`rules:\n${rule("a/x")}`).rules[0].enabled).toBe(true);
+  expect(messages(`rules:\n${rule("a/x")}    enabled: "no"\n`)).toEqual([
+    "enabled must be true or false",
+  ]);
+});
+
+test("enabled: false disables a rule in place", () => {
+  const off = `    enabled: false\n`;
+  const set = loadLayers([
+    file("/g/a.yaml", "plugin", `rules:\n${rule("g/x")}${off}${rule("g/y")}${off}`),
+    file("/u/a.yaml", "user", `disable: [g/x]\nrules:\n${rule("g/y")}${rule("u/z")}${off}`),
+  ]);
+  // A higher layer redefining g/y turns it back on; disabling g/x is no warning.
+  expect(set.rules.map((r) => r.id)).toEqual(["g/y"]);
+  expect(set.disabled.map((d) => [d.rule.id, d.by])).toEqual([
+    ["g/x", "user"],
+    ["u/z", "self"],
+  ]);
+  expect(set.warnings).toEqual([]);
+});
+
+test("piped_to takes a command matcher only", () => {
+  const ok = `rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: { cmd: sh } }\n`;
+  expect(parse(ok).errors).toEqual([]);
+  expect(
+    messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: { path: x } }\n`),
+  ).toEqual(["match.piped_to: path is not allowed in piped_to"]);
+  expect(
+    messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: sh }\n`),
+  ).toEqual(["match.piped_to must be a non-empty mapping"]);
+});

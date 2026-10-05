@@ -30,6 +30,8 @@ let sessionId = "";
 let histLines: string[] | null = null;
 let histWrite: Promise<void> = Promise.resolve();
 let histWarned = false;
+let denied = 0;
+let asked = 0;
 const DAY = 864e5;
 const RETAIN_DAYS = 90;
 const SCHEMA =
@@ -181,6 +183,16 @@ function record($: EngineInterface, e: any, v: Verdict, outcome?: string) {
   return histWrite;
 }
 
+// Status line counts, plus a toast when a call was blocked.
+function tally($: EngineInterface, e: any, v: Verdict, blocked: boolean) {
+  const parts = [denied && `${denied} denied`, asked && `${asked} asked`];
+  $.ui.status(`arbiter: ${parts.filter(Boolean).join(" · ")}`);
+  if (blocked)
+    $.ui.toast(
+      `arbiter denied ${target(e) ?? e.tool} (${v.fired.map((r) => r.id).join(", ")})`,
+    );
+}
+
 async function history($: EngineInterface): Promise<string> {
   const dir = histDir();
   const cutoff = Date.now() - RETAIN_DAYS * DAY;
@@ -279,7 +291,7 @@ function list(filter: string): string {
       d.rule.id,
       d.rule.action,
       d.rule.layer,
-      `[disabled by ${d.by}] ${d.rule.description ?? ""}`.trimEnd(),
+      `${d.by === "self" ? "[enabled: false]" : `[disabled by ${d.by}]`} ${d.rule.description ?? ""}`.trimEnd(),
     ]),
   ]
     .filter((row) => row[0].includes(filter))
@@ -322,7 +334,8 @@ function init(): string {
 }
 
 function testAll(): string {
-  const results = rules.rules.flatMap((r) => runRuleTests(r, home));
+  const off = rules.disabled.filter((d) => d.by === "self").map((d) => d.rule);
+  const results = [...rules.rules, ...off].flatMap((r) => runRuleTests(r, home));
   const failed = results
     .filter((t) => !t.pass)
     .sort((a, b) => cmp(a.id, b.id) || cmp(a.input, b.input));
@@ -422,6 +435,8 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   $.ui.invalidate("ui.render");
   if (v.action === "deny") {
     await record($, e, v);
+    denied++;
+    tally($, e, v, true);
     return { deny: v.message };
   }
   if (v.action === "warn") {
@@ -436,6 +451,8 @@ async function guardCall($: EngineInterface, e: any, next: any) {
     // dismissed, or claude -p with nobody to ask
   }
   await record($, e, v, answer === "Allow" ? "allowed" : "refused");
+  asked++;
+  tally($, e, v, answer !== "Allow");
   return answer === "Allow" ? next(e) : { deny: v.message };
 }
 
@@ -540,6 +557,7 @@ export function register(on) {
     sessionId = await $.session.id();
     histLines = null;
     histWarned = false;
+    denied = asked = 0;
     await loadRules($);
     try {
       await prune($, RETAIN_DAYS);

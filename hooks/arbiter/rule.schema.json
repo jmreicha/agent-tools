@@ -65,8 +65,12 @@
           "pattern": "^/.*/[imsu]*$"
         },
         "path": {
-          "description": "Glob against file_path for file tools; leading ~ is your home.",
+          "description": "Glob against file_path for file tools, and Bash redirect targets; leading ~ is your home.",
           "$ref": "#/definitions/patterns"
+        },
+        "piped_to": {
+          "description": "A command matcher for a later stage of the same pipeline, e.g. { cmd: [sh, bash] }.",
+          "$ref": "#/definitions/matcher"
         }
       },
       "not": {
@@ -76,7 +80,8 @@
           { "required": ["path", "flags"] },
           { "required": ["path", "wrapped_by"] },
           { "required": ["path", "env"] },
-          { "required": ["path", "regex"] }
+          { "required": ["path", "regex"] },
+          { "required": ["path", "piped_to"] }
         ]
       }
     },
@@ -128,6 +133,10 @@
         "hint": {
           "description": "What to do instead; Claude reads it.",
           "type": "string"
+        },
+        "enabled": {
+          "description": "Default true. false turns the rule off in place; its tests still run.",
+          "type": "boolean"
         },
         "tests": {
           "description": "Expected outcome -> inputs (Bash command, or a path for path rules). allow means the rule must not fire.",

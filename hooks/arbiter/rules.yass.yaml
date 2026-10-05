@@ -12,12 +12,12 @@ RETURN:
   - MUST: "return the file's rules, its `disable` list, and a list of errors"
   - MUST: "accept files written in the rule format"
     USES: RuleFormat
-  - MUST: "default a rule's `tool` to `Bash` and its `action` to `deny` when omitted"
+  - MUST: "default a rule's `tool` to `Bash`, its `action` to `deny`, and its `enabled` to `true` when omitted"
   - MUST: "record on each rule the layer and path it came from"
 ERROR:
   - WHEN: "the text is not valid YAML"
     MUST: "return no rules and one error carrying the path, the line, and the parser's message"
-  - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id` or `match`, a duplicate `id`, an unknown `action`, an invalid regex, or a matcher mixing `path` with command fields"
+  - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id` or `match`, a duplicate `id`, an unknown `action`, a non-boolean `enabled`, an invalid regex, or a matcher mixing `path` with command fields"
     MUST: "return no rules and one error per problem, naming `description` as the replacement when a rule uses the old key `reason`, each carrying the path, the rule `id` when known, the line when known, and what is wrong"
   - WHEN: "the file is empty or contains only comments"
     MUST: "return no rules and no errors"
@@ -33,6 +33,8 @@ RETURN:
   - MUST: "replace a rule from a lower layer with a rule of the same `id` from a higher layer"
   - MUST: "remove a rule from the effective set when a strictly higher layer lists its `id` under `disable`"
   - MUST-NOT: "let `disable` remove a rule defined in the same layer or a higher one"
+  - MUST: "after merging, move every rule whose `enabled` is `false` out of the effective set into the disabled list, marked as disabled by itself"
+  - MUST-NOT: "warn about a `disable` entry whose rule exists but has `enabled: false`"
   - MUST: "return the effective rules, plus the list of disabled rules with the layer that disabled each, plus every error and warning"
 ERROR:
   - WHEN: "a file returned errors from parsing"
@@ -62,6 +64,7 @@ content: |
     to       string. Rewrite target, only allowed with action rewrite.
     description  string. What the rule enforces and why; shown to Claude and in /arbiter list.
     hint     string. What to do instead.
+    enabled  boolean. Default true; false turns the rule off in place.
     tests    mapping from deny | ask | warn | allow to a list of input strings.
 
   A matcher is a mapping with one or more of these keys and no others. Command fields and
@@ -74,6 +77,8 @@ content: |
     wrapped_by  string or list of strings                   (command field)
     env         mapping of NAME to string or glob           (command field)
     regex       /regex/                                     (command field)
+    piped_to    a matcher of command fields, for a later
+                stage of the same pipeline                  (command field)
     path        string glob or list of globs; leading ~ means the user's home
 
   A string written /body/ or /body/flags (flags from i, m, s, u) is a JavaScript regular

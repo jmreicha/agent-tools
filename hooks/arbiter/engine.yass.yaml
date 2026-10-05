@@ -17,6 +17,8 @@ RETURN:
     SEE: shell@parse
   - WHEN: "the tool call has a `file_path` argument"
     MUST: "test `path` matchers against `file_path` after expanding a leading `~` to the user's home"
+  - WHEN: "the tool is Bash"
+    MUST: "test `path` matchers against every sub-command's `redirects`, after expanding a leading `~`, `$HOME`, or `${HOME}` to the user's home and prefixing a relative target with `./`"
   - MUST: "fire a rule for a sub-command or path when its `match` matches and its `unless` does not match the same sub-command or path"
   - MUST: "treat a list of matchers under `match` or `unless` as matching when any one of them matches"
   - MUST: "match a matcher only when every key it has matches"
@@ -27,7 +29,8 @@ RETURN:
   - MUST: "match `wrapped_by` when any listed name is among the sub-command's `wrappers`"
   - MUST: "match `env` when every listed name is in the sub-command's `env` with a value matching its string or glob"
   - MUST: "match `regex` by searching the sub-command's `raw`"
-  - MUST-NOT: "match a matcher holding command fields against a tool call that is not Bash, or a `path` matcher against a call with no `file_path`"
+  - MUST: "match `piped_to` when some sub-command with the same `pipe` and a later `stage` matches it as a matcher"
+  - MUST-NOT: "match a matcher holding command fields against a tool call that is not Bash, or a `path` matcher against a call with neither a `file_path` nor a redirect target"
   - MUST: "treat a fired `rewrite` rule as `deny`"
   - MUST: "choose the verdict's `action` as the strictest among fired rules, in the order deny, ask, warn, and `allow` when none fired"
   - WHEN: "the action is `deny`"

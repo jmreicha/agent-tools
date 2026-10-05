@@ -7,7 +7,13 @@ export type SubCommand = {
   env: Record<string, string>;
   wrappers: string[];
   words: string[];
+  pipe: number;
+  stage: number;
+  redirects: string[];
 };
+
+// Pipeline ids, unique within one parse() call.
+let pipes = 0;
 
 class ShellError extends Error {}
 
@@ -80,11 +86,23 @@ const WRAPPERS: Record<string, Unwrap> = {
 };
 
 export function parse(command: string): SubCommand[] {
+  pipes = 0;
   try {
     return new Lexer(command).list(false, []);
   } catch {
     return [
-      { raw: command, cmd: "", args: [], flags: [], env: {}, wrappers: [], words: [] },
+      {
+        raw: command,
+        cmd: "",
+        args: [],
+        flags: [],
+        env: {},
+        wrappers: [],
+        words: [],
+        pipe: 0,
+        stage: 0,
+        redirects: [],
+      },
     ];
   }
 }
@@ -98,12 +116,20 @@ class Lexer {
   list(inSub: boolean, wrappers: string[]): SubCommand[] {
     const out: SubCommand[] = [];
     let depth = 0;
+    let pipe = pipes++;
+    let stage = 0;
     for (;;) {
       this.blanks();
       const start = this.i;
       const words: string[] = [];
-      this.words(words, out, wrappers);
-      out.push(...build(words, this.s.slice(start, this.i).trim(), wrappers));
+      const redirects: string[] = [];
+      this.words(words, out, wrappers, redirects);
+      const built = build(words, this.s.slice(start, this.i).trim(), wrappers);
+      // pipe -1 marks this simple command's own subs; nested scripts are already numbered.
+      const own = built.filter((b) => b.pipe === -1);
+      for (const b of own) Object.assign(b, { pipe, stage });
+      own.at(-1)?.redirects.push(...redirects);
+      out.push(...built);
       if (this.i >= this.s.length) {
         if (inSub || depth > 0) throw new ShellError("unterminated (");
         if (this.heredocs.length)
@@ -116,11 +142,18 @@ class Lexer {
         else if (inSub) return out;
       } else if (c === "(") depth++;
       else if (c === "\n") this.readHeredocs();
-      else if (
-        (c === "&" || c === "|") &&
-        (this.s[this.i] === c || (c === "|" && this.s[this.i] === "&"))
-      )
-        this.i++;
+      let piped = false;
+      if (c === "&" || c === "|") {
+        const next = this.s[this.i];
+        // `|` and `|&` continue a pipeline; `||`, `&&`, and `&` end it.
+        piped = c === "|" && next !== "|";
+        if (next === c || (c === "|" && next === "&")) this.i++;
+      }
+      if (piped) stage++;
+      else {
+        pipe = pipes++;
+        stage = 0;
+      }
     }
   }
 
@@ -132,7 +165,12 @@ class Lexer {
     }
   }
 
-  private words(words: string[], out: SubCommand[], wrappers: string[]) {
+  private words(
+    words: string[],
+    out: SubCommand[],
+    wrappers: string[],
+    redirects: string[],
+  ) {
     for (;;) {
       this.blanks();
       const c = this.s[this.i];
@@ -147,15 +185,15 @@ class Lexer {
         return;
       if (c === "&") {
         if (this.s[this.i + 1] !== ">") return;
-        this.redirect(out, wrappers);
-      } else if (c === "<" || c === ">") this.redirect(out, wrappers);
+        this.redirect(out, wrappers, redirects);
+      } else if (c === "<" || c === ">") this.redirect(out, wrappers, redirects);
       else if (c === "#")
         while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
       else {
         const w = this.word(out, wrappers);
         const next = this.s[this.i];
         if (/^\d+$/.test(w) && (next === "<" || next === ">"))
-          this.redirect(out, wrappers);
+          this.redirect(out, wrappers, redirects);
         else words.push(w);
       }
     }
@@ -226,7 +264,7 @@ class Lexer {
     return this.s.slice(start, this.i);
   }
 
-  private redirect(out: SubCommand[], wrappers: string[]) {
+  private redirect(out: SubCommand[], wrappers: string[], redirects: string[]) {
     REDIRECT.lastIndex = this.i;
     const op = REDIRECT.exec(this.s)![0];
     this.i += op.length;
@@ -244,6 +282,7 @@ class Lexer {
     if (target === "") throw new ShellError(`missing target after ${op}`);
     if (op === "<<" || op === "<<-")
       this.heredocs.push({ delim: target, strip: op === "<<-" });
+    else if (op !== "<<<") redirects.push(target);
   }
 
   private readHeredocs() {
@@ -271,7 +310,8 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
     env[m[1]] = m[2];
   }
   if (i >= words.length) return [];
-  const cmd = words[i].split("/").pop()!;
+  // A substitution in command position isn't a path; keep it whole.
+  const cmd = /[$`]/.test(words[i]) ? words[i] : words[i].split("/").pop()!;
   const rest = words.slice(i + 1);
   const n = WRAPPERS[cmd]?.(rest) ?? null;
   if (n !== null) {
@@ -306,7 +346,7 @@ function make(
       flags.push(w.split("=")[0]);
     else args.push(w);
   }
-  return { raw, cmd, args, flags, env, wrappers, words };
+  return { raw, cmd, args, flags, env, wrappers, words, pipe: -1, stage: 0, redirects: [] };
 }
 
 // The script of `bash -c script`, or null.

@@ -107,6 +107,9 @@ off.
 disable: [general/ask-reset-hard] # this repo resets often
 ```
 
+To switch off one of your own rules while troubleshooting, set `enabled: false` on it instead of
+commenting it out. Its tests still run, so you know when it is safe to turn back on.
+
 A file with a mistake is skipped as a whole, never silently: you get a toast, and `/arbiter`,
 `/arbiter test`, and the pane list the error. Every other file keeps working.
 
@@ -186,6 +189,9 @@ text.
 | `/arbiter pane`                 | Live pane of recent verdicts and load errors           |
 | `/arbiter history`              | Hits per rule over 90 days, and rules that never fired |
 | `/arbiter history prune [days]` | Remove history files older than `days` (default 90)    |
+
+When a call is blocked you get a short toast, and the status line counts denied and asked calls
+for the session.
 
 Every deny, ask, and warn is logged to `~/.claude/arbiter/history/<session-id>.jsonl` for tuning
 and audit. Use `/arbiter history` to find dead rules, noisy rules, and asks you always allow.

@@ -15,6 +15,7 @@ type Opts = {
   links?: string[];
   unwritable?: boolean;
   ran?: string[][];
+  status?: (string | undefined)[];
 };
 
 // Registers every stub the mod needs, then fires session.start.
@@ -55,6 +56,10 @@ async function boot($: any, on: any, o: Opts = {}) {
     o.ran?.push([...e.argv]);
     for (const p of e.argv.slice(3)) delete files[p];
     return { value: { exitCode: 0, stdout: "", stderr: "" } };
+  });
+  on("ui.status", ($: any, e: any) => {
+    o.status?.push(e.text);
+    return { value: undefined };
   });
   on("command.register", () => ({ value: undefined }));
   on("ui.open", () => ({ value: { isPlaced: true } }));
@@ -150,7 +155,7 @@ test("broken file is skipped and reported", async ($, on) => {
   expect(
     (await $.tool.call({ tool: "Bash", command: "aws sso login" })).deny,
   ).toBeDefined();
-  expect(toasts).toEqual([
+  expect(toasts.filter((t) => t.includes("skipped"))).toEqual([
     "arbiter: 1 rule file skipped. Run /arbiter for details.",
   ]);
 });
@@ -275,7 +280,7 @@ test("an unreadable layer directory is reported, other layers still load", async
   expect(
     (await $.tool.call({ tool: "Bash", command: "kubectl get pods" })).deny,
   ).toBe("arbiter p/x");
-  expect(toasts).toEqual([
+  expect(toasts.filter((t) => t.includes("skipped"))).toEqual([
     "arbiter: 1 rule file skipped. Run /arbiter for details.",
   ]);
   expect(
@@ -696,4 +701,52 @@ test("/arbiter history prune takes days and validates them", async ($, on) => {
     "usage: /arbiter history prune [days]\n  Remove history files older than days (default 90).",
   );
   expect(ran.length).toBe(1);
+});
+
+test("enabled: false shows in list and its tests still run", async ($, on) => {
+  await boot($, on, {
+    files: {
+      [`${USER}/a.yaml`]: `
+rules:
+  - id: a/off
+    match: { cmd: nope }
+    description: Off for now.
+    enabled: false
+    tests:
+      deny: ["nope", "yes"]
+`,
+    },
+  });
+  const run = async (args: string) =>
+    (await $.command.run({ command: "arbiter", args })).text;
+  expect(await run("list")).toBe(
+    "1 rule\nID     ACTION  LAYER  DESCRIPTION\na/off  deny    user   [enabled: false] Off for now.",
+  );
+  expect(await run("test")).toBe(
+    '1/2 rule tests passed\nFAIL a/off: "yes" expected deny, got allow',
+  );
+  expect(await $.tool.call({ tool: "Bash", command: "nope" })).toEqual({
+    result: "ran",
+  });
+});
+
+test("denies toast and the status line counts denied and asked calls", async ($, on) => {
+  const toasts: string[] = [];
+  const status: (string | undefined)[] = [];
+  await boot($, on, { files: RULES, toasts, status, answer: "Allow" });
+  await $.tool.call({ tool: "Bash", command: "aws sso login --profile p" });
+  expect(toasts).toEqual(["arbiter denied aws sso login (aws/no-sso-login)"]);
+  expect(status.at(-1)).toBe("arbiter: 1 denied");
+  await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" });
+  expect(status.at(-1)).toBe("arbiter: 1 denied · 1 asked");
+  expect(toasts.length).toBe(1);
+  await $.tool.call({ tool: "Bash", command: "kubectl get pods" });
+  expect(status.at(-1)).toBe("arbiter: 1 denied · 1 asked");
+});
+
+test("a refused ask toasts", async ($, on) => {
+  const toasts: string[] = [];
+  await boot($, on, { files: RULES, toasts, answer: "Refuse" });
+  await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" });
+  expect(toasts).toEqual(["arbiter denied kubectl delete pod (k8s/ask-delete)"]);
 });
