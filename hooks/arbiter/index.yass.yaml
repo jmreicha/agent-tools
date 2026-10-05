@@ -43,6 +43,8 @@ ERROR:
     MUST: 'answer with `{ deny: "arbiter failed (<kind>): <message>" }` through the hook''s `.catch` handler'
 SIDE-EFFECT:
   - MUST: "record every verdict other than `allow` with its time, tool, rule ids, and the command or path, keeping the most recent 100"
+  - MUST: "append every verdict other than `allow` to the session's history once its outcome is known"
+    SEE: history
 ---
 spec: command
 INPUT:
@@ -68,6 +70,17 @@ INPUT:
   - WHEN: "the subcommand is `reload`"
     MUST: "reload rules and reply with the count of rules per layer and the count of errors"
     SEE: load
+  - WHEN: "the subcommand is `history`"
+    MUST: "reply with a line counting the hits and sessions in history files modified in the last 90 days, then a table, columns aligned under an `ID HITS DENY ASK WARN ALLOWED REFUSED LAST` header, of every rule hit in them sorted by hits descending then `id`, where `ALLOWED` and `REFUSED` count ask outcomes and `LAST` is the date of the latest hit, then, when any exist, a `no hits:` line listing every effective rule with no hits, sorted by `id`"
+  - WHEN: "the subcommand is `history` and no file holds a hit"
+    MUST: "reply with `no history yet` and the history directory, with `~` for the home directory"
+  - WHEN: "the subcommand is `history prune`, optionally followed by a whole number of days"
+    MUST: "prune history files older than that many days, 90 when absent, and reply with the count of files removed and the history directory, with `~` for the home directory"
+    SEE: prune
+  - WHEN: "the subcommand is `history` followed by anything but `prune`"
+    MUST: "reply with `unknown subcommand history <rest>` followed by the help text"
+  - WHEN: "the subcommand is `history prune` followed by anything but a whole number of at least 1"
+    MUST: "reply with the usage of `history prune` and remove nothing"
   - WHEN: "the subcommand is anything else"
     MUST: "reply with `unknown subcommand <name>` followed by the help text"
 RETURN:
@@ -98,3 +111,41 @@ RETURN:
   - MUST: "dim the `description:` and `hint:` labels and the `(layer: path)` part of a fired-rule line"
 INVARIANT:
   - MUST-NOT: "change the text Claude Code records for the row, only how it is drawn"
+---
+spec: history
+INPUT:
+  - MUST: "take a verdict other than `allow`, the tool call it decided, and, for `ask`, whether the user allowed it"
+RETURN:
+  - MUST: "build one JSON object per verdict with `ts` (ISO 8601 time), `session` (the session id), `project` (the session's project root), `tool`, `action` (the verdict's action), `rules` (each fired rule's `id` and `action`), `outcome` (`allowed` or `refused` for `ask`, absent otherwise), and `target`"
+  - WHEN: "the tool is `Bash`"
+    MUST: "set `target` to each parsed sub-command's name followed by its leading arguments, at most two, that match `^[a-z][a-z0-9-]*$`, stopping at the first that does not, joined with ` ; `"
+  - WHEN: "the tool is `Read`, `Edit`, or `Write`"
+    MUST: "set `target` to the file path"
+  - WHEN: "the tool is any other"
+    MUST: "leave `target` absent"
+SIDE-EFFECT:
+  - MUST: "write the session's hits, one JSON object per line in hit order, to `~/.claude/arbiter/history/<session-id>.jsonl`"
+  - WHEN: "the first hit since the module loaded is recorded and the session's file exists"
+    MUST: "read the file once and keep its lines ahead of new hits, so a reload never drops earlier hits"
+  - MUST: "write in hit order, so a slower earlier write never overwrites a later one"
+ERROR:
+  - WHEN: "the history file cannot be read or written"
+    MUST: "show one toast per session naming the path and error, and still decide the tool call as if history were off"
+INVARIANT:
+  - MUST-NOT: "record a Bash command's other arguments, a tool's input, or any `allow` verdict"
+  - MUST-NOT: "modify any history file but the current session's"
+---
+spec: prune
+INPUT:
+  - MUST: "run once on `session.start`, with 90 days"
+  - MUST: "run on `/arbiter history prune [days]`"
+RETURN:
+  - MUST: "remove every regular `*.jsonl` file directly inside `~/.claude/arbiter/history/` whose mtime is older than the given days, except the current session's file, by running `rm -f --` on their paths"
+  - MUST: "return the count of files removed"
+ERROR:
+  - WHEN: "the directory is missing"
+    MUST: "remove nothing and return 0"
+  - WHEN: "listing or removing fails on `session.start`"
+    MUST: "show one toast naming the error and never block the session"
+INVARIANT:
+  - MUST-NOT: "remove symbolic links, directories, or files outside the history directory"

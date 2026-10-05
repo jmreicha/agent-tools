@@ -2,6 +2,7 @@
 import type { EngineInterface } from "claude-code";
 import { dump } from "./vendor/js-yaml.mjs";
 import { evaluate, runRuleTests, type Verdict } from "./engine.ts";
+import { parse } from "./shell.ts";
 import {
   loadLayers,
   parseRuleFile,
@@ -23,6 +24,14 @@ let rules: RuleSet = { rules: [], disabled: [], errors: [], warnings: [] };
 let home = "";
 let layers: { layer: Layer; dir: string; exists: boolean }[] = [];
 let pluginRoot = "";
+let projectRoot = "";
+let sessionId = "";
+// Session's history lines, read back once after a (re)load; writes chained in hit order.
+let histLines: string[] | null = null;
+let histWrite: Promise<void> = Promise.resolve();
+let histWarned = false;
+const DAY = 864e5;
+const RETAIN_DAYS = 90;
 const SCHEMA =
   "https://raw.githubusercontent.com/jmreicha/agent-tools/main/hooks/arbiter/rule.schema.json";
 const recent: Hit[] = [];
@@ -34,6 +43,7 @@ const COMMANDS: [string, string][] = [
   ['/arbiter check "<command>"', "dry-run a Bash command against the rules"],
   ["/arbiter test", "run every rule's inline tests"],
   ["/arbiter reload", "re-read rule files"],
+  ["/arbiter history [prune [days]]", "rule hit counts, or remove old logs"],
   ["/arbiter pane", "open the live verdict pane"],
 ];
 
@@ -67,7 +77,8 @@ async function loadRules($: EngineInterface) {
   home = (await $.env.get("HOME")) ?? "";
   pluginRoot = $.plugin.root;
   const user = `${home}/.claude/rules/arbiter`;
-  const project = `${await $.session.root()}/.claude/rules/arbiter`;
+  projectRoot = await $.session.root();
+  const project = `${projectRoot}/.claude/rules/arbiter`;
   const dirs: [Layer, string][] = [
     ["plugin", `${$.plugin.root}/rules`],
     ["user", user],
@@ -122,6 +133,119 @@ function remember(e: Record<string, unknown>, v: Verdict) {
     target: String(e.command ?? e.file_path ?? ""),
   });
   recent.length = Math.min(recent.length, 100);
+}
+
+const histDir = () => `${home}/.claude/arbiter/history`;
+
+// Redacted target: Bash keeps names and up to two plain leading words, never other args.
+function target(e: any): string | undefined {
+  if (e.tool === "Bash")
+    return parse(String(e.command ?? ""))
+      .map((s) => {
+        const words = [s.cmd];
+        for (const w of s.words) {
+          if (words.length > 2 || !/^[a-z][a-z0-9-]*$/.test(w)) break;
+          words.push(w);
+        }
+        return words.join(" ");
+      })
+      .join(" ; ");
+  if (["Read", "Edit", "Write"].includes(e.tool)) return String(e.file_path);
+}
+
+function record($: EngineInterface, e: any, v: Verdict, outcome?: string) {
+  const line = JSON.stringify({
+    ts: new Date().toISOString(),
+    session: sessionId,
+    project: projectRoot,
+    tool: String(e.tool),
+    action: v.action,
+    rules: v.fired.map((r) => ({ id: r.id, action: r.action })),
+    outcome,
+    target: target(e),
+  });
+  const path = `${histDir()}/${sessionId}.jsonl`;
+  histWrite = histWrite
+    .then(async () => {
+      histLines ??= (await $.fs.exists(path))
+        ? (await $.fs.read(path)).split("\n").filter(Boolean)
+        : [];
+      histLines.push(line);
+      await $.fs.write(path, histLines.join("\n") + "\n");
+    })
+    .catch((err) => {
+      if (histWarned) return;
+      histWarned = true;
+      $.ui.toast(`arbiter: cannot write history ${short(path)}: ${String(err)}`);
+    });
+  return histWrite;
+}
+
+async function history($: EngineInterface): Promise<string> {
+  const dir = histDir();
+  const cutoff = Date.now() - RETAIN_DAYS * DAY;
+  const entries = (await $.fs.exists(dir)) ? await $.fs.list(dir) : [];
+  const by = new Map<string, Record<string, number | string>>();
+  let hits = 0;
+  let sessions = 0;
+  for (const f of entries) {
+    if (f.kind !== "file" || !f.name.endsWith(".jsonl") || f.mtimeMs < cutoff)
+      continue;
+    const before = hits;
+    for (const l of (await $.fs.read(`${dir}/${f.name}`)).split("\n")) {
+      let h;
+      try {
+        h = JSON.parse(l);
+      } catch {
+        continue; // blank or torn line
+      }
+      hits++;
+      for (const r of h.rules ?? []) {
+        const s = by.get(r.id) ?? { hits: 0, deny: 0, ask: 0, warn: 0, allowed: 0, refused: 0, last: "" };
+        (s.hits as number)++;
+        (s[r.action === "rewrite" ? "deny" : r.action] as number)++;
+        if (r.action === "ask" && h.outcome) (s[h.outcome] as number)++;
+        if (String(h.ts) > (s.last as string)) s.last = String(h.ts);
+        by.set(r.id, s);
+      }
+    }
+    if (hits > before) sessions++;
+  }
+  if (!hits) return `no history yet in ${short(dir)}`;
+  const rows = [...by]
+    .sort(([a, x], [b, y]) => (y.hits as number) - (x.hits as number) || cmp(a, b))
+    .map(([id, s]) => [
+      id,
+      ...["hits", "deny", "ask", "warn", "allowed", "refused"].map((k) => String(s[k])),
+      (s.last as string).slice(0, 10),
+    ]);
+  const idle = rules.rules.map((r) => r.id).filter((id) => !by.has(id)).sort(cmp);
+  return [
+    `${hits} hit${hits === 1 ? "" : "s"} in ${sessions} session${sessions === 1 ? "" : "s"}, last ${RETAIN_DAYS} days`,
+    table([["ID", "HITS", "DENY", "ASK", "WARN", "ALLOWED", "REFUSED", "LAST"], ...rows]),
+    ...(idle.length ? [`no hits: ${idle.join(", ")}`] : []),
+  ].join("\n");
+}
+
+// $.fs has no delete, so old files go through rm on an explicit list.
+async function prune($: EngineInterface, days: number): Promise<number> {
+  const dir = histDir();
+  if (!(await $.fs.exists(dir))) return 0;
+  const cutoff = Date.now() - days * DAY;
+  const old = (await $.fs.list(dir))
+    .filter(
+      (f) =>
+        f.kind === "file" &&
+        !f.isLink &&
+        f.name.endsWith(".jsonl") &&
+        f.name !== `${sessionId}.jsonl` &&
+        f.mtimeMs < cutoff,
+    )
+    .map((f) => `${dir}/${f.name}`);
+  if (!old.length) return 0;
+  const r = await $.process.run(["rm", "-f", "--", ...old]);
+  if (r.exitCode) throw new Error(`rm exited ${r.exitCode}: ${r.stderr}`);
+  return old.length;
 }
 
 function describe(p: Problem): string {
@@ -296,8 +420,12 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   if (v.action === "allow") return next(e);
   remember(e, v);
   $.ui.invalidate("ui.render");
-  if (v.action === "deny") return { deny: v.message };
+  if (v.action === "deny") {
+    await record($, e, v);
+    return { deny: v.message };
+  }
   if (v.action === "warn") {
+    await record($, e, v);
     $.ui.log(v.message);
     return next(e);
   }
@@ -307,6 +435,7 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   } catch {
     // dismissed, or claude -p with nobody to ask
   }
+  await record($, e, v, answer === "Allow" ? "allowed" : "refused");
   return answer === "Allow" ? next(e) : { deny: v.message };
 }
 
@@ -328,6 +457,17 @@ async function runCommand($: EngineInterface, e: any) {
   if (sub === "list") return { text: list(rest) };
   if (sub === "init") return { text: init() };
   if (sub === "test") return { text: testAll() };
+  if (sub === "history") {
+    if (!rest) return { text: await history($) };
+    const m = /^prune(?:\s+(\S+))?$/.exec(rest);
+    if (!m) return { text: `unknown subcommand history ${rest}\n\n${help()}` };
+    if (!/^[1-9]\d*$/.test(m[1] ?? "90"))
+      return {
+        text: "usage: /arbiter history prune [days]\n  Remove history files older than days (default 90).",
+      };
+    const n = await prune($, Number(m[1] ?? RETAIN_DAYS));
+    return { text: `pruned ${n} history file${n === 1 ? "" : "s"} from ${short(histDir())}` };
+  }
   if (sub === "reload") {
     await loadRules($);
     return { text: summary() };
@@ -394,10 +534,18 @@ export function register(on) {
       name: "arbiter",
       description: "Show and test arbiter rules",
       argumentHint:
-        "[help | init | list | check <command> | test | reload | pane]",
+        "[help | init | list | check <command> | test | reload | history | pane]",
       immediate: true,
     });
+    sessionId = await $.session.id();
+    histLines = null;
+    histWarned = false;
     await loadRules($);
+    try {
+      await prune($, RETAIN_DAYS);
+    } catch (err) {
+      $.ui.toast(`arbiter: cannot prune history: ${String(err)}`);
+    }
     return next(e);
   });
 

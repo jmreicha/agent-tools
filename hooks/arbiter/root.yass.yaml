@@ -39,6 +39,8 @@ ERROR:
 SIDE-EFFECT:
   - MUST: "keep the most recent verdicts in memory for the user to inspect"
     SEE: index@pane
+  - MUST: "log every rule hit to a per-session history file for tuning and audit"
+    SEE: index@history
 INVARIANT:
   - MUST: "follow the runtime constraints for a Claude Code mod"
     USES: Runtime

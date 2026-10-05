@@ -3,7 +3,7 @@ import { parse } from "./shell.ts";
 
 const cmds = (s: string) => parse(s).map((c) => c.cmd);
 const raw = (s: string) => [
-  { raw: s, cmd: "", args: [], flags: [], env: {}, wrappers: [] },
+  { raw: s, cmd: "", args: [], flags: [], env: {}, wrappers: [], words: [] },
 ];
 
 test("splits on control operators", () => {
@@ -30,6 +30,7 @@ test("fills every field", () => {
       flags: ["--region", "--recursive"],
       env: { AWS_PROFILE: "prod" },
       wrappers: [],
+      words: ["--region", "us-east-1", "s3", "ls", "--recursive=true"],
     },
   ]);
 });

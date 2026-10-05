@@ -175,15 +175,21 @@ text.
 
 ## Commands
 
-| Command                      | What it does                                       |
-| ---------------------------- | -------------------------------------------------- |
-| `/arbiter`, `/arbiter help`  | Rule and error counts, and this list               |
-| `/arbiter init`              | Where rule files go and an example to start from   |
-| `/arbiter list [filter\|id]` | Rules sorted by id, or one rule's YAML             |
-| `/arbiter check "<command>"` | The verdict a Bash command would get; nothing runs |
-| `/arbiter test`              | Every rule's inline tests, plus skipped files      |
-| `/arbiter reload`            | Re-read rule files                                 |
-| `/arbiter pane`              | Live pane of recent verdicts and load errors       |
+| Command                         | What it does                                           |
+| ------------------------------- | ------------------------------------------------------ |
+| `/arbiter`, `/arbiter help`     | Rule and error counts, and this list                   |
+| `/arbiter init`                 | Where rule files go and an example to start from       |
+| `/arbiter list [filter\|id]`    | Rules sorted by id, or one rule's YAML                 |
+| `/arbiter check "<command>"`    | The verdict a Bash command would get; nothing runs     |
+| `/arbiter test`                 | Every rule's inline tests, plus skipped files          |
+| `/arbiter reload`               | Re-read rule files                                     |
+| `/arbiter pane`                 | Live pane of recent verdicts and load errors           |
+| `/arbiter history`              | Hits per rule over 90 days, and rules that never fired |
+| `/arbiter history prune [days]` | Remove history files older than `days` (default 90)    |
+
+Every deny, ask, and warn is logged to `~/.claude/arbiter/history/<session-id>.jsonl` for tuning
+and audit. Use `/arbiter history` to find dead rules, noisy rules, and asks you always allow.
+Arguments are left out of the log; see the [reference](../../docs/arbiter/reference.md#history).
 
 ## Testing your rules
 

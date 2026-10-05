@@ -179,15 +179,52 @@ key; `allow` means the rule didn't fire. A `rewrite` rule's inputs go under `den
 
 ## Commands
 
-| Command                      | Output                                                                                   |
-| ---------------------------- | ---------------------------------------------------------------------------------------- |
-| `/arbiter`, `/arbiter help`  | Rule and error counts, then the command list.                                            |
-| `/arbiter init`              | Each layer's folder and rule count, an example rule file, and next steps.                |
-| `/arbiter list [filter]`     | Rules whose id contains `filter`, sorted by id, as an ID/ACTION/LAYER/DESCRIPTION table. |
-| `/arbiter list <id>`         | That rule's YAML.                                                                        |
-| `/arbiter check "<command>"` | The verdict, then each fired rule with its file, description, and hint.                  |
-| `/arbiter test`              | Passed/total, then skipped files by path and failures by id.                             |
-| `/arbiter reload`            | Re-reads rule files and prints counts per layer.                                         |
-| `/arbiter pane`              | Opens a pane with counts, load errors, and the last 100 verdicts.                        |
+| Command                         | Output                                                                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/arbiter`, `/arbiter help`     | Rule and error counts, then the command list.                                                                                               |
+| `/arbiter init`                 | Each layer's folder and rule count, an example rule file, and next steps.                                                                   |
+| `/arbiter list [filter]`        | Rules whose id contains `filter`, sorted by id, as an ID/ACTION/LAYER/DESCRIPTION table.                                                    |
+| `/arbiter list <id>`            | That rule's YAML.                                                                                                                           |
+| `/arbiter check "<command>"`    | The verdict, then each fired rule with its file, description, and hint.                                                                     |
+| `/arbiter test`                 | Passed/total, then skipped files by path and failures by id.                                                                                |
+| `/arbiter reload`               | Re-reads rule files and prints counts per layer.                                                                                            |
+| `/arbiter pane`                 | Opens a pane with counts, load errors, and the last 100 verdicts.                                                                           |
+| `/arbiter history`              | Hits and sessions in the last 90 days, a per-rule ID/HITS/DENY/ASK/WARN/ALLOWED/REFUSED/LAST table sorted by hits, then rules with no hits. |
+| `/arbiter history prune [days]` | Removes history files older than `days` (default 90) and prints the count.                                                                  |
 
 Quotes around the `check` command are optional; one surrounding pair is removed.
+
+## History
+
+Every `deny`, `ask`, and `warn` verdict (never `allow`) appends one JSON line to
+`~/.claude/arbiter/history/<session-id>.jsonl`:
+
+```json
+{
+  "ts": "2026-10-04T14:02:11.000Z",
+  "session": "…",
+  "project": "/repo",
+  "tool": "Bash",
+  "action": "ask",
+  "rules": [{ "id": "k8s/ask-delete", "action": "ask" }],
+  "outcome": "allowed",
+  "target": "kubectl delete pod"
+}
+```
+
+| Field     | Value                                                                                  |
+| --------- | -------------------------------------------------------------------------------------- |
+| `action`  | The verdict's action.                                                                  |
+| `rules`   | Every fired rule with its own action, so a shadowed `warn` still counts.               |
+| `outcome` | `allowed` or `refused`, for `ask` only. A dismissed ask, or `claude -p`, is `refused`. |
+| `target`  | See below.                                                                             |
+
+`target` is redacted best effort. For `Bash` it is each sub-command's name plus at most two
+leading words matching `^[a-z][a-z0-9-]*$` (`aws sso login AKIA… --profile p` → `aws sso login`),
+joined with `;`. For `Read`, `Edit`, and `Write` it is the file path. Other tools have none.
+
+One file per session means one writer, so concurrent sessions never lose lines. A failed write
+shows one toast and never blocks the call. Files older than 90 days are pruned at session start
+(the current session's file and symbolic links never are); `/arbiter history prune [days]` prunes
+on demand. Query the raw log with `jq`, e.g.
+`jq -s 'map(select(.action=="deny"))' ~/.claude/arbiter/history/*.jsonl`.

@@ -271,3 +271,28 @@ using `example/` ids. It never loads by default; `script/arbiter-test` loads it 
 layer so a broken example fails the check. Overrides are documented but have no example.
 
 **Consequences.** Examples and docs can disagree only in prose, not in behavior.
+
+---
+
+## Hit history as per-session JSONL files
+
+**Status:** accepted · 2026-10-04
+
+**Context.** Rules need tuning (dead rules, noisy rules, asks that are always allowed) and hits
+need an audit trail. `$.fs.write` replaces a whole file (no append, no delete, 4 MiB read cap) and
+`$.store` caps at 4 MiB in all.
+
+**Decision.** Record every `deny`, `ask`, and `warn` verdict (never `allow`) as one JSON line in
+`~/.claude/arbiter/history/<session-id>.jsonl`: time, session, project, tool, verdict action, the
+fired rules' ids and actions, the ask's outcome, and a redacted target. One file per session means
+one writer, so concurrent sessions never lose lines. Each session keeps its lines in memory (read
+back once after a reload) and rewrites its file in order. `/arbiter history` aggregates files from
+the last 90 days by mtime. Files older than 90 days are pruned at session start, and
+`/arbiter history prune [days]` prunes on demand; `$.fs` has no delete, so pruning runs `rm -f`
+via `$.process.run` on an explicit list of regular files, never the current session's. A failed write warns once and
+never blocks the call. No tamper protection.
+
+**Consequences.** The target is redacted best effort: a Bash call keeps each sub-command's name and
+up to two leading lowercase word arguments (`aws s3 rm`), never other arguments; file tools keep
+the path; other tools keep nothing beyond their name. Automatic pruning means hits older than 90
+days are gone; keep copies elsewhere if an audit needs longer.

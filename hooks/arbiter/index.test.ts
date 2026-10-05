@@ -11,6 +11,10 @@ type Opts = {
   answer?: string;
   toasts?: string[];
   logs?: string[];
+  mtimes?: Record<string, number>;
+  links?: string[];
+  unwritable?: boolean;
+  ran?: string[][];
 };
 
 // Registers every stub the mod needs, then fires session.start.
@@ -22,22 +26,36 @@ async function boot($: any, on: any, o: Opts = {}) {
     );
   mock.env(on, { HOME });
   on("session.root", () => ({ value: o.root ?? "/work" }));
-  on("fs.exists", ($: any, e: any) => ({ value: under(e.path).length > 0 }));
+  on("fs.exists", ($: any, e: any) => ({
+    value: e.path in files || under(e.path).length > 0,
+  }));
   on("fs.list", ($: any, e: any) =>
     e.path === o.unlistable
       ? { deny: "EACCES" }
       : {
           value: under(e.path).map((p) => ({
             name: p.slice(e.path.length + 1),
-            kind: "file",
+            kind: o.links?.includes(p) ? "other" : "file",
             size: 0,
-            isLink: false,
+            mtimeMs: o.mtimes?.[p] ?? Date.now(),
+            isLink: !!o.links?.includes(p),
           })),
         },
   );
   on("fs.read", ($: any, e: any) =>
     e.path in files ? { value: files[e.path] } : { deny: "ENOENT" },
   );
+  on("fs.write", ($: any, e: any) => {
+    if (o.unwritable) return { deny: "EROFS" };
+    if (!Object.isFrozen(files)) files[e.path] = e.text;
+    return { value: undefined };
+  });
+  on("session.id", () => ({ value: "s1" }));
+  on("process.run", ($: any, e: any) => {
+    o.ran?.push([...e.argv]);
+    for (const p of e.argv.slice(3)) delete files[p];
+    return { value: { exitCode: 0, stdout: "", stderr: "" } };
+  });
   on("command.register", () => ({ value: undefined }));
   on("ui.open", () => ({ value: { isPlaced: true } }));
   on("ui.toast", ($: any, e: any) => {
@@ -63,7 +81,8 @@ async function boot($: any, on: any, o: Opts = {}) {
   });
 }
 
-const RULES = {
+// Frozen so history writes from one test never leak into the next.
+const RULES = Object.freeze({
   [`${USER}/cloud.yaml`]: `
 rules:
   - id: aws/no-sso-login
@@ -79,7 +98,7 @@ rules:
     match: { cmd: kubectl, args: [get] }
     action: warn
 `,
-};
+});
 
 test("deny answers without running the tool", async ($, on) => {
   await boot($, on, { files: RULES });
@@ -288,9 +307,12 @@ test("/arbiter with no args shows help with status", async ($, on) => {
   const text = (await $.command.run({ command: "arbiter", args: "" })).text;
   expect(text).toMatch(/^3 rules loaded, 0 errors\n\n/);
   expect(text).toContain(
-    "  /arbiter pane               open the live verdict pane",
+    "  /arbiter pane                    open the live verdict pane",
   );
-  expect(text).toContain("  /arbiter help               show this help");
+  expect(text).toContain(
+    "  /arbiter history [prune [days]]  rule hit counts, or remove old logs",
+  );
+  expect(text).toContain("  /arbiter help                    show this help");
   expect((await $.command.run({ command: "arbiter", args: "help" })).text).toBe(
     text,
   );
@@ -523,4 +545,155 @@ test("a failure after the tool ran keeps the tool's own outcome", async ($, on) 
     outcome = "rejected";
   }
   expect(JSON.stringify(outcome ?? null)).not.toContain("arbiter failed");
+});
+
+const HIST = `${HOME}/.claude/arbiter/history`;
+const lines = (text: string) => text.trim().split("\n").map((l) => JSON.parse(l));
+
+test("history records deny, ask, and warn hits with a redacted target", async ($, on) => {
+  const files: Record<string, string> = { ...RULES };
+  await boot($, on, { files, answer: "Allow" });
+  await $.tool.call({ tool: "Bash", command: "ls" });
+  await $.tool.call({ tool: "Bash", command: "aws sso login AKIA123 --profile p" });
+  await $.tool.call({ tool: "Bash", command: "kubectl delete pod web-1 x && kubectl get Secret" });
+  const hits = lines(files[`${HIST}/s1.jsonl`]);
+  expect(hits.length).toBe(2);
+  expect(hits[0]).toEqual({
+    ts: hits[0].ts,
+    session: "s1",
+    project: "/work",
+    tool: "Bash",
+    action: "deny",
+    rules: [{ id: "aws/no-sso-login", action: "deny" }],
+    target: "aws sso login",
+  });
+  expect(hits[1].action).toBe("ask");
+  expect(hits[1].outcome).toBe("allowed");
+  expect(hits[1].rules).toEqual([
+    { id: "k8s/ask-delete", action: "ask" },
+    { id: "k8s/warn-get", action: "warn" },
+  ]);
+  expect(hits[1].target).toBe("kubectl delete pod ; kubectl get");
+  expect(Number.isNaN(Date.parse(hits[0].ts))).toBe(false);
+});
+
+test("history records refused asks, file paths, and no target for other tools", async ($, on) => {
+  const files: Record<string, string> = {
+    ...RULES,
+    [`${USER}/more.yaml`]: `
+rules:
+  - id: f/no-env
+    tool: Read
+    match: { path: "*/.env" }
+  - id: o/no-env
+    tool: Other
+    match: { path: "*/.env" }
+`,
+  };
+  await boot($, on, { files });
+  await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" });
+  await $.tool.call({ tool: "Read", file_path: "/work/.env" });
+  await $.tool.call({ tool: "Other", file_path: "/work/.env" });
+  const hits = lines(files[`${HIST}/s1.jsonl`]);
+  expect(hits.length).toBe(3);
+  expect(hits[0].outcome).toBe("refused");
+  expect(hits[1].target).toBe("/work/.env");
+  expect(hits[2].tool).toBe("Other");
+  expect("target" in hits[2]).toBe(false);
+});
+
+test("history keeps lines written before a reload", async ($, on) => {
+  const old = JSON.stringify({ ts: "2026-01-01T00:00:00Z", rules: [] });
+  const files: Record<string, string> = { ...RULES, [`${HIST}/s1.jsonl`]: old + "\n" };
+  await boot($, on, { files });
+  await $.tool.call({ tool: "Bash", command: "aws sso login" });
+  await $.tool.call({ tool: "Bash", command: "aws sso login" });
+  const text = files[`${HIST}/s1.jsonl`];
+  expect(text.startsWith(old + "\n")).toBe(true);
+  expect(lines(text).length).toBe(3);
+});
+
+test("a failed history write toasts once and still decides the call", async ($, on) => {
+  const toasts: string[] = [];
+  await boot($, on, { files: { ...RULES }, unwritable: true, toasts });
+  for (let i = 0; i < 2; i++)
+    expect(await $.tool.call({ tool: "Bash", command: "aws sso login" })).toEqual({
+      deny: "arbiter aws/no-sso-login: Plaintext creds. Use aws-vault.",
+    });
+  expect(toasts.filter((t) => t.includes("history")).length).toBe(1);
+});
+
+test("/arbiter history with no hits", async ($, on) => {
+  await boot($, on, { files: { ...RULES } });
+  const { text } = await $.command.run({ command: "arbiter", args: "history" });
+  expect(text).toBe("no history yet in ~/.claude/arbiter/history");
+});
+
+test("/arbiter history aggregates per rule across sessions", async ($, on) => {
+  const hit = (ts: string, action: string, ids: string[], outcome?: string) =>
+    JSON.stringify({ ts, session: "x", action, rules: ids.map((id) => ({ id, action })), outcome });
+  const files: Record<string, string> = {
+    ...RULES,
+    [`${HIST}/a.jsonl`]: [
+      hit("2026-10-01T10:00:00Z", "deny", ["aws/no-sso-login"]),
+      hit("2026-10-02T10:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
+    ].join("\n") + "\n",
+    [`${HIST}/b.jsonl`]: [
+      hit("2026-10-03T10:00:00Z", "ask", ["k8s/ask-delete"], "refused"),
+      hit("2026-10-03T11:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
+    ].join("\n") + "\n",
+    [`${HIST}/old.jsonl`]: hit("2026-01-01T10:00:00Z", "deny", ["k8s/warn-get"]) + "\n",
+  };
+  await boot($, on, { files, mtimes: { [`${HIST}/old.jsonl`]: Date.now() - 91 * 864e5 } });
+  const { text } = await $.command.run({ command: "arbiter", args: "history" });
+  expect(text).toBe(
+    [
+      "4 hits in 2 sessions, last 90 days",
+      "ID                HITS  DENY  ASK  WARN  ALLOWED  REFUSED  LAST",
+      "k8s/ask-delete    3     0     3    0     2        1        2026-10-03",
+      "aws/no-sso-login  1     1     0    0     0        0        2026-10-01",
+      "no hits: k8s/warn-get",
+    ].join("\n"),
+  );
+});
+
+test("session start prunes history older than 90 days, never links or this session", async ($, on) => {
+  const ran: string[][] = [];
+  const old = Date.now() - 91 * 864e5;
+  const files: Record<string, string> = {
+    ...RULES,
+    [`${HIST}/old.jsonl`]: "",
+    [`${HIST}/s1.jsonl`]: "",
+    [`${HIST}/link.jsonl`]: "",
+    [`${HIST}/new.jsonl`]: "",
+    [`${HIST}/notes.txt`]: "",
+  };
+  const mtimes = {
+    [`${HIST}/old.jsonl`]: old,
+    [`${HIST}/s1.jsonl`]: old,
+    [`${HIST}/link.jsonl`]: old,
+    [`${HIST}/notes.txt`]: old,
+  };
+  await boot($, on, { files, mtimes, links: [`${HIST}/link.jsonl`], ran });
+  expect(ran).toEqual([["rm", "-f", "--", `${HIST}/old.jsonl`]]);
+});
+
+test("/arbiter history prune takes days and validates them", async ($, on) => {
+  const ran: string[][] = [];
+  const files: Record<string, string> = {
+    ...RULES,
+    [`${HIST}/a.jsonl`]: "",
+    [`${HIST}/b.jsonl`]: "",
+  };
+  const mtimes = { [`${HIST}/a.jsonl`]: Date.now() - 10 * 864e5 };
+  await boot($, on, { files, mtimes, ran });
+  const run = async (args: string) =>
+    (await $.command.run({ command: "arbiter", args })).text;
+  expect(await run("history prune 7")).toBe(
+    "pruned 1 history file from ~/.claude/arbiter/history",
+  );
+  expect(await run("history prune 0")).toBe(
+    "usage: /arbiter history prune [days]\n  Remove history files older than days (default 90).",
+  );
+  expect(ran.length).toBe(1);
 });

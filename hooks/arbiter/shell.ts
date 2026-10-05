@@ -6,6 +6,7 @@ export type SubCommand = {
   flags: string[];
   env: Record<string, string>;
   wrappers: string[];
+  words: string[];
 };
 
 class ShellError extends Error {}
@@ -83,7 +84,7 @@ export function parse(command: string): SubCommand[] {
     return new Lexer(command).list(false, []);
   } catch {
     return [
-      { raw: command, cmd: "", args: [], flags: [], env: {}, wrappers: [] },
+      { raw: command, cmd: "", args: [], flags: [], env: {}, wrappers: [], words: [] },
     ];
   }
 }
@@ -305,7 +306,7 @@ function make(
       flags.push(w.split("=")[0]);
     else args.push(w);
   }
-  return { raw, cmd, args, flags, env, wrappers };
+  return { raw, cmd, args, flags, env, wrappers, words };
 }
 
 // The script of `bash -c script`, or null.

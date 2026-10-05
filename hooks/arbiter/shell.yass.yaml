@@ -11,7 +11,7 @@ INPUT:
   - MUST: "take one string, the `command` argument of a Bash tool call, as Claude passed it"
 RETURN:
   - MUST: "return an ordered list of sub-commands, one per simple command in the input, in the order they appear in the text, except that substitution sub-commands come before the sub-command containing them because they run first"
-  - MUST: "give each sub-command the fields `raw`, `cmd`, `args`, `flags`, `env`, and `wrappers`"
+  - MUST: "give each sub-command the fields `raw`, `cmd`, `args`, `flags`, `env`, `wrappers`, and `words`"
   - MUST: "set `raw` to the simple command's source text with surrounding whitespace trimmed; a wrapper and the command it wraps share the same `raw`"
   - MUST: "end a simple command at each unquoted `&&`, `||`, `;`, `|`, `&`, or newline"
   - MUST: "split words on unquoted runs of space (0x20) and tab (0x09)"
@@ -28,6 +28,7 @@ RETURN:
   - MUST: "set `cmd` to the first remaining word, with any directory part removed, so `/usr/bin/aws` becomes `aws`"
   - MUST: "put each word that starts with `-` and is not exactly `-` into `flags`, storing only the part before the first `=`"
   - MUST: "put every other word after `cmd` into `args`, in order"
+  - MUST: "put every word after `cmd` that the sub-command owns, flags and `--` included, into `words`, in order"
   - MUST: "treat a bare `--` as neither a flag nor an argument, and every word after it as a positional argument"
   - MUST: "unwrap the wrappers listed in the Wrappers design block, returning the wrapper invocation itself as one sub-command and the wrapped command as a separate sub-command after it"
     USES: Wrappers
