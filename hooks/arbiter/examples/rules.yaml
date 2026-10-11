@@ -243,6 +243,18 @@ rules:
         "cd api && pytest": "cd api && uv run pytest"
       allow: ["uv run pytest"]
 
+  # --- Steer a whole tool -------------------------------------------------
+  # No match: fires on every call to the tools in `tool` (never Bash).
+  # Test inputs are tool names.
+  - id: example/search-with-codegraph
+    tool: [Grep, Glob]
+    action: warn
+    description: Code search goes through codegraph here.
+    hint: Run `codegraph search "<query>"` instead.
+    tests:
+      warn: [Grep, Glob]
+      allow: [Read]
+
   # --- Fall back to a regex ------------------------------------------------
   # `regex` searches one simple command's raw text, for things structure
   # can't express. Write it as /body/flags; i makes it case-insensitive.

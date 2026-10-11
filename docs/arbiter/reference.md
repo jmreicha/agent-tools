@@ -29,18 +29,18 @@ An empty file, or one with only comments, is fine.
 
 ## Rule
 
-| Field         | Required       | Type                          | Default | Meaning                                                                                                                 |
-| ------------- | -------------- | ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `id`          | yes            | string                        |         | Unique within a layer. Lowercase, `<area>/<name>` by convention.                                                        |
-| `tool`        |                | pattern or list of patterns   | `Bash`  | Tool names the rule applies to. Exact names, or `/regex/`.                                                              |
-| `match`       | yes            | matcher or list of matchers   |         | When the rule applies.                                                                                                  |
-| `unless`      |                | matcher or list of matchers   |         | What excuses a match.                                                                                                   |
-| `action`      |                | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                                                                       |
-| `to`          | with `rewrite` | mapping                       |         | The edits a rewrite makes. See [Rewrite](#rewrite).                                                                     |
-| `description` |                | string                        |         | What the rule enforces and why. Claude reads it.                                                                        |
-| `hint`        |                | string                        |         | What to do instead. Claude reads it.                                                                                    |
-| `enabled`     |                | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`; `/arbiter test` still runs its tests. |
-| `tests`       |                | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).                                                                |
+| Field         | Required                         | Type                          | Default | Meaning                                                                                                                 |
+| ------------- | -------------------------------- | ----------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `id`          | yes                              | string                        |         | Unique within a layer. Lowercase, `<area>/<name>` by convention.                                                        |
+| `tool`        |                                  | pattern or list of patterns   | `Bash`  | Tool names the rule applies to. Exact names, or `/regex/`.                                                              |
+| `match`       | yes, unless `tool` excludes Bash | matcher or list of matchers   |         | When the rule applies. Left out, the rule fires on every call to its tools. See [Tool-only rules](#tool-only-rules).    |
+| `unless`      |                                  | matcher or list of matchers   |         | What excuses a match.                                                                                                   |
+| `action`      |                                  | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                                                                       |
+| `to`          | with `rewrite`                   | mapping                       |         | The edits a rewrite makes. See [Rewrite](#rewrite).                                                                     |
+| `description` |                                  | string                        |         | What the rule enforces and why. Claude reads it.                                                                        |
+| `hint`        |                                  | string                        |         | What to do instead. Claude reads it.                                                                                    |
+| `enabled`     |                                  | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`; `/arbiter test` still runs its tests. |
+| `tests`       |                                  | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).                                                                |
 
 `id` must match `^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$`. A rule using the old `reason` key is
 rejected with `unknown key reason (renamed to description)`.
@@ -66,9 +66,29 @@ match Bash calls. `path` matches a call's `file_path` (Edit, Write, Read) and, o
 file redirection target (`>`, `>>`, `<`, `&>`, ...) and positional argument, so with `Bash` in
 `tool` it catches `echo x > ~/.kube/config`, `cp x ~/.kube/config`, and `cat .env`. `$HOME` and
 `${HOME}` count as `~`, and a relative word is matched as `./word`, so `*/.env` catches `.env`.
-Bash can't tell reading from writing, so such a rule blocks both. Calls that are neither, such as
-MCP tools, can be named in `tool` but have nothing to match yet. The two kinds can't share a
-matcher.
+Bash can't tell reading from writing, so such a rule blocks both. Other tools, such as `Grep`
+or MCP tools, have nothing to match yet; a [tool-only rule](#tool-only-rules) covers every call to
+them. The two kinds can't share a matcher.
+
+### Tool-only rules
+
+A rule with no `match` fires on every call to the tools in `tool`. Use it to steer whole tools:
+
+```yaml
+- id: search/use-codegraph
+  tool: [Grep, Glob]
+  action: warn
+  hint: Run `codegraph search "<query>"` instead.
+  tests:
+    warn: [Grep, Glob]
+    allow: [Read]
+- id: mcp/no-prod-db
+  tool: /^mcp__prod_db__/
+```
+
+`tool` must not name `Bash` or be a `/regex/` that matches `Bash`, since that would block every
+shell command. `unless` needs a `match`. Test inputs are tool names. To steer the shell side of the
+same habit, add a normal rule such as `{ cmd: [grep, rg] }`.
 
 **args.** Flags are removed before matching, but flag _values_ stay, so
 `kubectl --context prod delete pod web` has positionals `[prod, delete, pod, web]`. That is why
@@ -173,7 +193,8 @@ So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, ly
 | 2     | user    | `~/.claude/rules/arbiter/`      |
 | 3     | project | `<repo>/.claude/rules/arbiter/` |
 
-- Files in a layer load in alphabetical order.
+- Every `*.yaml` and `*.yml` file directly in a layer's folder loads, in alphabetical order.
+- Subfolders are not loaded; each one shows a warning in the pane.
 - A rule in a higher layer replaces a lower rule with the same id.
 - `disable` removes rules from lower layers only. An id no lower layer defines is a warning.
 - Two files in the same layer defining the same id is an error: the second file is skipped.

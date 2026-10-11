@@ -313,3 +313,37 @@ test("path rules on Bash check arguments too", () => {
   expect(ids("cat .env.example README.md")).toEqual([]);
   expect(ids('git commit -m "fix .env loading"')).toEqual([]);
 });
+
+const TOOLS = rules(`
+rules:
+  - id: search/use-codegraph
+    tool: [Grep, Glob]
+    hint: Use codegraph.
+    tests:
+      deny: [Grep, Glob]
+      allow: [Read, Bash]
+  - id: mcp/no-prod-db
+    tool: /^mcp__prod_db__/
+    action: ask
+`);
+
+test("a rule without match fires on every call to its tools", () => {
+  const at = (tool: string, input = {}) => evaluate(tool, input, TOOLS, HOME);
+  expect(at("Grep", { pattern: "x" })).toMatchObject({
+    action: "deny",
+    message: "arbiter search/use-codegraph: Use codegraph.",
+  });
+  expect(at("mcp__prod_db__query", { sql: "select 1" }).action).toBe("ask");
+  expect(at("mcp__dev_db__query").action).toBe("allow");
+  expect(at("Read", { file_path: "/x" }).action).toBe("allow");
+  expect(bash("grep -r x .", TOOLS).action).toBe("allow");
+});
+
+test("runRuleTests uses tool names as inputs for rules without match", () => {
+  expect(runRuleTests(TOOLS[0], HOME).map((t) => [t.input, t.pass])).toEqual([
+    ["Grep", true],
+    ["Glob", true],
+    ["Read", true],
+    ["Bash", true],
+  ]);
+});

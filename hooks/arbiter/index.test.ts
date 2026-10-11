@@ -13,6 +13,7 @@ type Opts = {
   logs?: string[];
   mtimes?: Record<string, number>;
   links?: string[];
+  dirs?: string[];
   unwritable?: boolean;
   ran?: string[][];
   status?: (string | undefined)[];
@@ -35,13 +36,24 @@ async function boot($: any, on: any, o: Opts = {}) {
     e.path === o.unlistable
       ? { deny: "EACCES" }
       : {
-          value: under(e.path).map((p) => ({
-            name: p.slice(e.path.length + 1),
-            kind: o.links?.includes(p) ? "other" : "file",
-            size: 0,
-            mtimeMs: o.mtimes?.[p] ?? Date.now(),
-            isLink: !!o.links?.includes(p),
-          })),
+          value: [
+            ...under(e.path).map((p) => ({
+              name: p.slice(e.path.length + 1),
+              kind: o.links?.includes(p) ? "other" : "file",
+              size: 0,
+              mtimeMs: o.mtimes?.[p] ?? Date.now(),
+              isLink: !!o.links?.includes(p),
+            })),
+            ...(o.dirs ?? [])
+              .filter((d) => d.startsWith(e.path + "/"))
+              .map((d) => ({
+                name: d.slice(e.path.length + 1),
+                kind: "dir",
+                size: 0,
+                mtimeMs: 0,
+                isLink: false,
+              })),
+          ],
         },
   );
   on("fs.read", ($: any, e: any) =>
@@ -218,6 +230,41 @@ test("/arbiter with unknown subcommand prints usage", async ($, on) => {
   expect(
     (await $.command.run({ command: "arbiter", args: "bogus" })).text,
   ).toMatch(/^unknown subcommand bogus\n\n3 rules loaded, 0 errors\n/);
+});
+
+test("loads .yml files and warns about subdirectories", async ($, on) => {
+  await boot($, on, {
+    files: {
+      [`${USER}/k8s.yml`]:
+        "rules:\n  - id: k8s/x\n    match: { cmd: kubectl }\n",
+    },
+    dirs: [`${USER}/aws`],
+  });
+  expect(
+    (await $.command.run({ command: "arbiter", args: "check kubectl get" }))
+      .text,
+  ).toMatch(/^DENY .*\n  k8s\/x  \(user: ~\/\.claude\/rules\/arbiter\/k8s\.yml\)/);
+  const ui = await $.ui.mount({
+    plugin: "agent-tools",
+    component: "Pane",
+    requestId: "arbiter",
+    surface: "terminal",
+    viewport: { columns: 100, rows: 30 },
+    props: {
+      title: "arbiter",
+      isFocused: true,
+      bodyColumns: 80,
+      placement: "inline",
+      scroll: { offset: 0, bodyRows: 20 },
+      view: {},
+    },
+  });
+  expect(
+    await ui.find({
+      type: "Text",
+      text: `${USER}/aws: subdirectory not loaded; move its rule files up one level`,
+    }),
+  ).toBeDefined();
 });
 
 test("pane shows counts, errors, and verdicts", async ($, on) => {
@@ -835,4 +882,16 @@ test("/arbiter check shows the rewrite", async ($, on) => {
   expect(await run("check bash -c 'aws x'")).toBe(
     `REWRITE  "bash -c 'aws x'" -> could not rewrite: the command is too complex to rewrite safely\n  aws/requires-vault  (user: ~/.claude/rules/arbiter/aws.yaml)`,
   );
+});
+
+test("a tool-only rule blocks the tool and toasts", async ($, on) => {
+  const toasts: string[] = [];
+  await boot($, on, {
+    files: { [`${USER}/t.yaml`]: "rules:\n  - id: search/no-grep\n    tool: Grep\n" },
+    toasts,
+  });
+  expect(await $.tool.call({ tool: "Grep", pattern: "x" })).toEqual({
+    deny: "arbiter search/no-grep",
+  });
+  expect(toasts).toEqual(["arbiter denied Grep (search/no-grep)"]);
 });

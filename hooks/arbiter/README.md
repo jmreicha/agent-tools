@@ -98,7 +98,7 @@ getting around it can (`eval`, scripts on disk, base64).
 | user    | `~/.claude/rules/arbiter/`      | Your personal rules, in every repo    |
 | project | `<repo>/.claude/rules/arbiter/` | Rules for one repo, committed with it |
 
-Every `*.yaml` file in those folders loads at session start and on `/arbiter reload`. A higher
+Every `*.yaml` and `*.yml` file directly in those folders loads at session start and on `/arbiter reload`. A higher
 layer wins: redefining an id replaces the lower rule, and `disable: [id, ...]` turns lower rules
 off.
 
@@ -187,6 +187,16 @@ again, and Claude is told what actually ran. See the [reference](../../docs/arbi
     rewrite: { "pre-commit run --all-files": "prek run --all-files" }
 ```
 
+**Steer a whole tool.** Leave out `match` and the rule fires on every call to its tools; handy
+for built-in tools like `Grep` or `TodoWrite`, or an entire MCP server.
+
+```yaml
+- id: memory/use-beads
+  tool: TodoWrite
+  description: Tasks are tracked in beads.
+  hint: Use `bd create` / `bd update` instead.
+```
+
 **Fall back to a regex** when structure can't express it. `regex` searches one simple command's
 text.
 
@@ -239,8 +249,8 @@ failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
   `timeout`, `xargs`, `watch`, `exec`, `command`, `builtin`, `aws-vault exec`, and `op run`.
 - Heredoc bodies are treated as data, even unquoted ones that would expand `$(...)`.
 - `rewrite` can't edit commands inside `bash -c '…'` or `eval`; those are denied instead.
-- Rules only fire on Bash commands and on file tools' `file_path`. A rule for an MCP tool can name
-  it in `tool`, but has nothing to match yet.
+- For tools other than Bash and the file tools (`Grep`, MCP tools), a rule can only cover every
+  call to the tool, not some calls based on their arguments.
 
 ## More
 

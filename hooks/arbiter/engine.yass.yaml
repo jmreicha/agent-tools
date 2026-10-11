@@ -20,6 +20,7 @@ RETURN:
   - WHEN: "the tool is Bash"
     MUST: "test `path` matchers against every sub-command's `redirects` and `args`, after expanding a leading `~`, `$HOME`, or `${HOME}` to the user's home and prefixing a relative target with `./`"
   - MUST: "fire a rule for a sub-command or path when its `match` matches and its `unless` does not match the same sub-command or path"
+  - MUST: "fire a rule that has no `match` on every call whose tool its `tool` matches"
   - MUST: "treat a list of matchers under `match` or `unless` as matching when any one of them matches"
   - MUST: "match a matcher only when every key it has matches"
   - MUST: "compare a pattern string as a /regex/ by search when written `/body/flags`, otherwise as a whole-value glob"
@@ -48,6 +49,8 @@ RETURN:
   - MUST: "evaluate each input listed in the rule's `tests`, using a rule set holding only that rule"
     SEE: evaluate
   - MUST: "use the input as the Bash `command` when the rule's matchers hold command fields, and as `file_path` when they hold `path`, expanding a leading `~` in the input to the given home directory"
+  - WHEN: "the rule has no `match`"
+    MUST: "use each input as the tool name, with no arguments, keeping the rule's own `tool`"
   - MUST: "use `Bash` as the tool name for command rules and `Edit` for path rules, with the rule's `tool` replaced by that name for the test"
   - WHEN: "the input is listed under `rewrite`"
     MUST: "pass when the verdict is `rewrite` and rewriting the input gives exactly the expected command"

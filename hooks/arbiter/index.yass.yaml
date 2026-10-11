@@ -9,12 +9,14 @@ spec: load
 INPUT:
   - MUST: "run on `session.start` and on `/arbiter reload`"
 RETURN:
-  - MUST: "read every `*.yaml` file directly inside the plugin's `rules/`, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`, where `<project>` is the session's project root, skipping the project layer when its directory is the user layer's directory"
+  - MUST: "read every `*.yaml` and `*.yml` file directly inside the plugin's `rules/`, `~/.claude/rules/arbiter/`, and `<project>/.claude/rules/arbiter/`, where `<project>` is the session's project root, skipping the project layer when its directory is the user layer's directory"
   - MUST: "parse each file and merge the layers into the effective rule set used by the guard"
     SEE: rules@loadLayers
 SIDE-EFFECT:
   - WHEN: "loading produced any errors"
     MUST: "show one toast naming how many files were skipped, and list each error in the pane"
+  - WHEN: "a layer directory contains a subdirectory"
+    MUST: "add a warning naming the subdirectory, saying its files are not loaded"
   - MUST-NOT: "read rule files again until the next session start or `/arbiter reload`"
 ERROR:
   - WHEN: "a rule file cannot be read"

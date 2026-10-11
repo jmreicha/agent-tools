@@ -106,6 +106,7 @@ function fires(
         m.path !== undefined &&
         list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
     );
+  if (!r.match.length) return true;
   if (subs.some((s) => firesOn(r, s, subs))) return true;
   const files = [
     ...(file === undefined ? [] : [file]),
@@ -163,6 +164,12 @@ export function runRuleTests(rule: Rule, home: string): TestResult[] {
   ][]) {
     if (expected === "rewrite") continue;
     for (const input of inputs) {
+      if (!rule.match.length) {
+        // Tool-only rule: the input is a tool name.
+        const actual = evaluate(input, {}, [rule], home).action;
+        out.push({ id: rule.id, input, expected, actual, pass: actual === expected });
+        continue;
+      }
       const arg = usesPath
         ? { file_path: expandHome(input, home) }
         : { command: input };

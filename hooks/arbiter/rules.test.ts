@@ -225,3 +225,19 @@ test("piped_to takes a command matcher only", () => {
     messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: sh }\n`),
   ).toEqual(["match.piped_to must be a non-empty mapping"]);
 });
+
+test("match may be left out only when tool cannot be Bash", () => {
+  const f = parse("rules:\n  - id: a/b\n    tool: [Grep, /^mcp__db__/]\n");
+  expect(f.errors).toEqual([]);
+  expect(f.rules[0].match).toEqual([]);
+  expect(messages("rules:\n  - id: a/b\n")).toEqual(["match is required"]);
+  expect(messages("rules:\n  - id: a/b\n    tool: [Grep, Bash]\n")).toEqual([
+    "match is required when tool can be Bash",
+  ]);
+  expect(messages('rules:\n  - id: a/b\n    tool: "/.*/"\n')).toEqual([
+    "match is required when tool can be Bash",
+  ]);
+  expect(messages("rules:\n  - id: a/b\n    tool: Grep\n    unless: { path: x }\n")).toEqual([
+    "unless needs match",
+  ]);
+});

@@ -99,7 +99,7 @@
     "rule": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "match"],
+      "required": ["id"],
       "properties": {
         "id": {
           "description": "Unique within a layer; a higher layer with the same id replaces it. Convention: <area>/<name>.",
@@ -111,7 +111,7 @@
           "$ref": "#/definitions/patterns"
         },
         "match": {
-          "description": "When the rule applies.",
+          "description": "When the rule applies. Leave out only when tool names no Bash: the rule then fires on every call to its tools.",
           "$ref": "#/definitions/matchers"
         },
         "unless": {

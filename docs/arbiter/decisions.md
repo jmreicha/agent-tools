@@ -369,3 +369,32 @@ became a wrapper so rules can say `unless: { wrapped_by: uv }`.
 
 **Consequences.** No free-form templates. `k8s/require-context` stays `deny`: choosing a context
 is a decision, not a fix.
+
+---
+
+## Tool-only rules
+
+**Status:** accepted · 2026-10-11
+
+**Context.** A rule naming `Grep`, `TodoWrite`, or an MCP tool had nothing to match, so it never
+fired. Steering whole tools ("search with codegraph", "memory in beads") needs it.
+
+**Decision.** `match` is optional when `tool` cannot be Bash (exact names, or a regex that does
+not match `Bash`); such a rule fires on every call to its tools. `unless` needs `match`. Inline
+tests take tool names as inputs.
+
+**Consequences.** Matching some calls of a tool by its arguments still waits for the `input`
+matcher.
+
+---
+
+## Rule file discovery
+
+**Status:** accepted · 2026-10-11
+
+**Context.** `.yml` files and subfolders in a layer were skipped without a word, an easy trap.
+
+**Decision.** Load `*.yml` alongside `*.yaml`. Keep layers flat: a subdirectory adds a warning
+instead of loading, so file order and override stay one alphabetical list per layer.
+
+**Consequences.** Grouping rules means more files in one folder, not nested folders.

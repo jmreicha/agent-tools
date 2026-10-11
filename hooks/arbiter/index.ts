@@ -88,6 +88,7 @@ async function loadRules($: EngineInterface) {
   ];
   if (project !== user) dirs.push(["project", project]);
   const files: ParsedFile[] = [];
+  const warnings: Problem[] = [];
   layers = [];
   for (const [layer, dir] of dirs) {
     const exists = await $.fs.exists(dir);
@@ -103,8 +104,13 @@ async function loadRules($: EngineInterface) {
       continue;
     }
     for (const entry of entries) {
-      if (entry.kind !== "file" || !entry.name.endsWith(".yaml")) continue;
       const path = `${dir}/${entry.name}`;
+      if (entry.kind === "dir")
+        warnings.push({
+          path,
+          message: "subdirectory not loaded; move its rule files up one level",
+        });
+      if (entry.kind !== "file" || !/\.ya?ml$/.test(entry.name)) continue;
       try {
         files.push(parseRuleFile(await $.fs.read(path), path, layer));
       } catch (err) {
@@ -119,6 +125,7 @@ async function loadRules($: EngineInterface) {
     }
   }
   rules = loadLayers(files);
+  rules.warnings.push(...warnings);
   const skipped = new Set(rules.errors.map((e) => e.path)).size;
   if (skipped)
     $.ui.toast(

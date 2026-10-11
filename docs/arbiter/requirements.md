@@ -27,7 +27,7 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 
 | #   | Requirement                                                                                                                                                                                                                                                                        |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | Rules are YAML files loaded from three layers: plugin-shipped, user (`~/.claude/rules/arbiter/*.yaml`), project (`<repo>/.claude/rules/arbiter/*.yaml`).                                                                                                                           |
+| R1  | Rules are YAML files loaded from three layers: plugin-shipped, user (`~/.claude/rules/arbiter/*.yaml`), project (`<repo>/.claude/rules/arbiter/*.yaml`); `*.yml` too.                                                                                                              |
 | R2  | A higher layer can disable a lower-layer rule by `id`, or replace it by redefining the same `id`.                                                                                                                                                                                  |
 | R3  | Bash commands are parsed into sub-commands (split on `&&`, `\|\|`, `;`, `\|`, `$(…)`) and known wrappers are unwrapped before matching.                                                                                                                                            |
 | R4  | Rules express "forbid X" (`match`) and "X requires Y" (`match` + `unless`).                                                                                                                                                                                                        |
@@ -43,6 +43,7 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 | R14 | A rule can be switched off in place with `enabled: false` (default `true`); its tests still run.                                                                                                                                                                                   |
 | R15 | A blocked call shows a toast, and the status line counts denied and asked calls per session.                                                                                                                                                                                       |
 | R16 | Rules can match a command piped into another (`piped_to`), and `path` rules see Bash redirect targets.                                                                                                                                                                             |
+| R17 | A rule without `match` covers every call to its non-Bash tools (built-in or MCP).                                                                                                                                                                                                  |
 
 ## Success criteria
 

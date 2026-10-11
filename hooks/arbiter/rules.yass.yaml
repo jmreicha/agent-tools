@@ -17,7 +17,7 @@ RETURN:
 ERROR:
   - WHEN: "the text is not valid YAML"
     MUST: "return no rules and one error carrying the path, the line, and the parser's message"
-  - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id` or `match`, a duplicate `id`, an unknown `action`, a non-boolean `enabled`, a malformed or missing `to`, an invalid regex, or a matcher mixing `path` with command fields"
+  - WHEN: "the file breaks any rule of the rule format, such as an unknown key, a missing `id`, a missing `match` on a rule that can apply to Bash, `unless` without `match`, a duplicate `id`, an unknown `action`, a non-boolean `enabled`, a malformed or missing `to`, an invalid regex, or a matcher mixing `path` with command fields"
     MUST: "return no rules and one error per problem, naming `description` as the replacement when a rule uses the old key `reason`, each carrying the path, the rule `id` when known, the line when known, and what is wrong"
   - WHEN: "the file is empty or contains only comments"
     MUST: "return no rules and no errors"
@@ -58,8 +58,10 @@ content: |
              convention <area>/<name>. Unique within a file.
     tool     string, list of strings, or /regex/. Tool names the rule applies to.
              Default Bash.
-    match    required. A matcher, or a list of matchers meaning any of them.
-    unless   a matcher, or a list of matchers meaning any of them.
+    match    a matcher, or a list of matchers meaning any of them. Required unless
+             `tool` names no tool that is or could be Bash (a /regex/ matching `Bash`
+             counts); a rule without `match` fires on every call to its tools.
+    unless   a matcher, or a list of matchers meaning any of them. Only with `match`.
     action   deny | ask | warn | rewrite. Default deny.
     to       mapping, required with action rewrite and only allowed with it. One or
              more of:
@@ -76,7 +78,8 @@ content: |
     description  string. What the rule enforces and why; shown to Claude and in /arbiter list.
     hint     string. What to do instead.
     enabled  boolean. Default true; false turns the rule off in place.
-    tests    mapping from deny | ask | warn | allow to a list of input strings, and
+    tests    mapping from deny | ask | warn | allow to a list of input strings (tool
+             names for a rule without `match`), and
              from rewrite to a mapping of input command to expected rewritten command.
 
   A matcher is a mapping with one or more of these keys and no others. Command fields and

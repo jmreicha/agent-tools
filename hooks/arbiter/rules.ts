@@ -104,6 +104,16 @@ function badRegex(p: string): string | null {
   }
 }
 
+function canBeBash(t: string): boolean {
+  const m = REGEX.exec(t);
+  if (!m) return t === "Bash";
+  try {
+    return new RegExp(m[1], m[2]).test("Bash");
+  } catch {
+    return false; // reported as an invalid regex
+  }
+}
+
 function checkMatcher(m: unknown, where: string, out: string[]) {
   if (!isObj(m) || Object.keys(m).length === 0) {
     out.push(`${where} must be a non-empty mapping`);
@@ -174,7 +184,13 @@ function checkRule(r: unknown, i: number, out: string[]) {
         if (bad) out.push(bad);
       }
   }
-  if (!("match" in r)) out.push("match is required");
+  if (!("match" in r)) {
+    // A rule without match fires on every call to its tools, so never on Bash.
+    const tools = "tool" in r && strOrStrs(r.tool) ? [r.tool].flat() : null;
+    if (!tools) out.push("match is required");
+    else if (tools.some(canBeBash)) out.push("match is required when tool can be Bash");
+    if ("unless" in r) out.push("unless needs match");
+  }
   for (const key of ["match", "unless"] as const) {
     if (!(key in r)) continue;
     const value = r[key];
@@ -290,7 +306,7 @@ export function parseRuleFile(
   const rules = (raw as Record<string, unknown>[]).map((r): Rule => ({
     id: r.id as string,
     tool: (r.tool as string | string[] | undefined) ?? "Bash",
-    match: [r.match].flat() as Matcher[],
+    match: r.match === undefined ? [] : ([r.match].flat() as Matcher[]),
     unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
     action: (r.action as Action | undefined) ?? "deny",
     to: r.to as RewriteTo | undefined,

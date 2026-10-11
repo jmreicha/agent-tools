@@ -29,7 +29,7 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
 
 ## Data flow
 
-1. `session.start` (and `/arbiter reload`): read every `*.yaml` from the three layers with
+1. `session.start` (and `/arbiter reload`): read every `*.yaml`/`*.yml` from the three layers with
    `$.fs.read`, validate, merge into the effective rule set. Record load errors.
 2. `tool.call`: `engine.evaluate(e.tool, e, rules)`.
    - Bash: parse `e.command` into sub-commands; test each rule against each sub-command.
@@ -134,7 +134,7 @@ Fields in one matcher are ANDed; a list value means "any of".
 ### Layers
 
 Load order, lowest to highest: plugin `rules/*.yaml` → `~/.claude/rules/arbiter/*.yaml` →
-`<repo>/.claude/rules/arbiter/*.yaml`. Within a layer, files load alphabetically. `disable:`
+`<repo>/.claude/rules/arbiter/*.yaml`. Within a layer, files load alphabetically; subdirectories are warned about, not loaded. `disable:`
 removes ids from all lower layers. Claude Code only auto-loads `.md` under `.claude/rules/`, so the
 YAML files do not leak into context.
 
