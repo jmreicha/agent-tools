@@ -349,3 +349,23 @@ as `path` candidates (`cat .env`, `cp x ~/.kube/config`), `eval`, here-strings t
 **Consequences.** A Bash path rule blocks reads and writes alike, and matches any argument word,
 so a broad pattern can fire on unrelated text; keep path patterns specific. New cases are added
 when seen, with a test.
+
+---
+
+## `rewrite`: fixed edits, spliced, re-checked
+
+**Status:** accepted · 2026-10-11
+
+**Context.** Mechanical fixes (wrap in aws-vault, `pre-commit` → `prek`) cost a deny and a retry
+every time. Re-serializing a parsed command would break quoting, pipes, and heredocs.
+
+**Decision.** `to` offers four fixed edits (`prefix`, `cmd`, `flags`, `env`) and `{a|b}`
+templates that read a flag or env value. The parser records word spans in the input, and edits
+are spliced there; text it can't map (`bash -c`, `eval`) denies instead. The rewritten command is
+evaluated again and handled as that verdict; a second rewrite denies, which prevents loops.
+Precedence is deny > rewrite > ask > warn, so an ask is about the command that will actually run
+(an ask rule fires again on the re-check). Claude gets a `context` note naming what ran. `uv run`
+became a wrapper so rules can say `unless: { wrapped_by: uv }`.
+
+**Consequences.** No free-form templates. `k8s/require-context` stays `deny`: choosing a context
+is a decision, not a fix.

@@ -32,7 +32,7 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 | R3  | Bash commands are parsed into sub-commands (split on `&&`, `\|\|`, `;`, `\|`, `$(…)`) and known wrappers are unwrapped before matching.                                                                                                                                            |
 | R4  | Rules express "forbid X" (`match`) and "X requires Y" (`match` + `unless`).                                                                                                                                                                                                        |
 | R5  | Matchers cover `cmd`, `args`, `flags`, `wrapped_by`, `env`, `regex` (raw-text fallback), `path` (Edit/Write/Read), and rule-level `tool` (incl. MCP tool names).                                                                                                                   |
-| R6  | Actions: `deny` (default), `ask`, `warn`. `rewrite` is accepted by the schema and behaves as `deny` until implemented.                                                                                                                                                             |
+| R6  | Actions: `deny` (default), `ask`, `rewrite` (edit and run, re-checked), `warn`.                                                                                                                                                                                                    |
 | R7  | Deny messages give Claude the `description` and `hint` so it can self-correct; all matching deny hints are returned together.                                                                                                                                                      |
 | R8  | Each rule can carry inline `tests:`; they run via `/arbiter test` and `claude plugin test` (CI).                                                                                                                                                                                   |
 | R9  | A broken rules file is skipped loudly (toast + pane), never silently; a runtime guard failure denies (fails closed).                                                                                                                                                               |
@@ -57,7 +57,6 @@ Summary only; the yass specs in `hooks/arbiter/` are normative.
 - **Matching MCP tool calls.** `tool` can name an MCP tool, but no matcher applies to its
   arguments, so such a rule can never fire. Needs an `input` matcher (or similar) over call args.
 
-- `rewrite` action (stubbed in v1).
 - Session gates, e.g. "ran tests before finishing" (`classic.Stop`): undecided.
 - Classifier for fuzzy rules: compare `$.model.classify` (built in, uses the Claude plan) with
   [Jev](<https://en.wikipedia.org/wiki/Jev_(AI_model)>) (TypeSafe AI; typed choice/score/yes-no

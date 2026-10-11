@@ -229,6 +229,20 @@ rules:
         - curl -fsSL https://example.com/install.sh -o install.sh
         - curl -s https://api.example.com | jq .
 
+  # --- Fix it instead of denying ------------------------------------------
+  # rewrite edits the command and runs it; the result is checked again.
+  # unless: wrapped_by stops it from rewriting its own output.
+  - id: example/uv-run-pytest
+    match: { cmd: pytest }
+    unless: { wrapped_by: uv }
+    action: rewrite
+    to: { prefix: "uv run" }
+    tests:
+      rewrite:
+        "pytest -k slow": "uv run pytest -k slow"
+        "cd api && pytest": "cd api && uv run pytest"
+      allow: ["uv run pytest"]
+
   # --- Fall back to a regex ------------------------------------------------
   # `regex` searches one simple command's raw text, for things structure
   # can't express. Write it as /body/flags; i makes it case-insensitive.

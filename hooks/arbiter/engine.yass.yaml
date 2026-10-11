@@ -31,11 +31,10 @@ RETURN:
   - MUST: "match `regex` by searching the sub-command's `raw`"
   - MUST: "match `piped_to` when some sub-command with the same `pipe` and a later `stage` matches it as a matcher"
   - MUST-NOT: "match a matcher holding command fields against a tool call that is not Bash, or a `path` matcher against a call that is neither Bash nor has a `file_path`"
-  - MUST: "treat a fired `rewrite` rule as `deny`"
-  - MUST: "choose the verdict's `action` as the strictest among fired rules, in the order deny, ask, warn, and `allow` when none fired"
+  - MUST: "choose the verdict's `action` as the strictest among fired rules, in the order deny, rewrite, ask, warn, and `allow` when none fired, rewrite ranking above ask so the rewritten command is what an ask is about"
   - WHEN: "the action is `deny`"
     MUST: "set `message` to one line per fired deny rule, sorted by `id`, of the form `arbiter <id>: <description> <hint>`, omitting a missing description or hint"
-  - WHEN: "the action is `ask` or `warn`"
+  - WHEN: "the action is `ask`, `rewrite`, or `warn`"
     MUST: "set `message` to the same line form, built from the fired rules of that action"
   - WHEN: "the action is `allow`"
     MUST: "set `message` to an empty string"
@@ -50,6 +49,31 @@ RETURN:
     SEE: evaluate
   - MUST: "use the input as the Bash `command` when the rule's matchers hold command fields, and as `file_path` when they hold `path`, expanding a leading `~` in the input to the given home directory"
   - MUST: "use `Bash` as the tool name for command rules and `Edit` for path rules, with the rule's `tool` replaced by that name for the test"
-  - MUST: "pass an input when the verdict's action equals the key it is listed under, where `allow` means the rule did not fire and a `rewrite` rule's inputs are listed under `deny`"
+  - WHEN: "the input is listed under `rewrite`"
+    MUST: "pass when the verdict is `rewrite` and rewriting the input gives exactly the expected command"
+    SEE: rewrite
+  - MUST: "pass an input when the verdict's action equals the key it is listed under, where `allow` means the rule did not fire"
   - MUST: "return one result per input with the rule `id`, the input, the expected and actual action, and whether it passed"
   - MUST: "return an empty list for a rule without `tests`"
+---
+spec: rewrite
+INPUT:
+  - MUST: "take a Bash command, the verdict for it, and the user's home directory"
+    CONFORMS: evaluate::RETURN
+RETURN:
+  - MUST: "apply the `to` edits of every fired `rewrite` rule to every sub-command it fired on, and return the command with those edits spliced into the original text, leaving all other text unchanged"
+  - MUST: "insert `prefix` and a space at the start of the `cmd` word, after any leading assignments"
+  - MUST: "replace the `cmd` word with `cmd`"
+  - MUST: "replace a flag word named in `flags` with its replacement, keeping an attached `=value`, or remove it with the space after it when the replacement is null"
+  - MUST: "also remove the value word after a removed flag when a template in the same rule read that flag's value from it"
+  - MUST: "remove a leading assignment named in `env`, with the space after it"
+  - MUST: "fill each template with its first present alternative, quoting a value that is not made only of letters, digits, and `@%+=:,./_-` in single quotes"
+ERROR:
+  - WHEN: "a sub-command to edit has no `spans`"
+    MUST: "return an error saying the command is too complex to rewrite safely"
+  - WHEN: "two edits overlap"
+    MUST: "return an error naming the rules involved"
+  - WHEN: "a template has no present alternative"
+    MUST: "return an error naming the template"
+INVARIANT:
+  - MUST: "return the same result for the same inputs"

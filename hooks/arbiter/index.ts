@@ -1,7 +1,7 @@
 // arbiter hooks module: the only file that touches $. Spec: index.yass.yaml
 import type { EngineInterface } from "claude-code";
 import { dump } from "./vendor/js-yaml.mjs";
-import { evaluate, runRuleTests, type Verdict } from "./engine.ts";
+import { evaluate, rewrite, runRuleTests, type Verdict } from "./engine.ts";
 import { parse } from "./shell.ts";
 import {
   loadLayers,
@@ -32,6 +32,7 @@ let histWrite: Promise<void> = Promise.resolve();
 let histWarned = false;
 let denied = 0;
 let asked = 0;
+let rewritten = 0;
 const DAY = 864e5;
 const RETAIN_DAYS = 90;
 const SCHEMA =
@@ -185,7 +186,11 @@ function record($: EngineInterface, e: any, v: Verdict, outcome?: string) {
 
 // Status line counts, plus a toast when a call was blocked.
 function tally($: EngineInterface, e: any, v: Verdict, blocked: boolean) {
-  const parts = [denied && `${denied} denied`, asked && `${asked} asked`];
+  const parts = [
+    denied && `${denied} denied`,
+    asked && `${asked} asked`,
+    rewritten && `${rewritten} rewritten`,
+  ];
   $.ui.status(`arbiter: ${parts.filter(Boolean).join(" · ")}`);
   if (blocked)
     $.ui.toast(
@@ -213,9 +218,18 @@ async function history($: EngineInterface): Promise<string> {
       }
       hits++;
       for (const r of h.rules ?? []) {
-        const s = by.get(r.id) ?? { hits: 0, deny: 0, ask: 0, warn: 0, allowed: 0, refused: 0, last: "" };
+        const s = by.get(r.id) ?? {
+          hits: 0,
+          deny: 0,
+          ask: 0,
+          rewrite: 0,
+          warn: 0,
+          allowed: 0,
+          refused: 0,
+          last: "",
+        };
         (s.hits as number)++;
-        (s[r.action === "rewrite" ? "deny" : r.action] as number)++;
+        (s[r.action] as number)++;
         if (r.action === "ask" && h.outcome) (s[h.outcome] as number)++;
         if (String(h.ts) > (s.last as string)) s.last = String(h.ts);
         by.set(r.id, s);
@@ -228,13 +242,18 @@ async function history($: EngineInterface): Promise<string> {
     .sort(([a, x], [b, y]) => (y.hits as number) - (x.hits as number) || cmp(a, b))
     .map(([id, s]) => [
       id,
-      ...["hits", "deny", "ask", "warn", "allowed", "refused"].map((k) => String(s[k])),
+      ...["hits", "deny", "ask", "rewrite", "warn", "allowed", "refused"].map((k) =>
+        String(s[k]),
+      ),
       (s.last as string).slice(0, 10),
     ]);
   const idle = rules.rules.map((r) => r.id).filter((id) => !by.has(id)).sort(cmp);
   return [
     `${hits} hit${hits === 1 ? "" : "s"} in ${sessions} session${sessions === 1 ? "" : "s"}, last ${RETAIN_DAYS} days`,
-    table([["ID", "HITS", "DENY", "ASK", "WARN", "ALLOWED", "REFUSED", "LAST"], ...rows]),
+    table([
+      ["ID", "HITS", "DENY", "ASK", "REWRITE", "WARN", "ALLOWED", "REFUSED", "LAST"],
+      ...rows,
+    ]),
     ...(idle.length ? [`no hits: ${idle.join(", ")}`] : []),
   ].join("\n");
 }
@@ -273,7 +292,12 @@ function check(input: string): string {
   const command = input.replace(/^(["'])(.*)\1$/s, "$2");
   const v = evaluate("Bash", { command }, rules.rules, home);
   if (v.action === "allow") return `ALLOW  "${command}"  no rule fired`;
-  const lines = [`${v.action.toUpperCase()}  "${command}"`];
+  let head = `${v.action.toUpperCase()}  "${command}"`;
+  if (v.action === "rewrite") {
+    const r = rewrite(command, v, home);
+    head += "error" in r ? ` -> could not rewrite: ${r.error}` : ` -> "${r.command}"`;
+  }
+  const lines = [head];
   for (const r of v.fired) {
     lines.push(`  ${r.id}  (${r.layer}: ${short(r.path)})`);
     if (r.description) lines.push(`    description: ${r.description}`);
@@ -359,7 +383,7 @@ function testAll(): string {
 
 const COLOR: Record<string, string> = {
   deny: "red",
-  rewrite: "red",
+  rewrite: "cyan",
   ask: "yellow",
   warn: "yellow",
   allow: "green",
@@ -373,7 +397,7 @@ function segments(
   table: { action: number; layer: number } | null,
 ): Seg[] {
   let m: RegExpExecArray | null;
-  if ((m = /^(DENY|ASK|WARN|ALLOW)\b(.*)$/s.exec(line)))
+  if ((m = /^(DENY|ASK|REWRITE|WARN|ALLOW)\b(.*)$/s.exec(line)))
     return [[m[1], { color: COLOR[m[1].toLowerCase()], bold: true }], [m[2]]];
   if (/^FAIL\b/.test(line)) return [[line, { color: "red" }]];
   if (/^(SKIPPED\b|unknown subcommand|usage:|no rules match)/.test(line))
@@ -429,8 +453,40 @@ async function drawOutput($: EngineInterface, e: any, next: any) {
 }
 
 async function guardCall($: EngineInterface, e: any, next: any) {
-  const v = evaluate(e.tool, e, rules.rules, home);
-  if (v.action === "allow") return next(e);
+  let v = evaluate(e.tool, e, rules.rules, home);
+  let note = "";
+  if (v.action === "rewrite") {
+    remember(e, v);
+    $.ui.invalidate("ui.render");
+    await record($, e, v);
+    const r = rewrite(String(e.command), v, home);
+    const again =
+      "error" in r ? null : evaluate(e.tool, { ...e, command: r.command }, rules.rules, home);
+    const why =
+      "error" in r
+        ? r.error
+        : again!.action === "rewrite"
+          ? "the rewritten command would be rewritten again"
+          : "";
+    if (why) {
+      denied++;
+      tally($, e, v, true);
+      return { deny: `${v.message}\narbiter could not rewrite: ${why}` };
+    }
+    const ids = v.fired.filter((f) => f.action === "rewrite").map((f) => f.id);
+    rewritten++;
+    tally($, e, v, false);
+    $.ui.toast(`arbiter rewrote ${target(e)} (${ids.join(", ")})`);
+    note = `arbiter ${ids.join(", ")} rewrote this command; it ran as: ${(r as { command: string }).command}`;
+    e = { ...e, command: (r as { command: string }).command };
+    v = again!;
+  }
+  // A rewritten call tells Claude what actually ran.
+  const run = async () => {
+    const res = await next(e);
+    return note && !res.deny ? { ...res, context: [...(res.context ?? []), note] } : res;
+  };
+  if (v.action === "allow") return run();
   remember(e, v);
   $.ui.invalidate("ui.render");
   if (v.action === "deny") {
@@ -442,7 +498,7 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   if (v.action === "warn") {
     await record($, e, v);
     $.ui.log(v.message);
-    return next(e);
+    return run();
   }
   let answer = "Refuse";
   try {
@@ -453,7 +509,7 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   await record($, e, v, answer === "Allow" ? "allowed" : "refused");
   asked++;
   tally($, e, v, answer !== "Allow");
-  return answer === "Allow" ? next(e) : { deny: v.message };
+  return answer === "Allow" ? run() : { deny: v.message };
 }
 
 async function runCommand($: EngineInterface, e: any) {
@@ -557,7 +613,7 @@ export function register(on) {
     sessionId = await $.session.id();
     histLines = null;
     histWarned = false;
-    denied = asked = 0;
+    denied = asked = rewritten = 0;
     await loadRules($);
     try {
       await prune($, RETAIN_DAYS);

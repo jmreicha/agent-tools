@@ -10,7 +10,13 @@ export type SubCommand = {
   pipe: number;
   stage: number;
   redirects: string[];
+  // Where words sit in the parsed input; absent when the text was derived (bash -c, eval).
+  spans?: Spans;
 };
+
+export type Span = [number, number];
+type Spans = { cmd: Span; words: Span[]; env: Record<string, Span> };
+type At = Span | null;
 
 // Pipeline ids, unique within one parse() call.
 let pipes = 0;
@@ -81,6 +87,12 @@ const WRAPPERS: Record<string, Unwrap> = {
     while (i < rest.length && rest[i].startsWith("-")) i++;
     return Math.min(i + 1, rest.length);
   },
+  uv: (rest) => {
+    if (rest[0] !== "run") return null;
+    const valued = ["--with", "-w", "--python", "-p", "--project", "--directory"];
+    valued.push("--package", "--env-file", "--extra", "--group", "--index");
+    return 1 + flagsThen(valued)(rest.slice(1))!;
+  },
   op: (rest) => {
     if (rest[0] !== "run") return null;
     const dd = rest.indexOf("--");
@@ -91,7 +103,7 @@ const WRAPPERS: Record<string, Unwrap> = {
 export function parse(command: string): SubCommand[] {
   pipes = 0;
   try {
-    return new Lexer(command).list(false, []);
+    return new Lexer(command, 0).list(false, []);
   } catch {
     return [
       {
@@ -113,7 +125,11 @@ export function parse(command: string): SubCommand[] {
 class Lexer {
   i = 0;
   heredocs: { delim: string; strip: boolean }[] = [];
-  constructor(private s: string) {}
+  // base: offset of s within the parsed input, or null when s is derived text.
+  constructor(
+    private s: string,
+    private base: number | null = null,
+  ) {}
 
   // Commands until EOF, or until the `)` closing a `$(` / `<(` when inSub.
   list(inSub: boolean, wrappers: string[]): SubCommand[] {
@@ -125,12 +141,13 @@ class Lexer {
       this.blanks();
       const start = this.i;
       const words: string[] = [];
+      const at: At[] = [];
       const x: Extras = { redirects: [], herestrings: [], outputs: [] };
       const fed = out.length;
-      this.words(words, out, wrappers, x);
+      this.words(words, at, out, wrappers, x);
       feed(out.slice(fed), pipe, stage);
       out.push(...x.outputs);
-      const built = build(words, this.s.slice(start, this.i).trim(), wrappers);
+      const built = build(words, at, this.s.slice(start, this.i).trim(), wrappers);
       // pipe -1 marks this simple command's own subs; nested scripts are already numbered.
       const own = built.filter((b) => b.pipe === -1);
       for (const b of own) Object.assign(b, { pipe, stage });
@@ -176,6 +193,7 @@ class Lexer {
 
   private words(
     words: string[],
+    at: At[],
     out: SubCommand[],
     wrappers: string[],
     x: Extras,
@@ -199,11 +217,15 @@ class Lexer {
       else if (c === "#")
         while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
       else {
+        const from = this.i;
         const w = this.word(out, wrappers);
         const next = this.s[this.i];
         if (/^\d+$/.test(w) && (next === "<" || next === ">"))
           this.redirect(out, wrappers, x);
-        else words.push(w);
+        else {
+          words.push(w);
+          at.push(this.base === null ? null : [this.base + from, this.base + this.i]);
+        }
       }
     }
   }
@@ -251,7 +273,8 @@ class Lexer {
       while (j < this.s.length && this.s[j] !== "`")
         j += this.s[j] === "\\" ? 2 : 1;
       if (j >= this.s.length) throw new ShellError("unterminated backtick");
-      out.push(...new Lexer(this.s.slice(this.i + 1, j)).list(false, wrappers));
+      const base = this.base === null ? null : this.base + this.i + 1;
+      out.push(...new Lexer(this.s.slice(this.i + 1, j), base).list(false, wrappers));
       this.i = j + 1;
     } else if (this.s.startsWith("$((", this.i)) {
       let depth = 0;
@@ -311,19 +334,27 @@ class Lexer {
   }
 }
 
-function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
+function build(
+  words: string[],
+  at: At[],
+  raw: string,
+  wrappers: string[],
+): SubCommand[] {
   let i = 0;
   while (i < words.length && RESERVED.has(words[i])) i++;
   const env: Record<string, string> = {};
+  const envAt: Record<string, At> = {};
   for (; i < words.length; i++) {
     const m = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/s.exec(words[i]);
     if (!m) break;
     env[m[1]] = m[2];
+    envAt[m[1]] = at[i];
   }
   if (i >= words.length) return [];
   // A substitution in command position isn't a path; keep it whole.
   const cmd = /[$`]/.test(words[i]) ? words[i] : words[i].split("/").pop()!;
   const rest = words.slice(i + 1);
+  const restAt = at.slice(i + 1);
   const n = WRAPPERS[cmd]?.(rest) ?? null;
   if (n !== null) {
     const inner = rest.slice(n);
@@ -331,11 +362,12 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
     const nested =
       cmd === "watch" && inner.length === 1 && /\s/.test(inner[0])
         ? new Lexer(inner[0]).list(false, [...wrappers, cmd])
-        : build(inner, raw, [...wrappers, cmd]);
-    return [make(raw, cmd, rest.slice(0, n), env, wrappers), ...nested];
+        : build(inner, restAt.slice(n), raw, [...wrappers, cmd]);
+    const spans = spansOf(at[i], restAt.slice(0, n), envAt);
+    return [make(raw, cmd, rest.slice(0, n), env, wrappers, spans), ...nested];
   }
-  const sub = make(raw, cmd, rest, env, wrappers);
-  if (cmd === "find") return [sub, ...findExec(rest, raw, wrappers)];
+  const sub = make(raw, cmd, rest, env, wrappers, spansOf(at[i], restAt, envAt));
+  if (cmd === "find") return [sub, ...findExec(rest, restAt, raw, wrappers)];
   const script = SHELLS.has(cmd)
     ? cScript(rest)
     : cmd === "eval"
@@ -349,13 +381,20 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
 const EXEC = new Set(["-exec", "-execdir", "-ok", "-okdir"]);
 
 // Commands find runs: the words after -exec up to `;` or `+`.
-function findExec(rest: string[], raw: string, wrappers: string[]): SubCommand[] {
+function findExec(
+  rest: string[],
+  restAt: At[],
+  raw: string,
+  wrappers: string[],
+): SubCommand[] {
   const out: SubCommand[] = [];
   for (let i = 0; i < rest.length; i++) {
     if (!EXEC.has(rest[i])) continue;
     let j = i + 1;
     while (j < rest.length && rest[j] !== ";" && rest[j] !== "+") j++;
-    out.push(...build(rest.slice(i + 1, j), raw, [...wrappers, "find"]));
+    out.push(
+      ...build(rest.slice(i + 1, j), restAt.slice(i + 1, j), raw, [...wrappers, "find"]),
+    );
     i = j;
   }
   return out;
@@ -379,6 +418,7 @@ function make(
   words: string[],
   env: Record<string, string>,
   wrappers: string[],
+  spans: Spans | undefined,
 ): SubCommand {
   const args: string[] = [];
   const flags: string[] = [];
@@ -389,7 +429,30 @@ function make(
       flags.push(w.split("=")[0]);
     else args.push(w);
   }
-  return { raw, cmd, args, flags, env, wrappers, words, pipe: -1, stage: 0, redirects: [] };
+  return {
+    raw,
+    cmd,
+    args,
+    flags,
+    env,
+    wrappers,
+    words,
+    pipe: -1,
+    stage: 0,
+    redirects: [],
+    spans,
+  };
+}
+
+// Spans only when every word maps to the input.
+function spansOf(cmd: At, words: At[], env: Record<string, At>): Spans | undefined {
+  const all = [cmd, ...words, ...Object.values(env)];
+  if (all.some((a) => a === null)) return undefined;
+  return {
+    cmd: cmd!,
+    words: words as Span[],
+    env: env as Record<string, Span>,
+  };
 }
 
 // The script of `bash -c script`, or null.

@@ -1,5 +1,5 @@
 import { expect, test } from "claude-code/testing";
-import { evaluate, runRuleTests } from "./engine.ts";
+import { evaluate, rewrite, runRuleTests } from "./engine.ts";
 import { parseRuleFile, type Rule } from "./rules.ts";
 
 const HOME = "/home/u";
@@ -117,11 +117,97 @@ test("command matchers never fire for non-Bash tools; tool regex works", () => {
   expect(evaluate("mcp__prod__query", {}, VAULT, HOME).action).toBe("allow");
 });
 
-test("rewrite behaves as deny", () => {
-  const rs = rules(
-    "rules:\n  - id: rm/trash\n    match: { cmd: rm }\n    action: rewrite\n    to: trash\n",
+const VAULTED = rules(`
+rules:
+  - id: aws/requires-vault
+    match: { cmd: aws }
+    unless: { wrapped_by: aws-vault }
+    action: rewrite
+    to:
+      prefix: "aws-vault exec {--profile|AWS_PROFILE|lytxread} --"
+      flags: { --profile: null }
+      env: { AWS_PROFILE: null }
+  - id: git/lease
+    match: { cmd: git, args: [push] }
+    action: rewrite
+    to: { flags: { --force: --force-with-lease, -f: --force-with-lease } }
+  - id: py/prek
+    match: { cmd: pre-commit }
+    action: rewrite
+    to: { cmd: prek }
+  - id: k8s/ask-delete
+    match: { cmd: kubectl, args: [delete] }
+    action: ask
+`);
+
+const rw = (c: string) => rewrite(c, bash(c, VAULTED), HOME);
+
+test("rewrite ranks after deny, before ask, so the re-check can ask", () => {
+  expect(bash("aws s3 ls", VAULTED).action).toBe("rewrite");
+  expect(bash("aws s3 ls; kubectl delete pod x", VAULTED).action).toBe("rewrite");
+  expect(bash("kubectl delete pod x", VAULTED).action).toBe("ask");
+  expect(bash("aws s3 ls", VAULTED).message).toBe("arbiter aws/requires-vault");
+});
+
+test("rewrite splices edits into the original text", () => {
+  expect(rw("aws s3 ls")).toEqual({ command: "aws-vault exec lytxread -- aws s3 ls" });
+  expect(rw("aws s3 ls --profile prod")).toEqual({
+    command: "aws-vault exec prod -- aws s3 ls",
+  });
+  expect(rw("aws --profile=prod s3 ls")).toEqual({
+    command: "aws-vault exec prod -- aws s3 ls",
+  });
+  expect(rw("AWS_PROFILE=prod AWS_REGION=x aws s3 ls")).toEqual({
+    command: "AWS_REGION=x aws-vault exec prod -- aws s3 ls",
+  });
+  expect(rw("aws s3 ls --profile 'my prof'")).toEqual({
+    command: "aws-vault exec 'my prof' -- aws s3 ls",
+  });
+  expect(rw("cd infra && aws s3 ls | head")).toEqual({
+    command: "cd infra && aws-vault exec lytxread -- aws s3 ls | head",
+  });
+  expect(rw("echo $(aws sts get-caller-identity) && aws s3 ls")).toEqual({
+    command:
+      "echo $(aws-vault exec lytxread -- aws sts get-caller-identity) && aws-vault exec lytxread -- aws s3 ls",
+  });
+  expect(rw("git push -f origin main")).toEqual({
+    command: "git push --force-with-lease origin main",
+  });
+  expect(rw("pre-commit run --all-files")).toEqual({ command: "prek run --all-files" });
+});
+
+test("rewrite refuses what it cannot splice safely", () => {
+  expect(rw("bash -c 'aws s3 ls'")).toEqual({
+    error: "the command is too complex to rewrite safely",
+  });
+  const none = rules(
+    "rules:\n  - id: a/x\n    match: { cmd: x }\n    action: rewrite\n    to: { prefix: \"w {-p}\" }\n",
   );
-  expect(bash("rm a", rs).action).toBe("deny");
+  expect(rewrite("x", bash("x", none), HOME)).toEqual({
+    error: "a/x: nothing fills {-p}",
+  });
+  const clash = rules(
+    "rules:\n  - id: a/one\n    match: { cmd: x }\n    action: rewrite\n    to: { cmd: y }\n  - id: a/two\n    match: { cmd: x }\n    action: rewrite\n    to: { cmd: z }\n",
+  );
+  expect(rewrite("x", bash("x", clash), HOME)).toEqual({
+    error: "a/one and a/two edit the same text",
+  });
+});
+
+test("runRuleTests checks rewrite expectations", () => {
+  const [r] = rules(`
+rules:
+  - id: py/prek
+    match: { cmd: pre-commit }
+    action: rewrite
+    to: { cmd: prek }
+    tests:
+      rewrite: { "pre-commit run": "prek run", "pre-commit x": "wrong" }
+`);
+  expect(runRuleTests(r, HOME).map((t) => [t.input, t.pass, t.actual])).toEqual([
+    ["pre-commit run", true, "prek run"],
+    ["pre-commit x", false, "prek x"],
+  ]);
 });
 
 test("flags, env, wrapped_by lists, globs and regex", () => {

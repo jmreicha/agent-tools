@@ -16,6 +16,7 @@ type Opts = {
   unwritable?: boolean;
   ran?: string[][];
   status?: (string | undefined)[];
+  commands?: string[];
 };
 
 // Registers every stub the mod needs, then fires session.start.
@@ -73,6 +74,7 @@ async function boot($: any, on: any, o: Opts = {}) {
   });
   on("tool.call", ($: any, e: any) => {
     if (o.toolThrows && e.tool === "Bash") throw new Error("tool exploded");
+    if (e.tool === "Bash") o.commands?.push(e.command);
     if (e.tool !== "AskUserQuestion") return { result: "ran" };
     return o.answer
       ? { result: { answers: { [e.questions[0].question]: o.answer } } }
@@ -654,9 +656,9 @@ test("/arbiter history aggregates per rule across sessions", async ($, on) => {
   expect(text).toBe(
     [
       "4 hits in 2 sessions, last 90 days",
-      "ID                HITS  DENY  ASK  WARN  ALLOWED  REFUSED  LAST",
-      "k8s/ask-delete    3     0     3    0     2        1        2026-10-03",
-      "aws/no-sso-login  1     1     0    0     0        0        2026-10-01",
+      "ID                HITS  DENY  ASK  REWRITE  WARN  ALLOWED  REFUSED  LAST",
+      "k8s/ask-delete    3     0     3    0        0     2        1        2026-10-03",
+      "aws/no-sso-login  1     1     0    0        0     0        0        2026-10-01",
       "no hits: k8s/warn-get",
     ].join("\n"),
   );
@@ -749,4 +751,88 @@ test("a refused ask toasts", async ($, on) => {
   await boot($, on, { files: RULES, toasts, answer: "Refuse" });
   await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" });
   expect(toasts).toEqual(["arbiter denied kubectl delete pod (k8s/ask-delete)"]);
+});
+
+const REWRITES = {
+  [`${USER}/aws.yaml`]: `
+rules:
+  - id: aws/requires-vault
+    match: { cmd: aws }
+    unless: { wrapped_by: aws-vault }
+    action: rewrite
+    to: { prefix: "aws-vault exec {--profile|lytxread} --", flags: { --profile: null } }
+  - id: aws/prefer-lytxread
+    match: { cmd: aws-vault, args: [exec] }
+    unless: { args: [exec, lytxread] }
+    action: ask
+  - id: loop/a
+    match: { cmd: a }
+    action: rewrite
+    to: { cmd: b }
+  - id: loop/b
+    match: { cmd: b }
+    action: rewrite
+    to: { cmd: a }
+`,
+};
+
+test("a rewrite runs the rewritten command and tells Claude", async ($, on) => {
+  const commands: string[] = [];
+  const toasts: string[] = [];
+  const status: (string | undefined)[] = [];
+  const files: Record<string, string> = { ...REWRITES };
+  await boot($, on, { files, commands, toasts, status });
+  expect(await $.tool.call({ tool: "Bash", command: "aws s3 ls" })).toEqual({
+    result: "ran",
+    context: [
+      "arbiter aws/requires-vault rewrote this command; it ran as: aws-vault exec lytxread -- aws s3 ls",
+    ],
+  });
+  expect(commands).toEqual(["aws-vault exec lytxread -- aws s3 ls"]);
+  expect(toasts).toEqual(["arbiter rewrote aws s3 ls (aws/requires-vault)"]);
+  expect(status.at(-1)).toBe("arbiter: 1 rewritten");
+  const [hit] = lines(files[`${HIST}/s1.jsonl`]);
+  expect([hit.action, hit.target]).toEqual(["rewrite", "aws s3 ls"]);
+});
+
+test("an ask on the original still rewrites first, then asks", async ($, on) => {
+  const commands: string[] = [];
+  const files = {
+    ...REWRITES,
+    [`${USER}/ask.yaml`]: "rules:\n  - id: aws/ask-rm\n    match: { cmd: aws, args: [s3, rm] }\n    action: ask\n",
+  };
+  await boot($, on, { files, commands, answer: "Allow" });
+  await $.tool.call({ tool: "Bash", command: "aws s3 rm s3://b/k" });
+  expect(commands).toEqual(["aws-vault exec lytxread -- aws s3 rm s3://b/k"]);
+});
+
+test("the rewritten command is checked again", async ($, on) => {
+  const commands: string[] = [];
+  await boot($, on, { files: { ...REWRITES }, commands, answer: "Refuse" });
+  expect(
+    await $.tool.call({ tool: "Bash", command: "aws s3 ls --profile prod" }),
+  ).toEqual({ deny: "arbiter aws/prefer-lytxread" });
+  expect(commands).toEqual([]);
+});
+
+test("a rewrite that fails or loops denies with the reason", async ($, on) => {
+  await boot($, on, { files: { ...REWRITES } });
+  expect(await $.tool.call({ tool: "Bash", command: "bash -c 'aws s3 ls'" })).toEqual({
+    deny: "arbiter aws/requires-vault\narbiter could not rewrite: the command is too complex to rewrite safely",
+  });
+  expect(await $.tool.call({ tool: "Bash", command: "a x" })).toEqual({
+    deny: "arbiter loop/a\narbiter could not rewrite: the rewritten command would be rewritten again",
+  });
+});
+
+test("/arbiter check shows the rewrite", async ($, on) => {
+  await boot($, on, { files: { ...REWRITES } });
+  const run = async (args: string) =>
+    (await $.command.run({ command: "arbiter", args })).text;
+  expect(await run('check "aws s3 ls --profile prod"')).toBe(
+    `REWRITE  "aws s3 ls --profile prod" -> "aws-vault exec prod -- aws s3 ls"\n  aws/requires-vault  (user: ~/.claude/rules/arbiter/aws.yaml)`,
+  );
+  expect(await run("check bash -c 'aws x'")).toBe(
+    `REWRITE  "bash -c 'aws x'" -> could not rewrite: the command is too complex to rewrite safely\n  aws/requires-vault  (user: ~/.claude/rules/arbiter/aws.yaml)`,
+  );
 });

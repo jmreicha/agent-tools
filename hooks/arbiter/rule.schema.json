@@ -119,12 +119,34 @@
           "$ref": "#/definitions/matchers"
         },
         "action": {
-          "description": "What happens when the rule fires (default deny). rewrite is not implemented yet and acts as deny.",
+          "description": "What happens when the rule fires (default deny). rewrite edits the command per to.",
           "enum": ["deny", "ask", "warn", "rewrite"]
         },
         "to": {
-          "description": "Rewrite target; only with action: rewrite.",
-          "type": "string"
+          "description": "Edits for action: rewrite. prefix and cmd may hold {--flag|ENV|literal} templates.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "prefix": {
+              "description": "Inserted before the command word, e.g. \"aws-vault exec {--profile|lytxread} --\".",
+              "type": "string"
+            },
+            "cmd": {
+              "description": "Replaces the command word.",
+              "type": "string"
+            },
+            "flags": {
+              "description": "Flag -> replacement flag, or null to drop it (and a value a template read).",
+              "type": "object",
+              "additionalProperties": { "type": ["string", "null"] }
+            },
+            "env": {
+              "description": "NAME -> null drops that leading assignment.",
+              "type": "object",
+              "additionalProperties": { "type": "null" }
+            }
+          }
         },
         "description": {
           "description": "What the rule enforces and why; Claude reads it.",
@@ -145,6 +167,11 @@
           "properties": {
             "deny": { "type": "array", "items": { "type": "string" } },
             "ask": { "type": "array", "items": { "type": "string" } },
+            "rewrite": {
+              "description": "Input command -> expected rewritten command.",
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
             "warn": { "type": "array", "items": { "type": "string" } },
             "allow": { "type": "array", "items": { "type": "string" } }
           }

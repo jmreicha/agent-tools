@@ -174,6 +174,19 @@ shell command can't route around it. Bash can't tell reading from writing, so it
 Leave it out when the rule is about _how_ the file is edited (a generator that writes with `>`
 should still work), or when the pattern matches common output targets like `*.log` or `/tmp/*`.
 
+**Fix it instead of denying.** `rewrite` edits the command and runs the fixed version, for
+mechanical fixes with one right answer. The rewritten command is checked against your rules
+again, and Claude is told what actually ran. See the [reference](../../docs/arbiter/reference.md#rewrite).
+
+```yaml
+- id: py/prek
+  match: { cmd: pre-commit }
+  action: rewrite
+  to: { cmd: prek }
+  tests:
+    rewrite: { "pre-commit run --all-files": "prek run --all-files" }
+```
+
 **Fall back to a regex** when structure can't express it. `regex` searches one simple command's
 text.
 
@@ -225,7 +238,7 @@ failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
   from `cmd`-based rules. The list covers `sudo`, `doas`, `env`, `time`, `nice`, `nohup`,
   `timeout`, `xargs`, `watch`, `exec`, `command`, `builtin`, `aws-vault exec`, and `op run`.
 - Heredoc bodies are treated as data, even unquoted ones that would expand `$(...)`.
-- `action: rewrite` is accepted but acts as `deny` until it's implemented.
+- `rewrite` can't edit commands inside `bash -c '…'` or `eval`; those are denied instead.
 - Rules only fire on Bash commands and on file tools' `file_path`. A rule for an MCP tool can name
   it in `tool`, but has nothing to match yet.
 

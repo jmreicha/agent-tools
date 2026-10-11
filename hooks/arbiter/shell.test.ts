@@ -45,6 +45,17 @@ test("fills every field", () => {
       pipe: 0,
       stage: 0,
       redirects: [],
+      spans: {
+        cmd: [17, 29],
+        words: [
+          [30, 38],
+          [39, 48],
+          [49, 51],
+          [52, 54],
+          [55, 71],
+        ],
+        env: { AWS_PROFILE: [0, 16] },
+      },
     },
   ]);
 });
@@ -243,4 +254,27 @@ test("eval, here-strings to a shell, and find -exec are parsed", () => {
     ["rm", ["{}"], ["find"]],
     ["chmod", ["+x", "{}"], ["find"]],
   ]);
+});
+
+test("spans locate words in the input, absent for derived text", () => {
+  const src = "X=1 sudo aws s3 ls --profile 'p q' && echo $(aws sts x)";
+  const subs = parse(src);
+  const at = ([a, b]: [number, number]) => src.slice(a, b);
+  const aws = subs.find((s) => s.cmd === "aws" && s.args[0] === "s3")!;
+  expect(at(aws.spans!.cmd)).toBe("aws");
+  expect(aws.spans!.words.map(at)).toEqual(["s3", "ls", "--profile", "'p q'"]);
+  const sudo = subs.find((s) => s.cmd === "sudo")!;
+  expect(at(sudo.spans!.env.X)).toBe("X=1");
+  const inner = subs.find((s) => s.args[0] === "sts")!;
+  expect(at(inner.spans!.cmd)).toBe("aws");
+  expect(parse("bash -c 'aws s3 ls'").map((s) => !!s.spans)).toEqual([true, false]);
+  expect(parse("eval aws x").map((s) => !!s.spans)).toEqual([true, false]);
+});
+
+test("uv run is a wrapper", () => {
+  expect(parse("uv run --with rich -p 3.12 pytest -k x").map((c) => [c.cmd, c.args, c.wrappers])).toEqual([
+    ["uv", ["run", "rich", "3.12"], []],
+    ["pytest", ["x"], ["uv"]],
+  ]);
+  expect(cmds("uv pip install x")).toEqual(["uv"]);
 });

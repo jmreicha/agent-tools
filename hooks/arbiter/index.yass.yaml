@@ -32,11 +32,20 @@ RETURN:
     MUST: "answer the call with `{ deny: message }` without passing it on"
   - WHEN: "the verdict is `deny`, or `ask` and refused"
     MUST: "show a toast `arbiter denied <target> (<rule ids>)`, where `<target>` is the history target, or the tool name when there is none"
+  - WHEN: "a command was rewritten"
+    MUST: "show a toast `arbiter rewrote <target> (<rule ids>)`, `<target>` being the original command's history target"
     SEE: history
   - WHEN: "the verdict is `ask`"
     MUST: "ask the user with the message and the options `Allow` and `Refuse`, pass the call on only if the user picks `Allow`, and otherwise answer with `{ deny: message }`"
   - WHEN: "the verdict is `warn`"
     MUST: "log the message to the transcript, then pass the call on unchanged"
+  - WHEN: "the verdict is `rewrite`"
+    MUST: "rewrite the command, evaluate the rewritten command against the effective rule set, and handle the call as that second verdict with the rewritten command in place of the original"
+    SEE: engine@rewrite
+  - WHEN: "the verdict is `rewrite` and rewriting fails, or the rewritten command's verdict is `rewrite` again"
+    MUST: "answer with `{ deny: message }` where the message adds the reason"
+  - WHEN: "a rewritten call runs"
+    MUST: "add to its result a context note for Claude, `arbiter <ids> rewrote this command; it ran as: <rewritten>`, unless the result is a refusal"
 ERROR:
   - WHEN: "the ask cannot be shown or is dismissed, including in `claude -p`"
     MUST: "answer with `{ deny: message }`"
@@ -45,7 +54,7 @@ ERROR:
   - WHEN: "the guard throws or times out"
     MUST: 'answer with `{ deny: "arbiter failed (<kind>): <message>" }` through the hook''s `.catch` handler'
 SIDE-EFFECT:
-  - MUST: "keep a status line counting this session's denied and asked calls, `arbiter: <n> denied · <m> asked`, leaving out a zero part and showing nothing while both are zero"
+  - MUST: "keep a status line counting this session's denied and asked calls, `arbiter: <n> denied · <m> asked · <k> rewritten`, leaving out a zero part and showing nothing while both are zero"
   - MUST: "record every verdict other than `allow` with its time, tool, rule ids, and the command or path, keeping the most recent 100"
   - MUST: "append every verdict other than `allow` to the session's history once its outcome is known"
     SEE: history
@@ -59,7 +68,7 @@ INPUT:
     MUST: "open the pane"
     SEE: pane
   - WHEN: "the subcommand is `check` followed by a command string"
-    MUST: "strip one surrounding pair of matching single or double quotes from the command string, evaluate it as a Bash call without running it, and reply with a header of the action in capitals and the quoted command, then for each fired rule its `id`, layer, path with `~` for the home directory, description, and hint"
+    MUST: 'strip one surrounding pair of matching single or double quotes from the command string, evaluate it as a Bash call without running it, and reply with a header of the action in capitals and the quoted command, plus ` -> "<rewritten>"` for a rewrite, or its failure reason, then for each fired rule its `id`, layer, path with `~` for the home directory, description, and hint'
   - WHEN: "the subcommand is `check` with no command string"
     MUST: "reply with the usage of `check`, what it does, and one example, showing the command in double quotes"
   - WHEN: "the subcommand is `list`, optionally followed by a filter"
@@ -75,7 +84,7 @@ INPUT:
     MUST: "reload rules and reply with the count of rules per layer and the count of errors"
     SEE: load
   - WHEN: "the subcommand is `history`"
-    MUST: "reply with a line counting the hits and sessions in history files modified in the last 90 days, then a table, columns aligned under an `ID HITS DENY ASK WARN ALLOWED REFUSED LAST` header, of every rule hit in them sorted by hits descending then `id`, where `ALLOWED` and `REFUSED` count ask outcomes and `LAST` is the date of the latest hit, then, when any exist, a `no hits:` line listing every effective rule with no hits, sorted by `id`"
+    MUST: "reply with a line counting the hits and sessions in history files modified in the last 90 days, then a table, columns aligned under an `ID HITS DENY ASK REWRITE WARN ALLOWED REFUSED LAST` header, of every rule hit in them sorted by hits descending then `id`, where `ALLOWED` and `REFUSED` count ask outcomes and `LAST` is the date of the latest hit, then, when any exist, a `no hits:` line listing every effective rule with no hits, sorted by `id`"
   - WHEN: "the subcommand is `history` and no file holds a hit"
     MUST: "reply with `no history yet` and the history directory, with `~` for the home directory"
   - WHEN: "the subcommand is `history prune`, optionally followed by a whole number of days"
@@ -107,7 +116,7 @@ INPUT:
 RETURN:
   - MUST: "redraw the row's text line by line with the same words and spacing, so only color and weight change"
   - MUST: "show a leading `<plugin>: ` prefix dimmed"
-  - MUST: "color a leading verdict word: `DENY` red, `ASK` and `WARN` yellow, `ALLOW` green, each bold"
+  - MUST: "color a leading verdict word: `DENY` red, `ASK` and `WARN` yellow, `REWRITE` cyan, `ALLOW` green, each bold"
   - MUST: "color `FAIL` lines red and `SKIPPED` lines yellow"
   - MUST: "color error-handling lines yellow: `unknown subcommand …`, `usage: …`, and `no rules match`"
   - MUST: "color the `N/M rule tests passed` line green when every test passed and nothing was skipped, otherwise yellow"

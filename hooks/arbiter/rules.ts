@@ -3,7 +3,13 @@ import { load, YAMLException } from "./vendor/js-yaml.mjs";
 
 export type Layer = "plugin" | "user" | "project";
 export type Action = "deny" | "ask" | "warn" | "rewrite";
-export type Outcome = "deny" | "ask" | "warn" | "allow";
+export type Outcome = "deny" | "ask" | "rewrite" | "warn" | "allow";
+export type RewriteTo = {
+  prefix?: string;
+  cmd?: string;
+  flags?: Record<string, string | null>;
+  env?: Record<string, null>;
+};
 export type Matcher = {
   cmd?: string | string[];
   args?: (string | string[])[];
@@ -20,11 +26,13 @@ export type Rule = {
   match: Matcher[];
   unless: Matcher[];
   action: Action;
-  to?: string;
+  to?: RewriteTo;
   description?: string;
   hint?: string;
   enabled: boolean;
-  tests: Partial<Record<Outcome, string[]>>;
+  tests: Partial<Record<Exclude<Outcome, "rewrite">, string[]>> & {
+    rewrite?: Record<string, string>;
+  };
   layer: Layer;
   path: string;
   source: Record<string, unknown>;
@@ -73,7 +81,8 @@ const MATCHER_KEYS = [
   "piped_to",
 ];
 const ACTIONS = ["deny", "ask", "warn", "rewrite"];
-const OUTCOMES = ["deny", "ask", "warn", "allow"];
+const OUTCOMES = ["deny", "ask", "rewrite", "warn", "allow"];
+const TO_KEYS = ["prefix", "cmd", "flags", "env"];
 const ID = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9._-]+)*$/;
 const REGEX = /^\/(.*)\/([imsu]*)$/s;
 
@@ -176,8 +185,8 @@ function checkRule(r: unknown, i: number, out: string[]) {
   }
   if ("action" in r && !ACTIONS.includes(r.action as string))
     out.push(`action must be one of ${ACTIONS.join(", ")}`);
-  if ("to" in r && (r.action !== "rewrite" || !isStr(r.to)))
-    out.push("to must be a string and needs action: rewrite");
+  if (r.action === "rewrite" && !("to" in r)) out.push("action rewrite needs to");
+  if ("to" in r) checkRewrite(r.to, r.action, out);
   for (const k of ["description", "hint"] as const)
     if (k in r && !isStr(r[k])) out.push(`${k} must be a string`);
   if ("enabled" in r && typeof r.enabled !== "boolean")
@@ -187,9 +196,26 @@ function checkRule(r: unknown, i: number, out: string[]) {
     else
       for (const [k, v] of Object.entries(r.tests)) {
         if (!OUTCOMES.includes(k)) out.push(`tests: unknown outcome ${k}`);
-        else if (!isStrs(v)) out.push(`tests.${k} must be a list of strings`);
+        else if (k === "rewrite") {
+          if (!isObj(v) || !Object.values(v).every(isStr))
+            out.push("tests.rewrite must map commands to commands");
+        } else if (!isStrs(v)) out.push(`tests.${k} must be a list of strings`);
       }
   }
+}
+
+function checkRewrite(to: unknown, action: unknown, out: string[]) {
+  if (action !== "rewrite") out.push("to needs action: rewrite");
+  if (!isObj(to) || !Object.keys(to).length || Object.keys(to).some((k) => !TO_KEYS.includes(k))) {
+    out.push("to must be a mapping of prefix, cmd, flags, env");
+    return;
+  }
+  for (const k of ["prefix", "cmd"] as const)
+    if (k in to && !isStr(to[k])) out.push(`to.${k} must be a string`);
+  if ("flags" in to && (!isObj(to.flags) || !Object.values(to.flags).every((v) => v === null || isStr(v))))
+    out.push("to.flags must map flags to a flag or null");
+  if ("env" in to && (!isObj(to.env) || !Object.values(to.env).every((v) => v === null)))
+    out.push("to.env must map names to null");
 }
 
 // 1-based line of the nth `id: <id>`, so errors point somewhere useful.
@@ -267,7 +293,7 @@ export function parseRuleFile(
     match: [r.match].flat() as Matcher[],
     unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
     action: (r.action as Action | undefined) ?? "deny",
-    to: r.to as string | undefined,
+    to: r.to as RewriteTo | undefined,
     description: r.description as string | undefined,
     hint: r.hint as string | undefined,
     enabled: r.enabled !== false,

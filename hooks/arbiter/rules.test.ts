@@ -80,7 +80,7 @@ test("more schema checks", () => {
   );
   expect(
     messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    to: y\n"),
-  ).toContain("to must be a string and needs action: rewrite");
+  ).toContain("to needs action: rewrite");
   expect(
     messages(
       "rules:\n  - id: a/b\n    match: { cmd: x }\n    tests: { block: [x] }\n",
@@ -92,12 +92,36 @@ test("more schema checks", () => {
   );
 });
 
-test("rewrite with to is accepted", () => {
-  const f = parse(
-    "rules:\n  - id: a/b\n    match: { cmd: rm }\n    action: rewrite\n    to: trash\n",
-  );
+test("rewrite takes a to mapping and a rewrite test mapping", () => {
+  const f = parse(`
+rules:
+  - id: a/b
+    match: { cmd: rm }
+    action: rewrite
+    to: { cmd: trash, prefix: "nice {-n|10}", flags: { -f: null, -r: --recursive }, env: { X: null } }
+    tests:
+      rewrite: { "rm -f a": "nice 10 trash a" }
+`);
   expect(f.errors).toEqual([]);
-  expect(f.rules[0]).toMatchObject({ action: "rewrite", to: "trash" });
+  expect(f.rules[0].to).toEqual({
+    cmd: "trash",
+    prefix: "nice {-n|10}",
+    flags: { "-f": null, "-r": "--recursive" },
+    env: { X: null },
+  });
+  const bad = (to: string, tests = "") =>
+    messages(`rules:\n  - id: a/b\n    match: { cmd: rm }\n    action: rewrite\n${to}${tests}`);
+  expect(bad("")).toEqual(["action rewrite needs to"]);
+  expect(bad("    to: trash\n")).toEqual(["to must be a mapping of prefix, cmd, flags, env"]);
+  expect(bad("    to: {}\n")).toEqual(["to must be a mapping of prefix, cmd, flags, env"]);
+  expect(bad("    to: { cmd: 1 }\n")).toEqual(["to.cmd must be a string"]);
+  expect(bad("    to: { flags: { -f: 1 } }\n")).toEqual([
+    "to.flags must map flags to a flag or null",
+  ]);
+  expect(bad("    to: { env: { X: y } }\n")).toEqual(["to.env must map names to null"]);
+  expect(bad("    to: { cmd: x }\n", "    tests: { rewrite: [a] }\n")).toEqual([
+    "tests.rewrite must map commands to commands",
+  ]);
 });
 
 import { loadLayers } from "./rules.ts";
