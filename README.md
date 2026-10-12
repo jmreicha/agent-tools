@@ -12,10 +12,11 @@ This repo is a [Claude Code plugin](https://code.claude.com/docs/en/plugins).
 claude --plugin-dir ./
 ```
 
-### Install from a marketplace
+### Install
 
-```
-/plugin install agent-tools@<marketplace>
+```bash
+claude plugin marketplace add jmreicha/agent-tools
+claude plugin install agent-tools@agent-tools
 ```
 
 ## Skills

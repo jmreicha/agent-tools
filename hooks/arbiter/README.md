@@ -60,8 +60,14 @@ getting around it can (`eval`, scripts on disk, base64).
 
 ## Quick start
 
-1. Load the plugin. Either install `agent-tools`, or point Claude Code at a checkout in
-   `~/.claude/settings.json`:
+1. Load the plugin. Either install `agent-tools`:
+
+   ```bash
+   claude plugin marketplace add jmreicha/agent-tools
+   claude plugin install agent-tools@agent-tools
+   ```
+
+   Or point Claude Code at a checkout in `~/.claude/settings.json`:
 
    ```json
    { "env": { "CLAUDE_CODE_PLUGIN_DIRS": "/path/to/agent-tools" } }
