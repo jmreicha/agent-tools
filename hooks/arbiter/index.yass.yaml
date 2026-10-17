@@ -26,7 +26,7 @@ spec: guard
 INPUT:
   - MUST: "handle `tool.call` for every tool"
 RETURN:
-  - MUST: "evaluate the call against the effective rule set"
+  - MUST: "evaluate the call against the effective rule set and the session's call history"
     SEE: engine@evaluate
   - WHEN: "the verdict is `allow`"
     MUST: "pass the call on unchanged"
@@ -40,7 +40,7 @@ RETURN:
   - WHEN: "the verdict is `ask`"
     MUST: "ask the user with the message and the options `Allow` and `Refuse`, pass the call on only if the user picks `Allow`, and otherwise answer with `{ deny: message }`"
   - WHEN: "the verdict is `warn`"
-    MUST: "log the message to the transcript, then pass the call on unchanged"
+    MUST: "log the message to the transcript, then pass the call on unchanged and add the message to its result as a context note for Claude, unless the result is a refusal"
   - WHEN: "the verdict is `rewrite`"
     MUST: "rewrite the command, evaluate the rewritten command against the effective rule set, and handle the call as that second verdict with the rewritten command in place of the original"
     SEE: engine@rewrite
@@ -48,6 +48,8 @@ RETURN:
     MUST: "answer with `{ deny: message }` where the message adds the reason"
   - WHEN: "a rewritten call runs"
     MUST: "add to its result a context note for Claude, `arbiter <ids> rewrote this command; it ran as: <rewritten>`, unless the result is a refusal"
+  - WHEN: "a rewritten call's second verdict is `warn`"
+    MUST: "add the rewrite note first, then the warn message"
 ERROR:
   - WHEN: "the ask cannot be shown or is dismissed, including in `claude -p`"
     MUST: "answer with `{ deny: message }`"
@@ -60,6 +62,11 @@ SIDE-EFFECT:
   - MUST: "record every verdict other than `allow` with its time, tool, rule ids, and the command or path, keeping the most recent 100"
   - MUST: "append every verdict other than `allow` to the session's history once its outcome is known"
     SEE: history
+  - WHEN: "a call is passed on to the tool"
+    MUST: "first add it to the session's call history as its tool, its call key, and the ids of repeat rules it matches, keeping the most recent 200 calls"
+    SEE: engine@matchedRepeat
+  - MUST-NOT: "add a call that was denied or refused to the call history"
+  - MUST: "clear the call history on `session.start`"
 ---
 spec: command
 INPUT:
@@ -70,7 +77,7 @@ INPUT:
     MUST: "open the pane"
     SEE: pane
   - WHEN: "the subcommand is `check` followed by a command string"
-    MUST: 'strip one surrounding pair of matching single or double quotes from the command string, evaluate it as a Bash call without running it, and reply with a header of the action in capitals and the quoted command, plus ` -> "<rewritten>"` for a rewrite, or its failure reason, then for each fired rule its `id`, layer, path with `~` for the home directory, description, and hint'
+    MUST: 'strip one surrounding pair of matching single or double quotes from the command string, evaluate it as a Bash call against the session''s call history without running it or adding it to that history, and reply with a header of the action in capitals and the quoted command, plus ` -> "<rewritten>"` for a rewrite, or its failure reason, then for each fired rule its `id`, layer, path with `~` for the home directory, description, and hint'
   - WHEN: "the subcommand is `check` with no command string"
     MUST: "reply with the usage of `check`, what it does, and one example, showing the command in double quotes"
   - WHEN: "the subcommand is `list`, optionally followed by a filter"

@@ -1,9 +1,18 @@
 // arbiter hooks module: the only file that touches $. Spec: index.yass.yaml
 import type { EngineInterface } from "claude-code";
 import { dump } from "./vendor/js-yaml.mjs";
-import { evaluate, rewrite, runRuleTests, type Verdict } from "./engine.ts";
+import {
+  callKey,
+  evaluate,
+  matchedRepeat,
+  rewrite,
+  runRuleTests,
+  type Call,
+  type Verdict,
+} from "./engine.ts";
 import { parse } from "./shell.ts";
 import {
+  MAX_WITHIN,
   loadLayers,
   parseRuleFile,
   type Layer,
@@ -38,6 +47,8 @@ const RETAIN_DAYS = 90;
 const SCHEMA =
   "https://raw.githubusercontent.com/jmreicha/agent-tools/main/hooks/arbiter/rule.schema.json";
 const recent: Hit[] = [];
+// Tool calls that ran this session, oldest first, for repeat rules.
+const calls: Call[] = [];
 
 const COMMANDS: [string, string][] = [
   ["/arbiter help", "show this help"],
@@ -297,7 +308,7 @@ function summary(): string {
 
 function check(input: string): string {
   const command = input.replace(/^(["'])(.*)\1$/s, "$2");
-  const v = evaluate("Bash", { command }, rules.rules, home);
+  const v = evaluate("Bash", { command }, rules.rules, home, calls);
   if (v.action === "allow") return `ALLOW  "${command}"  no rule fired`;
   let head = `${v.action.toUpperCase()}  "${command}"`;
   if (v.action === "rewrite") {
@@ -460,15 +471,17 @@ async function drawOutput($: EngineInterface, e: any, next: any) {
 }
 
 async function guardCall($: EngineInterface, e: any, next: any) {
-  let v = evaluate(e.tool, e, rules.rules, home);
-  let note = "";
+  let v = evaluate(e.tool, e, rules.rules, home, calls);
+  const notes: string[] = [];
   if (v.action === "rewrite") {
     remember(e, v);
     $.ui.invalidate("ui.render");
     await record($, e, v);
     const r = rewrite(String(e.command), v, home);
     const again =
-      "error" in r ? null : evaluate(e.tool, { ...e, command: r.command }, rules.rules, home);
+      "error" in r
+        ? null
+        : evaluate(e.tool, { ...e, command: r.command }, rules.rules, home, calls);
     const why =
       "error" in r
         ? r.error
@@ -484,14 +497,25 @@ async function guardCall($: EngineInterface, e: any, next: any) {
     rewritten++;
     tally($, e, v, false);
     $.ui.toast(`arbiter rewrote ${target(e)} (${ids.join(", ")})`);
-    note = `arbiter ${ids.join(", ")} rewrote this command; it ran as: ${(r as { command: string }).command}`;
+    notes.push(
+      `arbiter ${ids.join(", ")} rewrote this command; it ran as: ${(r as { command: string }).command}`,
+    );
     e = { ...e, command: (r as { command: string }).command };
     v = again!;
   }
-  // A rewritten call tells Claude what actually ran.
+  // Record the call for repeat rules, run it, and hand Claude any notes: what a rewrite
+  // actually ran, and warnings.
   const run = async () => {
+    calls.push({
+      tool: String(e.tool),
+      key: callKey(String(e.tool), e),
+      matched: matchedRepeat(String(e.tool), e, rules.rules, home),
+    });
+    if (calls.length > MAX_WITHIN) calls.shift();
     const res = await next(e);
-    return note && !res.deny ? { ...res, context: [...(res.context ?? []), note] } : res;
+    return notes.length && !res.deny
+      ? { ...res, context: [...(res.context ?? []), ...notes] }
+      : res;
   };
   if (v.action === "allow") return run();
   remember(e, v);
@@ -505,6 +529,7 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   if (v.action === "warn") {
     await record($, e, v);
     $.ui.log(v.message);
+    notes.push(v.message);
     return run();
   }
   let answer = "Refuse";
@@ -621,6 +646,7 @@ export function register(on) {
     histLines = null;
     histWarned = false;
     denied = asked = rewritten = 0;
+    calls.length = 0;
     await loadRules($);
     try {
       await prune($, RETAIN_DAYS);

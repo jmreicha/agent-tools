@@ -7,7 +7,7 @@ version: v1
 ---
 spec: evaluate
 INPUT:
-  - MUST: "take a tool name, the tool call's arguments, the effective rule set, and the user's home directory"
+  - MUST: "take a tool name, the tool call's arguments, the effective rule set, the user's home directory, and optionally the calls that ran before it, oldest first, each as a tool name, a call key, and the ids of repeat rules it matched, defaulting to none"
     CONFORMS: rules@loadLayers::RETURN
   - MUST: "consider only rules whose `tool` matches the tool name, comparing strings exactly and /regex/ by search"
 RETURN:
@@ -21,6 +21,8 @@ RETURN:
     MUST: "test `path` matchers against every sub-command's `redirects` and `args`, after expanding a leading `~`, `$HOME`, or `${HOME}` to the user's home and prefixing a relative target with `./`"
   - MUST: "fire a rule for a sub-command or path when its `match` matches and its `unless` does not match the same sub-command or path"
   - MUST: "fire a rule that has no `match` on every call whose tool its `tool` matches"
+  - WHEN: "the rule has `repeat`"
+    MUST: "fire it only when it would otherwise fire and `n`, one plus the number of earlier calls that matched it, reaches `count`, where earlier calls are counted from the most recent back through at most `within - 1` of them, stopping at the first whose tool `reset_on` matches, and, when `same` is true, counting only calls whose key equals this call's key"
   - MUST: "treat a list of matchers under `match` or `unless` as matching when any one of them matches"
   - MUST: "match a matcher only when every key it has matches"
   - MUST: "compare a pattern string as a /regex/ by search when written `/body/flags`, otherwise as a whole-value glob"
@@ -37,10 +39,22 @@ RETURN:
     MUST: "set `message` to one line per fired deny rule, sorted by `id`, of the form `arbiter <id>: <description> <hint>`, omitting a missing description or hint"
   - WHEN: "the action is `ask`, `rewrite`, or `warn`"
     MUST: "set `message` to the same line form, built from the fired rules of that action"
+  - WHEN: "a fired rule in the message has `repeat`"
+    MUST: "end its line with ` (<n> matching calls in the last <within>)`"
   - WHEN: "the action is `allow`"
     MUST: "set `message` to an empty string"
 INVARIANT:
   - MUST: "return the same verdict for the same inputs"
+---
+spec: callKey
+RETURN:
+  - MUST: "return the trimmed `command` for a Bash call, otherwise the `file_path` argument, otherwise an empty string"
+---
+spec: matchedRepeat
+RETURN:
+  - MUST: "return the ids of rules with `repeat` that would fire on the call if `repeat` were ignored"
+INVARIANT:
+  - MUST: "return the same result for the same inputs"
 ---
 spec: runRuleTests
 INPUT:
@@ -58,6 +72,13 @@ RETURN:
   - MUST: "pass an input when the verdict's action equals the key it is listed under, where `allow` means the rule did not fire"
   - MUST: "return one result per input with the rule `id`, the input, the expected and actual action, and whether it passed"
   - MUST: "return an empty list for a rule without `tests`"
+  - WHEN: "the rule has `repeat`"
+    MUST: "treat each listed entry as a sequence of steps, evaluate the steps in order against a history that starts empty and gains each step after it is evaluated, and compare the last step's action with the key"
+  - WHEN: "a step is `{ tool: <name> }`"
+    MUST: "evaluate it as a call to that tool with no arguments"
+  - WHEN: "a step is a string"
+    MUST: "use it as a single input would be used"
+  - MUST: "report a sequence's input as its steps joined by ` -> `, a bare call written `{ tool: <name> }`"
 ---
 spec: rewrite
 INPUT:

@@ -1,5 +1,12 @@
 import { expect, test } from "claude-code/testing";
-import { evaluate, rewrite, runRuleTests } from "./engine.ts";
+import {
+  callKey,
+  evaluate,
+  matchedRepeat,
+  rewrite,
+  runRuleTests,
+  type Call,
+} from "./engine.ts";
 import { parseRuleFile, type Rule } from "./rules.ts";
 
 const HOME = "/home/u";
@@ -345,5 +352,82 @@ test("runRuleTests uses tool names as inputs for rules without match", () => {
     ["Glob", true],
     ["Read", true],
     ["Bash", true],
+  ]);
+});
+
+const REPEAT = rules(`
+rules:
+  - id: test/rerun
+    match: { cmd: pytest }
+    repeat: { count: 3, within: 5, reset_on: /^(Edit|Write)$/ }
+    action: warn
+    hint: Narrow it.
+    tests:
+      warn:
+        - [pytest, pytest, pytest]
+        - [pytest -k a, pytest -k b, { tool: Read }, pytest -k c]
+      allow:
+        - [pytest, pytest]
+        - [pytest, { tool: Edit }, pytest, pytest]
+        - [pytest, ls, ls, ls, pytest, pytest]
+  - id: test/same
+    match: { cmd: pytest }
+    repeat: { count: 2, same: true }
+    tests:
+      deny: [[pytest -x, ls, pytest -x]]
+      allow: [[pytest -x, pytest -k b]]
+  - id: search/grep-loop
+    tool: Grep
+    repeat: { count: 2 }
+    action: warn
+    tests:
+      warn: [[Grep, Grep]]
+      allow: [[Grep, Glob], [Grep]]
+`);
+
+test("repeat rules fire on the nth matching call in the window", () => {
+  const call = (command: string): Call => ({
+    tool: "Bash",
+    key: callKey("Bash", { command }),
+    matched: matchedRepeat("Bash", { command }, REPEAT, HOME),
+  });
+  const at = (past: Call[]) =>
+    evaluate("Bash", { command: "pytest" }, [REPEAT[0]], HOME, past);
+  expect(at([]).action).toBe("allow");
+  expect(at([call("pytest")]).action).toBe("allow");
+  expect(at([call("pytest"), call("pytest")])).toEqual({
+    action: "warn",
+    fired: [REPEAT[0]],
+    message: "arbiter test/rerun: Narrow it. (3 matching calls in the last 5)",
+  });
+  const edit: Call = { tool: "Edit", key: "/a.py", matched: [] };
+  expect(at([call("pytest"), edit, call("pytest")]).action).toBe("allow");
+  // within 5: only the last 4 earlier calls are looked at.
+  const ls = call("ls");
+  expect(at([call("pytest"), ls, ls, ls, call("pytest")]).action).toBe("allow");
+  expect(at([call("pytest"), ls, ls, call("pytest")]).action).toBe("warn");
+});
+
+test("matchedRepeat and callKey", () => {
+  expect(matchedRepeat("Bash", { command: "cd x && pytest" }, REPEAT, HOME)).toEqual([
+    "test/rerun",
+    "test/same",
+  ]);
+  expect(matchedRepeat("Bash", { command: "ls" }, [...REPEAT, ...VAULT], HOME)).toEqual([]);
+  expect(matchedRepeat("Grep", {}, REPEAT, HOME)).toEqual(["search/grep-loop"]);
+  expect(callKey("Bash", { command: " pytest -x " })).toBe("pytest -x");
+  expect(callKey("Edit", { file_path: "/a" })).toBe("/a");
+  expect(callKey("Grep", { pattern: "x" })).toBe("");
+});
+
+test("runRuleTests runs repeat sequences", () => {
+  const results = REPEAT.flatMap((r) => runRuleTests(r, HOME));
+  expect(results.filter((t) => !t.pass)).toEqual([]);
+  expect(results.map((t) => t.input)).toContain(
+    "pytest -> { tool: Edit } -> pytest -> pytest",
+  );
+  const wrong = { ...REPEAT[0], tests: { allow: [["pytest", "pytest", "pytest"]] } };
+  expect(runRuleTests(wrong, HOME)).toMatchObject([
+    { expected: "allow", actual: "warn", pass: false },
   ]);
 });

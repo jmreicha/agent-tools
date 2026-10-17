@@ -398,3 +398,40 @@ matcher.
 instead of loading, so file order and override stay one alphabetical list per layer.
 
 **Consequences.** Grouping rules means more files in one folder, not nested folders.
+
+---
+
+## Warn reaches Claude
+
+**Status:** accepted · 2026-10-17
+
+**Context.** `warn` logged a line to the transcript and ran the call. Claude never saw it, so it
+repeated the behavior: a warn was a note to the user, not steering. Rewrites already hand Claude
+a context note.
+
+**Decision.** A `warn` verdict also adds its message to the call's result as context, after any
+rewrite note. A refused result gets none.
+
+**Consequences.** `warn` becomes the soft tier between `allow` and `deny`: the call runs and the
+next one changes. A rule meant purely as a quiet trial run would need its own action (`audit`);
+not added until wanted.
+
+---
+
+## Repeat rules
+
+**Status:** accepted · 2026-10-17
+
+**Context.** Some habits are only visible across calls, most often rerunning the same slow,
+failing test with no change between runs. Each call is fine alone, so per-call rules can't see
+it. captain-hook uses NLP signals over recent messages, then an LLM classifier.
+
+**Decision.** A rule may carry `repeat: { count, within, reset_on, same }` and fires only when its
+match has held on `count` of the last `within` tool calls since a `reset_on` tool. The engine stays
+pure: the mod keeps the session's last 200 run calls (tool, key, matched repeat-rule ids) and
+passes them to `evaluate`. Tests are call sequences. No classifier.
+
+**Consequences.** Structural counting covers the common case with no latency or cost. When a
+fuzzier judgment is needed, the counter is the gate in front of the planned `judge:` field, so a
+model is only consulted after the cheap signal trips. Subagents share one window until the call
+event exposes an agent id. Plan: [plan-warn-repeat.md](plan-warn-repeat.md).

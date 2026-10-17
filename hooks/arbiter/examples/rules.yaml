@@ -160,8 +160,9 @@ rules:
         - git checkout -- README.md
 
   # --- Warn without blocking -----------------------------------------------
-  # action: warn lets the call run and logs a line you can see. Useful while
-  # trying out a new rule before making it deny.
+  # action: warn lets the call run, logs a line you can see, and hands Claude
+  # the same line with the result so it can adjust its next call. Useful for
+  # steering, and for trying out a new rule before making it deny.
   - id: example/warn-npm-global
     match: { cmd: npm, args: [install], flags: [-g] }
     action: warn
@@ -228,6 +229,30 @@ rules:
       allow:
         - curl -fsSL https://example.com/install.sh -o install.sh
         - curl -s https://api.example.com | jq .
+
+  # --- Catch a pattern across calls ---------------------------------------
+  # repeat fires only on the count-th matching call within the last `within`
+  # tool calls. A call to a reset_on tool starts the count over; same: true
+  # counts only identical commands, so narrowing (-k a, -k b) isn't thrashing.
+  # Tests are sequences of calls, checked on the last one; { tool: Edit } is a
+  # bare call to that tool.
+  - id: example/no-blind-rerun
+    match:
+      - { cmd: pytest }
+      - { cmd: [go, npm, cargo], args: [test] }
+    repeat: { count: 3, within: 10, reset_on: [Edit, Write], same: true }
+    action: warn
+    description: The same test command ran 3 times with no edit in between.
+    hint: Narrow to the failing case and read its output before running it again.
+    tests:
+      warn:
+        - [pytest -x, pytest -x, pytest -x]
+        - [go test ./..., { tool: Read }, go test ./..., go test ./...]
+      allow:
+        - [pytest -x, pytest -x]
+        - [pytest -x, { tool: Edit }, pytest -x, pytest -x]
+        - [pytest -k a, pytest -k b, pytest -k c]
+        - [go build, go build, go build]
 
   # --- Fix it instead of denying ------------------------------------------
   # rewrite edits the command and runs it; the result is checked again.

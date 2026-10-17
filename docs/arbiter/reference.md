@@ -37,6 +37,7 @@ An empty file, or one with only comments, is fine.
 | `unless`      |                                  | matcher or list of matchers   |         | What excuses a match.                                                                                                   |
 | `action`      |                                  | `deny` `ask` `warn` `rewrite` | `deny`  | What happens when the rule fires.                                                                                       |
 | `to`          | with `rewrite`                   | mapping                       |         | The edits a rewrite makes. See [Rewrite](#rewrite).                                                                     |
+| `repeat`      |                                  | mapping                       |         | Fire only after several matching calls. Not with `rewrite`. See [Repeat](#repeat).                                      |
 | `description` |                                  | string                        |         | What the rule enforces and why. Claude reads it.                                                                        |
 | `hint`        |                                  | string                        |         | What to do instead. Claude reads it.                                                                                    |
 | `enabled`     |                                  | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`; `/arbiter test` still runs its tests. |
@@ -134,10 +135,11 @@ For each tool call:
 | `deny`    | The call doesn't run. Claude reads one line per fired deny rule.                                         |
 | `ask`     | The call waits for you to pick Allow or Refuse. Dismissing it, or `claude -p`, denies.                   |
 | `rewrite` | The command is edited per `to`, checked again, and run if that check allows it. See [Rewrite](#rewrite). |
-| `warn`    | The call runs, and a line is logged to the transcript.                                                   |
+| `warn`    | The call runs, a line is logged to the transcript, and Claude gets the same line with the call's result. |
 
 Each line Claude reads has the form `arbiter <id>: <description> <hint>`, sorted by id, with a
-missing description or hint left out.
+missing description or hint left out. A [repeat](#repeat) rule's line ends with
+` (<n> matching calls in the last <within>)`.
 
 If arbiter itself throws or times out while deciding, the call is denied with
 `arbiter failed (<kind>): <message>`. If it fails after the call was already passed on, the
@@ -244,6 +246,34 @@ command line (`cd x && … | head`) is untouched. Then:
 - Claude reads `arbiter <ids> rewrote this command; it ran as: <rewritten>` after the result.
   You get a toast and a `rewritten` count in the status line, and history records the rewrite.
 
+## Repeat
+
+```yaml
+- id: test/no-blind-rerun
+  match: { cmd: pytest }
+  repeat: { count: 3, within: 10, reset_on: [Edit, Write], same: true }
+  action: warn
+```
+
+| Key        | Required | Type                        | Default | Meaning                                                           |
+| ---------- | -------- | --------------------------- | ------- | ----------------------------------------------------------------- |
+| `count`    | yes      | integer, 2 or more          |         | Matching calls, this one included, needed before the rule fires.  |
+| `within`   |          | integer, `count` to 200     | `20`    | Recent tool calls, this one included, to count in.                |
+| `reset_on` |          | pattern or list of patterns |         | Tools whose call starts the count over. Exact names or `/regex/`. |
+| `same`     |          | boolean                     | `false` | Count only earlier calls with the same command text or file path. |
+
+`within` is required when `count` is over 20. `repeat` can't be combined with `action: rewrite`.
+
+A repeat rule fires when its `match` and `unless` hold for the call, as usual, and the call plus
+the earlier calls that matched reach `count`. Earlier calls are counted back from the most recent
+through `within - 1` of them, stopping at a `reset_on` call. Once it fires it fires on each further
+matching call until a reset or the window slides past.
+
+The window holds the last 200 tool calls that ran in this session, matched or not. A denied or
+refused call didn't run and isn't recorded; a rewritten one is recorded as what ran. Subagent
+calls share the window. It is cleared when a session starts. `/arbiter check` evaluates against
+the current window without adding to it.
+
 ## Tests
 
 ```yaml
@@ -258,6 +288,16 @@ Each input is evaluated against that rule alone. Inputs are Bash commands, or pa
 whose matchers use `path` (a leading `~` is expanded). An input passes when the outcome equals its
 key; `allow` means the rule didn't fire. `rewrite` maps each input to the exact command it must
 become: `rewrite: { "pre-commit run": "prek run" }`.
+
+A [repeat](#repeat) rule lists sequences instead: each entry is a list of calls run through a
+fresh window, and the outcome is the last call's. A step is an input as above, or
+`{ tool: <name> }` for a bare call to that tool, to place a reset or fill the window.
+
+```yaml
+tests:
+  warn: [[pytest -x, pytest -x, pytest -x]]
+  allow: [[pytest -x, { tool: Edit }, pytest -x, pytest -x]]
+```
 
 ## Commands
 
@@ -316,4 +356,4 @@ on demand. Query the raw log with `jq`, e.g.
 A denied call, or an ask you refuse, shows a toast such as
 `arbiter denied aws sso login (aws/no-sso-login)`, using the [history](#history) target. The status
 line keeps a per-session count, e.g. `arbiter: 2 denied · 1 asked`, and stays empty until
-something fires. Warnings already log a line, and asks already prompt.
+something fires. Warnings already log a line (and reach Claude), and asks already prompt.

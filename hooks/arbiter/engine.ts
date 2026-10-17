@@ -1,6 +1,6 @@
 // Verdict for one tool call. Spec: engine.yass.yaml
 import { parse, type SubCommand } from "./shell.ts";
-import type { Matcher, Outcome, Rule } from "./rules.ts";
+import type { Matcher, Outcome, Rule, Step } from "./rules.ts";
 
 export type Verdict = { action: Outcome; fired: Rule[]; message: string };
 // For rewrite tests, expected and actual are commands.
@@ -12,6 +12,8 @@ export type TestResult = {
   pass: boolean;
 };
 export type Rewritten = { command: string } | { error: string };
+// A tool call that ran: its tool, its callKey, and the repeat rules it matched.
+export type Call = { tool: string; key: string; matched: string[] };
 
 const REGEX = /^\/(.*)\/([imsu]*)$/s;
 // ponytail: unbounded cache keyed by pattern text; fine for hundreds of rules
@@ -117,9 +119,56 @@ function fires(
   return files.some((f) => onFile(r.match, f) && !onFile(r.unless, f));
 }
 
-function line(r: Rule): string {
+function line(r: Rule, n?: number): string {
   const text = [r.description, r.hint].filter(Boolean).join(" ");
-  return text ? `arbiter ${r.id}: ${text}` : `arbiter ${r.id}`;
+  const seen = n ? ` (${n} matching calls in the last ${r.repeat!.within})` : "";
+  return (text ? `arbiter ${r.id}: ${text}` : `arbiter ${r.id}`) + seen;
+}
+
+// What a repeat rule's `same` compares: the Bash command, or the file path.
+export function callKey(tool: string, input: Record<string, unknown>): string {
+  if (tool === "Bash" && typeof input.command === "string")
+    return input.command.trim();
+  return typeof input.file_path === "string" ? input.file_path : "";
+}
+
+// Rules whose tool, match, and unless hold for the call, ignoring repeat counts.
+function matching(
+  tool: string,
+  input: Record<string, unknown>,
+  rules: Rule[],
+  home: string,
+): Rule[] {
+  const subs =
+    tool === "Bash" && typeof input.command === "string"
+      ? parse(input.command)
+      : [];
+  const file =
+    typeof input.file_path === "string" ? input.file_path : undefined;
+  return rules.filter((r) => toolIs(r.tool, tool) && fires(r, subs, file, home));
+}
+
+// Ids of repeat rules the call matches, for the caller to record in its history.
+export function matchedRepeat(
+  tool: string,
+  input: Record<string, unknown>,
+  rules: Rule[],
+  home: string,
+): string[] {
+  return matching(tool, input, rules.filter((r) => r.repeat), home).map(
+    (r) => r.id,
+  );
+}
+
+// This call plus earlier matching calls in the window, back to the latest reset.
+function repeats(r: Rule, past: Call[], key: string): number {
+  const rep = r.repeat!;
+  let n = 1;
+  for (const p of past.slice(-(rep.within - 1)).reverse()) {
+    if (rep.reset_on !== undefined && toolIs(rep.reset_on, p.tool)) break;
+    if (p.matched.includes(r.id) && (!rep.same || p.key === key)) n++;
+  }
+  return n;
 }
 
 export function evaluate(
@@ -127,22 +176,58 @@ export function evaluate(
   input: Record<string, unknown>,
   rules: Rule[],
   home: string,
+  past: Call[] = [],
 ): Verdict {
-  const subs =
-    tool === "Bash" && typeof input.command === "string"
-      ? parse(input.command)
-      : [];
-  const file =
-    typeof input.file_path === "string" ? input.file_path : undefined;
-  const fired = rules
-    .filter((r) => toolIs(r.tool, tool) && fires(r, subs, file, home))
+  const key = callKey(tool, input);
+  const counts = new Map<string, number>();
+  const fired = matching(tool, input, rules, home)
+    .filter((r) => {
+      if (!r.repeat) return true;
+      const n = repeats(r, past, key);
+      counts.set(r.id, n);
+      return n >= r.repeat.count;
+    })
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const action of ["deny", "rewrite", "ask", "warn"] as const) {
     const hits = fired.filter((r) => r.action === action);
     if (hits.length)
-      return { action, fired, message: hits.map(line).join("\n") };
+      return {
+        action,
+        fired,
+        message: hits.map((r) => line(r, counts.get(r.id))).join("\n"),
+      };
   }
   return { action: "allow", fired: [], message: "" };
+}
+
+// A test step as a tool call: { tool } bare, else an input the way runRuleTests reads one.
+function stepCall(
+  step: Step,
+  rule: Rule,
+  usesPath: boolean,
+  home: string,
+): [string, Record<string, unknown>] {
+  if (typeof step !== "string") return [step.tool, {}];
+  if (!rule.match.length) return [step, {}];
+  return usesPath
+    ? ["Edit", { file_path: expandHome(step, home) }]
+    : ["Bash", { command: step }];
+}
+
+// Run a sequence through a fresh history; the outcome is the last call's.
+function runSequence(seq: Step[], rule: Rule, rs: Rule[], usesPath: boolean, home: string): Outcome {
+  const past: Call[] = [];
+  let action: Outcome = "allow";
+  for (const step of seq) {
+    const [tool, input] = stepCall(step, rule, usesPath, home);
+    action = evaluate(tool, input, rs, home, past).action;
+    past.push({
+      tool,
+      key: callKey(tool, input),
+      matched: matchedRepeat(tool, input, rs, home),
+    });
+  }
+  return action;
 }
 
 export function runRuleTests(rule: Rule, home: string): TestResult[] {
@@ -152,6 +237,23 @@ export function runRuleTests(rule: Rule, home: string): TestResult[] {
   const tool = usesPath ? "Edit" : "Bash";
   const solo = [{ ...rule, tool }];
   const out: TestResult[] = [];
+  if (rule.repeat) {
+    const rs = rule.match.length ? solo : [rule];
+    for (const [expected, seqs] of Object.entries(rule.tests) as [
+      Outcome,
+      Step[][],
+    ][]) {
+      if (expected === "rewrite") continue;
+      for (const seq of seqs) {
+        const actual = runSequence(seq, rule, rs, usesPath, home);
+        const input = seq
+          .map((s) => (typeof s === "string" ? s : `{ tool: ${s.tool} }`))
+          .join(" -> ");
+        out.push({ id: rule.id, input, expected, actual, pass: actual === expected });
+      }
+    }
+    return out;
+  }
   for (const [input, expected] of Object.entries(rule.tests.rewrite ?? {})) {
     const v = evaluate(tool, { command: input }, solo, home);
     const r = v.action === "rewrite" ? rewrite(input, v, home) : null;

@@ -151,12 +151,12 @@ test("ask with nobody to answer denies", async ($, on) => {
   ).toEqual({ deny: "arbiter k8s/ask-delete" });
 });
 
-test("warn logs and runs", async ($, on) => {
+test("warn logs, runs, and tells Claude", async ($, on) => {
   const logs: string[] = [];
   await boot($, on, { files: RULES, logs });
   expect(
     await $.tool.call({ tool: "Bash", command: "kubectl get pods" }),
-  ).toEqual({ result: "ran" });
+  ).toEqual({ result: "ran", context: ["arbiter k8s/warn-get"] });
   expect(logs).toEqual(["arbiter k8s/warn-get"]);
 });
 
@@ -894,4 +894,81 @@ test("a tool-only rule blocks the tool and toasts", async ($, on) => {
     deny: "arbiter search/no-grep",
   });
   expect(toasts).toEqual(["arbiter denied Grep (search/no-grep)"]);
+});
+
+const REPEATS = Object.freeze({
+  [`${USER}/repeat.yaml`]: `
+rules:
+  - id: test/no-blind-rerun
+    match: { cmd: pytest }
+    repeat: { count: 3, within: 10, reset_on: [Edit, Write], same: true }
+    action: warn
+    hint: Narrow it.
+  - id: aws/no-sso-login
+    match: { cmd: aws, args: [sso, login] }
+`,
+});
+
+test("a repeat rule warns on the nth matching call and tells Claude", async ($, on) => {
+  await boot($, on, { files: REPEATS });
+  const run = () => $.tool.call({ tool: "Bash", command: "pytest -x" });
+  expect(await run()).toEqual({ result: "ran" });
+  expect(await run()).toEqual({ result: "ran" });
+  expect(await run()).toEqual({
+    result: "ran",
+    context: [
+      "arbiter test/no-blind-rerun: Narrow it. (3 matching calls in the last 10)",
+    ],
+  });
+  expect((await $.tool.call({ tool: "Bash", command: "pytest -k other" })).context).toBeUndefined();
+});
+
+test("a reset tool clears the count; denied calls and new sessions don't count", async ($, on) => {
+  await boot($, on, { files: REPEATS });
+  const run = () => $.tool.call({ tool: "Bash", command: "pytest -x" });
+  await run();
+  await run();
+  await $.tool.call({ tool: "Edit", file_path: "/work/a.py" });
+  expect((await run()).context).toBeUndefined();
+  // A denied call never ran, so it neither counts nor fills the window.
+  await $.tool.call({ tool: "Bash", command: "aws sso login" });
+  expect((await run()).context).toBeUndefined();
+  expect((await run()).context).toHaveLength(1);
+  await $.session.start({ surface: "terminal", isInteractive: true, cwd: "/work" });
+  expect((await run()).context).toBeUndefined();
+});
+
+test("/arbiter check sees the session's calls", async ($, on) => {
+  await boot($, on, { files: REPEATS });
+  const check = async () =>
+    (await $.command.run({ command: "arbiter", args: "check pytest -x" })).text;
+  expect(await check()).toBe('ALLOW  "pytest -x"  no rule fired');
+  await $.tool.call({ tool: "Bash", command: "pytest -x" });
+  await $.tool.call({ tool: "Bash", command: "pytest -x" });
+  expect(await check()).toMatch(/^WARN  "pytest -x"\n  test\/no-blind-rerun/);
+});
+
+test("warn after a rewrite gives Claude both notes", async ($, on) => {
+  await boot($, on, {
+    files: {
+      [`${USER}/rw.yaml`]: `
+rules:
+  - id: py/prek
+    match: { cmd: pre-commit }
+    action: rewrite
+    to: { cmd: prek }
+  - id: py/warn-prek
+    match: { cmd: prek }
+    action: warn
+    description: prek is slow on first run.
+`,
+    },
+  });
+  expect(await $.tool.call({ tool: "Bash", command: "pre-commit run" })).toEqual({
+    result: "ran",
+    context: [
+      "arbiter py/prek rewrote this command; it ran as: prek run",
+      "arbiter py/warn-prek: prek is slow on first run.",
+    ],
+  });
 });

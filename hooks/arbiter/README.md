@@ -23,7 +23,10 @@ commands, but they only glob-match the raw text, can't say why or what to do ins
 tested. arbiter fills those gaps:
 
 - **Claude learns the fix.** A denied call returns your `description` and `hint`, so Claude retries
-  the right way instead of stopping.
+  the right way instead of stopping. A warned call runs and hands Claude the same line, so it
+  adjusts its next call.
+- **Rules can see patterns.** A `repeat` rule fires only after its match holds several times in
+  recent calls, catching things no single call shows, like rerunning a failing test unchanged.
 - **Rules understand shell.** Commands are parsed, not regex-matched, so `echo "aws s3 ls"` or a
   commit message that mentions `aws sso login` won't trip a rule, while `cd infra && aws s3 ls`
   or `bash -c 'aws s3 ls'` will.
@@ -203,6 +206,21 @@ for built-in tools like `Grep` or `TodoWrite`, or an entire MCP server.
   hint: Use `bd create` / `bd update` instead.
 ```
 
+**Catch a pattern across calls.** `repeat` fires only on the `count`-th matching call within the
+last `within` tool calls. A `reset_on` tool starts the count over; `same: true` counts only
+identical commands. Here, the third identical test run with no edit in between gets a nudge.
+
+```yaml
+- id: test/no-blind-rerun
+  match: { cmd: pytest }
+  repeat: { count: 3, within: 10, reset_on: [Edit, Write], same: true }
+  action: warn
+  hint: Narrow to the failing case and read its output before running it again.
+  tests:
+    warn: [[pytest -x, pytest -x, pytest -x]]
+    allow: [[pytest -x, { tool: Edit }, pytest -x, pytest -x]]
+```
+
 **Fall back to a regex** when structure can't express it. `regex` searches one simple command's
 text.
 
@@ -244,6 +262,9 @@ tests:
   allow: ["aws-vault exec dev -- aws s3 ls", 'echo "aws s3 ls"']
 ```
 
+A `repeat` rule lists sequences of calls instead, and the outcome is checked on the last one.
+`{ tool: Edit }` stands for a bare call to that tool.
+
 Run them with `/arbiter test`, or from a shell with `script/arbiter-test`, which fails on any
 failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
 
@@ -253,6 +274,8 @@ failing test or skipped file (handy in CI, but it needs a signed-in `claude`).
 - Wrappers outside the built-in list (for example `stdbuf`, `ionice`, `script`) hide the command
   from `cmd`-based rules. The list covers `sudo`, `doas`, `env`, `time`, `nice`, `nohup`,
   `timeout`, `xargs`, `watch`, `exec`, `command`, `builtin`, `aws-vault exec`, and `op run`.
+- `repeat` counts every tool call in the session, subagents' included, in one window that
+  resets with the session.
 - Heredoc bodies are treated as data, even unquoted ones that would expand `$(...)`.
 - `rewrite` can't edit commands inside `bash -c '…'` or `eval`; those are denied instead.
 - For tools other than Bash and the file tools (`Grep`, MCP tools), a rule can only cover every

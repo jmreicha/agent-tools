@@ -10,6 +10,14 @@ export type RewriteTo = {
   flags?: Record<string, string | null>;
   env?: Record<string, null>;
 };
+export type Repeat = {
+  count: number;
+  within: number;
+  reset_on?: string | string[];
+  same: boolean;
+};
+// One step of a repeat rule's test: an input string, or a bare call to a tool.
+export type Step = string | { tool: string };
 export type Matcher = {
   cmd?: string | string[];
   args?: (string | string[])[];
@@ -27,10 +35,12 @@ export type Rule = {
   unless: Matcher[];
   action: Action;
   to?: RewriteTo;
+  repeat?: Repeat;
   description?: string;
   hint?: string;
   enabled: boolean;
-  tests: Partial<Record<Exclude<Outcome, "rewrite">, string[]>> & {
+  // Repeat rules list sequences of steps instead of single inputs.
+  tests: Partial<Record<Exclude<Outcome, "rewrite">, string[] | Step[][]>> & {
     rewrite?: Record<string, string>;
   };
   layer: Layer;
@@ -65,6 +75,7 @@ const RULE_KEYS = [
   "unless",
   "action",
   "to",
+  "repeat",
   "description",
   "hint",
   "enabled",
@@ -83,6 +94,9 @@ const MATCHER_KEYS = [
 const ACTIONS = ["deny", "ask", "warn", "rewrite"];
 const OUTCOMES = ["deny", "ask", "rewrite", "warn", "allow"];
 const TO_KEYS = ["prefix", "cmd", "flags", "env"];
+const REPEAT_KEYS = ["count", "within", "reset_on", "same"];
+export const MAX_WITHIN = 200;
+const DEFAULT_WITHIN = 20;
 const ID = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9._-]+)*$/;
 const REGEX = /^\/(.*)\/([imsu]*)$/s;
 
@@ -203,6 +217,7 @@ function checkRule(r: unknown, i: number, out: string[]) {
     out.push(`action must be one of ${ACTIONS.join(", ")}`);
   if (r.action === "rewrite" && !("to" in r)) out.push("action rewrite needs to");
   if ("to" in r) checkRewrite(r.to, r.action, out);
+  if ("repeat" in r) checkRepeat(r.repeat, r.action, out);
   for (const k of ["description", "hint"] as const)
     if (k in r && !isStr(r[k])) out.push(`${k} must be a string`);
   if ("enabled" in r && typeof r.enabled !== "boolean")
@@ -215,9 +230,51 @@ function checkRule(r: unknown, i: number, out: string[]) {
         else if (k === "rewrite") {
           if (!isObj(v) || !Object.values(v).every(isStr))
             out.push("tests.rewrite must map commands to commands");
-        } else if (!isStrs(v)) out.push(`tests.${k} must be a list of strings`);
+        } else if (!("repeat" in r)) {
+          if (!isStrs(v)) out.push(`tests.${k} must be a list of strings`);
+        } else if (!isSeqs(v))
+          out.push(
+            `tests.${k} must be a list of sequences, each a list of inputs or { tool: <name> }`,
+          );
       }
   }
+}
+
+const isStep = (v: unknown): boolean =>
+  isStr(v) ||
+  (isObj(v) && Object.keys(v).length === 1 && isStr(v.tool));
+const isSeqs = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.every((q) => Array.isArray(q) && q.length > 0 && q.every(isStep));
+const isInt = (v: unknown): v is number => Number.isInteger(v);
+
+function checkRepeat(rep: unknown, action: unknown, out: string[]) {
+  if (action === "rewrite") out.push("repeat cannot be used with action: rewrite");
+  if (!isObj(rep) || Object.keys(rep).some((k) => !REPEAT_KEYS.includes(k))) {
+    out.push("repeat must be a mapping of count, within, reset_on, same");
+    return;
+  }
+  if (!isInt(rep.count) || rep.count < 2)
+    out.push("repeat.count must be an integer of 2 or more");
+  const count = isInt(rep.count) ? rep.count : 2;
+  if (
+    "within" in rep &&
+    (!isInt(rep.within) || rep.within < count || rep.within > MAX_WITHIN)
+  )
+    out.push(`repeat.within must be an integer from count to ${MAX_WITHIN}`);
+  else if (!("within" in rep) && count > DEFAULT_WITHIN)
+    out.push(`repeat.within is required when count is over ${DEFAULT_WITHIN}`);
+  if ("reset_on" in rep) {
+    if (!strOrStrs(rep.reset_on))
+      out.push("repeat.reset_on must be a string or list of strings");
+    else
+      for (const t of [rep.reset_on].flat()) {
+        const bad = badRegex(t);
+        if (bad) out.push(`repeat.reset_on: ${bad}`);
+      }
+  }
+  if ("same" in rep && typeof rep.same !== "boolean")
+    out.push("repeat.same must be true or false");
 }
 
 function checkRewrite(to: unknown, action: unknown, out: string[]) {
@@ -310,6 +367,14 @@ export function parseRuleFile(
     unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
     action: (r.action as Action | undefined) ?? "deny",
     to: r.to as RewriteTo | undefined,
+    repeat: isObj(r.repeat)
+      ? {
+          count: r.repeat.count as number,
+          within: (r.repeat.within as number | undefined) ?? DEFAULT_WITHIN,
+          reset_on: r.repeat.reset_on as string | string[] | undefined,
+          same: r.repeat.same === true,
+        }
+      : undefined,
     description: r.description as string | undefined,
     hint: r.hint as string | undefined,
     enabled: r.enabled !== false,

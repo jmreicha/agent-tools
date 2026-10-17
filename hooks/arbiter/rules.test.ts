@@ -241,3 +241,61 @@ test("match may be left out only when tool cannot be Bash", () => {
     "unless needs match",
   ]);
 });
+
+test("repeat is parsed with defaults and validated", () => {
+  const f = parse(`
+rules:
+  - id: t/rerun
+    match: { cmd: pytest }
+    repeat: { count: 3 }
+    tests:
+      deny: [[pytest, { tool: Edit }, pytest]]
+`);
+  expect(f.errors).toEqual([]);
+  expect(f.rules[0].repeat).toEqual({
+    count: 3,
+    within: 20,
+    reset_on: undefined,
+    same: false,
+  });
+  const bad = (repeat: string, extra = "") =>
+    messages(`
+rules:
+  - id: t/x
+    match: { cmd: pytest }
+    repeat: ${repeat}
+${extra}`);
+  expect(bad("{ count: 1 }")).toEqual(["repeat.count must be an integer of 2 or more"]);
+  expect(bad("{ count: 2.5 }")).toEqual(["repeat.count must be an integer of 2 or more"]);
+  expect(bad("{ count: 3, within: 2 }")).toEqual([
+    "repeat.within must be an integer from count to 200",
+  ]);
+  expect(bad("{ count: 3, within: 201 }")).toEqual([
+    "repeat.within must be an integer from count to 200",
+  ]);
+  expect(bad("{ count: 30 }")).toEqual(["repeat.within is required when count is over 20"]);
+  expect(bad("{ count: 3, every: 2 }")).toEqual([
+    "repeat must be a mapping of count, within, reset_on, same",
+  ]);
+  expect(bad("3")).toEqual(["repeat must be a mapping of count, within, reset_on, same"]);
+  expect(bad('{ count: 3, reset_on: "/[/" }')[0]).toMatch(/^repeat\.reset_on: invalid regex/);
+  expect(bad("{ count: 3, same: yes-please }")).toEqual(["repeat.same must be true or false"]);
+  expect(bad("{ count: 2 }", "    action: rewrite\n    to: { cmd: x }")).toEqual([
+    "repeat cannot be used with action: rewrite",
+  ]);
+  expect(bad("{ count: 2 }", '    tests:\n      deny: ["pytest"]')).toEqual([
+    "tests.deny must be a list of sequences, each a list of inputs or { tool: <name> }",
+  ]);
+  expect(bad("{ count: 2 }", "    tests:\n      deny: [[]]")).toEqual([
+    "tests.deny must be a list of sequences, each a list of inputs or { tool: <name> }",
+  ]);
+  expect(
+    messages(`
+rules:
+  - id: t/x
+    match: { cmd: pytest }
+    tests:
+      deny: [[pytest, pytest]]
+`),
+  ).toEqual(["tests.deny must be a list of strings"]);
+});

@@ -27,8 +27,10 @@ RETURN:
     SEE: engine@evaluate
   - MUST: "hold a tool call that an `ask` rule matches until the user approves or refuses it"
     SEE: index@guard
-  - MUST: "let a tool call that only `warn` rules match run, after logging a line the user can see"
+  - MUST: "let a tool call that only `warn` rules match run, after logging a line the user can see, and give Claude the same line with the call's result"
     SEE: index@guard
+  - MUST: "apply a rule with `repeat` only once its match has held on enough recent tool calls in the session"
+    SEE: engine@evaluate
 ERROR:
   - WHEN: "a rule file is malformed"
     MUST: "skip that file, report it to the user, and keep enforcing every other file"

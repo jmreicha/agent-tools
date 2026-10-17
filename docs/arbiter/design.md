@@ -38,7 +38,7 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
 3. Strictest outcome wins: `deny` > `ask` > `warn` > none.
    - `deny` → `{ deny: <descriptions + hints of every matching deny rule> }`
    - `ask` → `$.ui.ask(…)`; anything but explicit approval, including no one to ask, denies.
-   - `warn` → `$.ui.log(…)`, then `next(e)`.
+   - `warn` → `$.ui.log(…)`, then `next(e)` with the message added to the result's `context`.
    - none → `next(e)`.
 4. Each verdict goes into an in-memory ring buffer (last ~100) that the pane renders.
 
