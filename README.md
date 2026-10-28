@@ -33,6 +33,7 @@ Skills live in `skills/<skill-name>/SKILL.md` and are invoked as `/agent-tools:<
 | project-management | `/agent-tools:project-management` | Manage issues, milestones, and project tracking via GitHub CLI. Use when triaging bugs, planning sprints, updating issue status, or reporting on project progress.                                                                                                                                                                                       |
 | research           | `/agent-tools:research`           | Use before implementing new features to gather context from documentation, real-world code examples, and web resources. Provides structured findings to inform implementation decisions.                                                                                                                                                                 |
 | review             | `/agent-tools:review`             | Perform structured code reviews — check correctness, security, style, and test coverage. Use when reviewing PRs, auditing unfamiliar code, or verifying a change before merge.                                                                                                                                                                           |
+| rubber-duck        | `/agent-tools:rubber-duck`        | Use when thinking through system design, architecture, API shape, data modeling, or any design decision before building. Conversational thinking partner that asks questions and offers perspectives — never writes code or makes changes.                                                                                                               |
 | terraform-skill    | `/agent-tools:terraform`          | Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework), reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions                                                   |
 | testing            | `/agent-tools:testing`            | Use to choose and apply TDD or BDD based on the change, enforcing fast Red-Green-Refactor and Given-When-Then loops.                                                                                                                                                                                                                                     |
 
@@ -101,6 +102,14 @@ Use this skill when:
 **Invocation:** `/agent-tools:review`
 
 _No documentation yet._
+
+---
+
+### rubber-duck
+
+**Invocation:** `/agent-tools:rubber-duck`
+
+A Socratic thinking partner for design decisions, adapted from [rubber duck debugging](https://rubberduckdebugging.com/). Classic rubber duck debugging works because explaining your code line-by-line to a duck externalizes hidden assumptions. This skill extends that to design: explain your system, your constraints, your half-formed architecture — and get gentle nudges that help you see what you're missing before you build the wrong thing.
 
 ---
 
