@@ -1,0 +1,35 @@
+{
+  "bash": {
+    "command": "bash-language-server",
+    "args": ["start"],
+    "extensionToLanguage": { ".sh": "shellscript", ".bash": "shellscript" }
+  },
+  "yaml": {
+    "command": "yaml-language-server",
+    "args": ["--stdio"],
+    "extensionToLanguage": { ".yaml": "yaml", ".yml": "yaml" },
+    "settings": {
+      "yaml": {
+        "validate": true,
+        "schemaStore": { "enable": true },
+        "schemas": {
+          "kubernetes": [
+            "**/k8s/**/*.yaml",
+            "**/manifests/**/*.yaml",
+            "**/kubernetes/**/*.yaml"
+          ]
+        }
+      }
+    }
+  },
+  "terraform": {
+    "command": "terraform-ls",
+    "args": ["serve"],
+    "extensionToLanguage": { ".tf": "terraform", ".tfvars": "terraform-vars" }
+  },
+  "dockerfile": {
+    "command": "docker-langserver",
+    "args": ["--stdio"],
+    "extensionToLanguage": { ".dockerfile": "dockerfile" }
+  }
+}

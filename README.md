@@ -175,3 +175,27 @@ plugin, user, and project folders.
 - [Rule reference](docs/arbiter/reference.md): every field, matcher, and command.
 
 Requires Claude Code ≥ 2.1.287. Run `/arbiter init` in a session to get started.
+
+## LSP servers
+
+`.lsp.json` connects language servers for the languages Anthropic's official LSP plugins don't
+cover. Claude gets diagnostics after each edit and an `LSP` tool for definitions and references.
+
+| Server                 | Files            | Install the binary                               |
+| ---------------------- | ---------------- | ------------------------------------------------ |
+| `bash-language-server` | `.sh`, `.bash`   | `npm i -g bash-language-server` (+ `shellcheck`) |
+| `yaml-language-server` | `.yaml`, `.yml`  | `npm i -g yaml-language-server`                  |
+| `terraform-ls`         | `.tf`, `.tfvars` | `mise use -g aqua:hashicorp/terraform-ls`        |
+| `docker-langserver`    | `.dockerfile`    | `npm i -g dockerfile-language-server-nodejs`     |
+
+The plugin doesn't include the servers. Each binary must be on the `PATH` of the shell you start
+`claude` from. A missing one shows up in the `/plugin` **Errors** tab, and the other servers
+still work.
+
+- `.zsh` isn't mapped, because shellcheck doesn't support zsh and reports false errors.
+- YAML uses SchemaStore schemas (GitHub Actions, compose and so on). Kubernetes schemas apply to
+  files under `k8s/`, `manifests/` or `kubernetes/` directories. Edit `settings` in `.lsp.json`
+  to change that.
+- Claude Code matches files by extension only, so a plain `Dockerfile` (no extension) isn't
+  covered. Only names like `app.dockerfile` are.
+- `terraform-ls` doesn't understand `terragrunt.hcl`.
