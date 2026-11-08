@@ -17,6 +17,7 @@ claude --plugin-dir ./
 ```bash
 claude plugin marketplace add jmreicha/agent-tools
 claude plugin install agent-tools@agent-tools
+claude plugin install infra-lsp@agent-tools   # optional, LSP servers
 ```
 
 ## Skills
@@ -175,3 +176,9 @@ plugin, user, and project folders.
 - [Rule reference](docs/arbiter/reference.md): every field, matcher, and command.
 
 Requires Claude Code ≥ 2.1.287. Run `/arbiter init` in a session to get started.
+
+## infra-lsp
+
+A separate plugin in this marketplace that connects language servers for shell, YAML, Terraform
+and Dockerfiles. These are the languages Anthropic's official LSP plugins don't cover. See
+[plugins/infra-lsp](plugins/infra-lsp/README.md) for the servers to install and their caveats.

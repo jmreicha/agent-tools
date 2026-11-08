@@ -1,11 +1,18 @@
 {
   "name": "agent-tools",
-  "owner": { "name": "Josh Reichardt" },
+  "owner": {
+    "name": "Josh Reichardt"
+  },
   "plugins": [
     {
       "name": "agent-tools",
       "source": "./",
       "description": "Curated collection of tools and configurations for AI coding agents"
+    },
+    {
+      "name": "infra-lsp",
+      "source": "./plugins/infra-lsp",
+      "description": "LSP servers for shell, YAML, Terraform and Dockerfiles"
     }
   ]
 }
