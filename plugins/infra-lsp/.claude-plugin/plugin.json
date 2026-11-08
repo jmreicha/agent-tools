@@ -1,8 +1,0 @@
-{
-  "name": "infra-lsp",
-  "description": "LSP servers for shell, YAML, Terraform and Dockerfiles. Install the server binaries separately.",
-  "author": {
-    "name": "Josh Reichardt"
-  },
-  "repository": "https://github.com/jmreicha/agent-tools"
-}
