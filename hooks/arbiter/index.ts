@@ -537,15 +537,17 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   }
   let answer = "Refuse";
   try {
+    // The header already says arbiter; Claude's copy of the message keeps the prefix.
+    const msg = v.message.replace(/^arbiter /gm, "");
     const s = subject(e);
-    const question = s ? `${v.message}\n\n${s}` : v.message;
-    answer = await $.ui.ask(question, ["Allow", "Refuse"]);
+    const question = s ? `${msg}\n\n${s}` : msg;
+    answer = await $.ui.ask(question, { options: ["Allow", "Refuse"], header: "arbiter" });
   } catch {
     // dismissed, or claude -p with nobody to ask
   }
   await record($, e, v, answer === "Allow" ? "allowed" : "refused");
   asked++;
-  tally($, e, v, answer !== "Allow");
+  tally($, e, v, false); // the user just decided, so a toast would only repeat it
   return answer === "Allow" ? run() : { deny: v.message };
 }
 

@@ -143,7 +143,7 @@ test("ask shows the exact command being decided", async ($, on) => {
   const asked: string[] = [];
   await boot($, on, { files: RULES, answer: "Allow", questions: asked });
   await $.tool.call({ tool: "Bash", command: "kubectl delete pod x -n prod" });
-  expect(asked).toEqual(["arbiter k8s/ask-delete\n\nkubectl delete pod x -n prod"]);
+  expect(asked).toEqual(["k8s/ask-delete\n\nkubectl delete pod x -n prod"]);
 });
 
 test("ask refused denies", async ($, on) => {
@@ -802,11 +802,11 @@ test("denies toast and the status line counts denied and asked calls", async ($,
   expect(status.at(-1)).toBe("arbiter: 1 denied · 1 asked");
 });
 
-test("a refused ask toasts", async ($, on) => {
+test("a refused ask does not toast, the user just decided it", async ($, on) => {
   const toasts: string[] = [];
   await boot($, on, { files: RULES, toasts, answer: "Refuse" });
   await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" });
-  expect(toasts).toEqual(["arbiter denied kubectl delete pod x (k8s/ask-delete)"]);
+  expect(toasts).toEqual([]);
 });
 
 const REWRITES = {
