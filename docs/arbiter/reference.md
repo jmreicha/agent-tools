@@ -354,6 +354,6 @@ on demand. Query the raw log with `jq`, e.g.
 ## Indicators
 
 A denied call, or an ask you refuse, shows a toast such as
-`arbiter denied aws sso login (aws/no-sso-login)`, using the [history](#history) target. The status
+`arbiter denied aws sso login --profile prod (aws/no-sso-login)`, with the exact command or file path. The status
 line keeps a per-session count, e.g. `arbiter: 2 denied · 1 asked`, and stays empty until
 something fires. Warnings already log a line (and reach Claude), and asks already prompt.

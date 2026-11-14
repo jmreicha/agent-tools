@@ -156,6 +156,9 @@ function remember(e: Record<string, unknown>, v: Verdict) {
   recent.length = Math.min(recent.length, 100);
 }
 
+// The exact call, for UI only; history stores the redacted target() instead.
+const subject = (e: any): string | undefined => e.command ?? e.file_path;
+
 const histDir = () => `${home}/.claude/arbiter/history`;
 
 // Redacted target: Bash keeps names and up to two plain leading words, never other args.
@@ -212,7 +215,7 @@ function tally($: EngineInterface, e: any, v: Verdict, blocked: boolean) {
   $.ui.status(`arbiter: ${parts.filter(Boolean).join(" · ")}`);
   if (blocked)
     $.ui.toast(
-      `arbiter denied ${target(e) ?? e.tool} (${v.fired.map((r) => r.id).join(", ")})`,
+      `arbiter denied ${subject(e) ?? e.tool} (${v.fired.map((r) => r.id).join(", ")})`,
     );
 }
 
@@ -496,7 +499,7 @@ async function guardCall($: EngineInterface, e: any, next: any) {
     const ids = v.fired.filter((f) => f.action === "rewrite").map((f) => f.id);
     rewritten++;
     tally($, e, v, false);
-    $.ui.toast(`arbiter rewrote ${target(e)} (${ids.join(", ")})`);
+    $.ui.toast(`arbiter rewrote ${subject(e)} (${ids.join(", ")})`);
     notes.push(
       `arbiter ${ids.join(", ")} rewrote this command; it ran as: ${(r as { command: string }).command}`,
     );
@@ -534,7 +537,9 @@ async function guardCall($: EngineInterface, e: any, next: any) {
   }
   let answer = "Refuse";
   try {
-    answer = await $.ui.ask(v.message, ["Allow", "Refuse"]);
+    const s = subject(e);
+    const question = s ? `${v.message}\n\n${s}` : v.message;
+    answer = await $.ui.ask(question, ["Allow", "Refuse"]);
   } catch {
     // dismissed, or claude -p with nobody to ask
   }
