@@ -15,7 +15,7 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self-che
 ## Spacing
 
 - Groups pad 35px above their first content, which leaves room for the label, and 30px below. Every sibling of the same kind matches.
-- Nested AWS groups sit 35px inside their parent at the top, which leaves room for the label, and 20px at the sides and bottom.
+- Nested AWS groups (Cloud > Region > VPC > subnet) sit 60px inside their parent at the top, which leaves room for the label, 30px at the sides, and 40px at the bottom. Tighter nesting stacks the labels into a cluttered staircase.
 - Boundaries are containers (`d.boundary(..., icon=...)`): put their children inside with `parent=`. Their label row takes 40px, so content starts 60px below the top.
 - A gateway (IGW) sits inside the VPC's left margin. Widen the VPC so both margins stay equal.
 - Keep about 40px of clear space between a fan-out and any other label.
@@ -57,3 +57,4 @@ When 3 or more edges go from one source to a column of targets:
 
 - Crop low-resolution PNGs into regions and scale each 2×: `sips -c <h> <w> --cropOffset <y> <x> in.png --out part.png && sips -z <2h> <2w> part.png`. Use offsets of at least 1, because `sips` ignores `0 0`.
 - Transcribe IDs exactly, and list every uncertain value for the user to check.
+- Keep the source's color coding for every line you draw. The key lists only symbols that appear on this diagram; drop source legend rows with no matching line. Use the line palette in aws-network.md. When the emphasis red would clash with a source color, the source color wins on lines, and red stays on the box and its note.

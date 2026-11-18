@@ -24,7 +24,7 @@ GRAY = "light-dark(#666666,#BBBBBB)"
 WHITE = "light-dark(#ffffff,#ffffff)"
 BOX = "rounded=1;whiteSpace=wrap;html=1;"
 TEXT = "text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;"
-LIST = TEXT + f"align=left;verticalAlign=top;fontSize=10;fontColor={GRAY};"
+LIST = TEXT + "align=left;verticalAlign=top;fontSize=10;"
 ARROW = "edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;curved=0;"
 LINK = "endArrow=none;"
 BOUNDARY = BOX + "fillColor=none;absoluteArcSize=1;arcSize=24;container=1;collapsible=0;"
@@ -38,7 +38,9 @@ BADGE = ("ellipse;whiteSpace=wrap;html=1;aspect=fixed;strokeColor=none;fontStyle
          "fillColor=light-dark(#1e1e1e,#e0e0e0);fontColor=light-dark(#ffffff,#1e1e1e);")
 ACCENT = "#F62E00"
 RED = f"strokeColor={ACCENT};strokeWidth=2;"
-RED_EDGE = RED + f"fontColor={ACCENT};"
+# ACCENT is only 3.96:1 on white: fine for lines, too faint for small text.
+RED_TEXT = "light-dark(#C42500,#FF6A3D)"
+RED_EDGE = RED + f"fontColor={RED_TEXT};"
 DASHED = "dashed=1;"
 ICON = "verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;aspect=fixed;outlineConnect=0;"
 _LABEL = {
@@ -52,12 +54,23 @@ _GROUP = ("outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=1
           "collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;verticalAlign=top;align=left;spacingLeft=30;")
 GROUPS = {
     "cloud": "grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=light-dark(#232F3E,#D5DBDB);fillColor=none;fontColor=light-dark(#232F3E,#D5DBDB);",
-    "account": "grIcon=mxgraph.aws4.group_account;strokeColor=#CD2264;fillColor=none;fontColor=#CD2264;",
-    "region": "grIcon=mxgraph.aws4.group_region;strokeColor=#00A4A6;fillColor=none;fontColor=#147EBA;",
-    "vpc": "grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;fontColor=#8C4FFF;",
-    "public": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#7AA116;fillColor=#DCEBC6;fillOpacity=40;fontColor=#248814;",
-    "private": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#00A4A6;fillColor=#C9E9EE;fillOpacity=40;fontColor=#147EBA;",
+    "account": "grIcon=mxgraph.aws4.group_account;strokeColor=#CD2264;fillColor=none;fontColor=light-dark(#B81D58,#F06A9A);",
+    "region": "grIcon=mxgraph.aws4.group_region;strokeColor=#00A4A6;fillColor=none;fontColor=light-dark(#0F6A9E,#5FB4E8);",
+    "vpc": "grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;fontColor=light-dark(#7A3EF0,#B394FF);",
+    "public": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#7AA116;fillColor=#DCEBC6;fillOpacity=40;fontColor=light-dark(#1E6B10,#A6E06A);",
+    "private": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#00A4A6;fillColor=#C9E9EE;fillOpacity=40;fontColor=light-dark(#0B5A8A,#8ED3F5);",
 }
+
+
+def contrast(fg, bg, opacity=1, page="#FFFFFF"):
+    """WCAG contrast ratio of two #RRGGBB colors. A semi-transparent bg is blended
+    over the page first, because that's the color the reader actually sees."""
+    rgb = lambda h: [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+    bg = [b * opacity + p * (1 - opacity) for b, p in zip(rgb(bg), rgb(page))]
+    lum = lambda c: sum(w * ((x / 255) / 12.92 if x / 255 <= 0.03928 else ((x / 255 + 0.055) / 1.055) ** 2.4)
+                        for w, x in zip((0.2126, 0.7152, 0.0722), c))
+    hi, lo = sorted((lum(rgb(fg)), lum(bg)), reverse=True)
+    return round((hi + 0.05) / (lo + 0.05), 2)
 
 
 def lit(s):
@@ -121,9 +134,10 @@ class Diagram:
     def text(self, id, label, x, y, w, h, extra="", parent="1"):
         return self.vertex(id, label, TEXT + extra, x, y, w, h, parent)
 
-    def title(self, label, page_w, y=20):
-        """36pt title centered on the page. Keep the first content row 60px+ below it."""
-        return self.text("title", label, page_w / 2 - 400, y, 800, 50, "fontSize=36;")
+    def title(self, label, cx, y=20):
+        """36pt title centered on cx, the main box's center (not the page's), so it lines
+        up with the diagram. Keep the first content row 60px+ below it (or the subtitle)."""
+        return self.text("title", label, cx - 400, y, 800, 50, "fontSize=36;")
 
     def group(self, id, label, kind, x, y, w, h, parent="1"):
         return self.vertex(id, label, _GROUP + GROUPS[kind], x, y, w, h, parent)
@@ -153,7 +167,7 @@ class Diagram:
     def note(self, id, title, lines, x, y, w=220, accent=None):
         """Explanation or emphasis note: bold title, one short line each.
         accent colors the title, e.g. ACCENT to match an emphasized path."""
-        color = f' style="color:{accent}"' if accent else ""
+        color = f' style="color:{RED_TEXT if accent == ACCENT else accent}"' if accent else ""
         body = "<br>".join(lines)
         return self.vertex(id, f"<b{color}>{title}</b><br>{body}", NOTE, x, y, w, 30 + 15 * len(lines))
 
@@ -255,6 +269,8 @@ if __name__ == "__main__":
     assert 'parent="eks"' in d.cells[-1] and 'x="50" y="60"' in d.cells[-1]
     assert "#ffffff;" not in aws_service("ec2", "#ED7100").replace(WHITE, "")
     assert lit("apps/<app>.yaml") == "apps/&lt;app&gt;.yaml"
+    assert contrast("#C42500", "#FFFFFF") >= 4.5 and contrast("#FF6A3D", "#121212") >= 4.5
+    assert contrast("#000000", "#FFFFFF") == 21 and contrast("#1E6B10", "#DCEBC6", 0.4) >= 4.5
     d.key("key", [(ARROW, "request"), (ARROW + DASHED, "virtual")], 40, 400)
     d.badge(1, "a")
     d.key("key2", [(person("team", "#2875E2"), "platform team")], 400, 400)

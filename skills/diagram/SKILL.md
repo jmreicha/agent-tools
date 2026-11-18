@@ -80,9 +80,9 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 | Boundary | `rounded=1;whiteSpace=wrap;html=1;fillColor=none;absoluteArcSize=1;arcSize=24;`, with an empty `value` and a separate free-text label inside the top-left | fit |
 | Note link | `endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;` | — |
 | Note | `rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=11;fillColor=none;absoluteArcSize=1;arcSize=8;strokeColor=light-dark(#BBBBBB,#666666);`, with a bold title line, then one short line each (`Diagram.note`). Never sticky notes | ~220 wide |
-| Key | only when 3 or more symbols need decoding (see Lines and color). The note style, titled **Key**, in the bottom-left corner, with one row per symbol: a short sample of the line (its dash and color), then its meaning (`Diagram.key`) | ~300 wide |
+| Key | only when 3 or more symbols need decoding (see Lines and color). The note style, titled **Key**, 40px below the diagram and centered on the title's center line too (together with any "How to read" note beside it, same top and height), with one row per symbol: a short sample of the line (its dash and color), then its meaning (`Diagram.key`) | ~300 wide |
 | Internet / CDN | `shape=cloud;whiteSpace=wrap;html=1;` (no `ellipse;`, which bends edges). The internet is always this cloud, never a box or an icon. Connect only at side midpoints | 160×90 |
-| Title | free text + `fontSize=36;`, centered on the page (`Diagram.title`), with the first content row 60px or more below it. If the source has no title, name what it shows (`prod VPC traffic`) | — |
+| Title | free text + `fontSize=36;`, centered on the main box (the outermost boundary or group), not the page (`Diagram.title`). The subtitle and the bottom key row share that center line, with the first content row 60px or more below it (below the subtitle, when there is one). If the source has no title, name what it shows (`prod VPC traffic`) | — |
 | Updated date | free text + `fontSize=10;fontColor=light-dark(#666666,#BBBBBB);align=right;`, reading `Updated YYYY-MM-DD`, in the bottom-right corner | 160×20 |
 
 **Arrows**
@@ -97,7 +97,14 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 - Every boundary is solid; dashes are for lines only. If a boundary seems to need dashes, ask the user instead of choosing. A boundary goes only around a real construct (cluster, environment, trust zone), and a diagram rarely needs more than 1–2. AWS accounts and VPCs use the AWS groups in aws-network.md. A dashed arrow means planned, async, or optional. In network diagrams, dashed also means a virtual link (see aws-network.md).
 - Group by proximity, not boxes. Never use fills, shadows, gradients, `sketch=1`, swimlanes, or color for decoration.
 - **Key:** add one only when the diagram uses 3 or more symbols a reader can't decode from the labels (dash patterns, line colors, user colors). Never list a plain solid arrow. With 1–2 such symbols, label the edges instead (`peering`, `later`). If you don't know what a source's notation means, ask or leave it out; never guess.
-- Put an explanation as free text next to the thing it explains, or as a note when it needs a title. Use a note link only when the note has to sit far away, and line up the note's center with its target so the link is straight.
+- Put an explanation as free text next to the thing it explains, or as a note when it needs a title. In a flow, the note sits before the flow's entry point in reading order (left of it in a left-to-right flow), centered on it, never below the flow. Use a note link only when the note has to sit far away, and line up the note's center with its target so the link is straight.
+
+**Contrast** (WCAG)
+- Text needs a contrast ratio of 4.5:1 against what's behind it: 3:1 for large text (18pt, or 14pt bold), and aim for 7:1 at 10–11px. Lines, icons, and borders that carry meaning need 3:1 against the page.
+- Contrast comes from lightness, not hue: green text on a green tint, or red on orange, fails even though the hues differ.
+- A mid-tone fails in one theme or the other. Give text that matters a `light-dark()` pair: darker in light mode, lighter in dark mode.
+- check-layout.py flags text and lines below these ratios. To try a new pair first, use `contrast(fg, bg, opacity)` in drawio_lib.py, which blends a semi-transparent fill over the page.
+- The accent `#F62E00` is for lines and borders only. Red text uses `RED_TEXT` (`light-dark(#C42500,#FF6A3D)`).
 
 **Layout**
 - Use a 10px grid, ~100px gaps between columns, and ~60px between rows. Sibling groups of the same kind (regions, subnets, boundaries) use the same inside padding on every side; check-layout.py flags any that differ.
@@ -107,7 +114,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 - **Dark mode:** draw.io flips default colors. The desktop app keeps explicit colors, but `--theme dark` in the CLI flips them too, so give any color that matters a `light-dark(light,dark)` pair.
   - Never set `background` on `mxGraphModel`.
   - Never hardcode black or white (`#000000`, `#1e1e1e`, `#ffffff`) on fills, strokes, or text. Leave them at the default.
-  - Text on an opaque light fill (emphasis fill) gets an explicit `fontColor`. Text on a semi-transparent fill (AWS subnets) keeps the default.
+  - Text on an opaque light fill (emphasis fill) gets an explicit `fontColor`. Text on a semi-transparent fill (AWS subnets) keeps the default color, never gray, and subnet labels use the darker/lighter `light-dark()` pairs in aws-network.md.
   - Gray text uses `light-dark(#666666,#BBBBBB)`, because a fixed gray is unreadable on a dark or semi-transparent fill.
   - `--theme dark` doesn't match the desktop app exactly, so ask the user to check one diagram in the app.
 - In `value`, escape `&`, `<`, and `"`, and write line breaks as `&lt;br&gt;`.
@@ -126,7 +133,7 @@ Build diagrams with `python3` and `<this skill dir>/scripts/drawio_lib.py` (styl
 
 ## Verify before handing back
 
-Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix every edge it flags: line up the two ends exactly, or add waypoints if the bend is on purpose. Then render the diagram and look at it. Fix overlaps, lines through labels, and edges that end in mid-air:
+Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix everything it flags: edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off-center title or subtitle, content closer than 60px to the heading, and low contrast. Then render the diagram and look at it. Fix overlaps, lines through labels, and edges that end in mid-air:
 `drawio -x -f png -b 10 -p <page> --theme <light|dark> -o /tmp/<name>.png <name>.drawio`, then Read the PNG. Check every page in both themes (`-p` is 1-based). The `Updated` date is today; the subtitle's data date comes from the source, and the two may differ.
 No `image=https` may remain (see icons.md). Export only on request, keeping the diagram embedded so it stays editable:
 `drawio -x -e -f <png|svg|pdf> -b 10 -o <name>.drawio.<ext> <name>.drawio`.

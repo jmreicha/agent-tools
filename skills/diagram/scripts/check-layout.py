@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Flag edges that will render with a small jog: the source port and target
-port are almost, but not exactly, in line. Usage: check-layout.py <file.drawio>
+"""Flag layout defects: edges with a small jog, uneven group padding, an
+off-center title, and text or lines below WCAG contrast.
+Usage: check-layout.py <file.drawio>
 """
+import os
+import re
 import sys
 import xml.etree.ElementTree as ET
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from drawio_lib import contrast  # noqa: E402
 
 # Offsets under this read as a mistake, not an intended bend.
 JOG = 40
@@ -94,7 +100,7 @@ def check_page(page):
             if 1 <= off < JOG:
                 problems.append(f"{name} is {off:g}px out of line")
                 break
-    return problems + padding(cells, geo)
+    return problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
 
 
 def padding(cells, geo):
@@ -125,6 +131,96 @@ def padding(cells, geo):
             vals = {pid: round(p[side]) for pid, p in items}
             if max(vals.values()) - min(vals.values()) >= 2:
                 out.append(f"{kind} {name} padding differs: " + ", ".join(f"{k}={v}" for k, v in vals.items()))
+    return out
+
+
+def title_axis(cells, geo):
+    """(title id, subtitle id, center x, gap below the heading) or None.
+    The main box is the widest container, when it spans half the content or more;
+    otherwise the heading centers on the content's bounding box."""
+    top = {i: geo[i] for i, c in cells.items() if geo.get(i) and c.get("parent") == "1"}
+    t = next((i for i in top if style(cells[i].get("style")).get("fontSize") == "36"), None)
+    if not t:
+        return None
+    tx, ty, tw, th = top[t]
+    sub = next((i for i, (x, y, w, h) in top.items() if i != t and ty + th - 10 <= y <= ty + th + 40
+                and "text" in str(cells[i].get("style"))), None)
+    head_bottom = top[sub][1] + top[sub][3] if sub else ty + th
+    body = {i: b for i, b in top.items() if i not in (t, sub)
+            and not str(cells[i].get("value") or "").startswith("Updated")}
+    if not body:
+        return None
+    left = min(b[0] for b in body.values())
+    right = max(b[0] + b[2] for b in body.values())
+    boxes = [b for i, b in body.items() if style(cells[i].get("style")).get("container") == "1"
+             or any(c.get("parent") == i for c in cells.values())]
+    main = max(boxes, key=lambda b: b[2], default=None)
+    axis = main[0] + main[2] / 2 if main and main[2] >= (right - left) / 2 else (left + right) / 2
+    return t, sub, axis, min(b[1] for b in body.values()) - head_bottom
+
+
+def title(cells, geo):
+    found = title_axis(cells, geo)
+    if not found:
+        return []
+    t, sub, axis, gap = found
+    top = geo
+    out = []
+    for i, name in ((t, "title"), (sub, "subtitle")):
+        if i and abs(top[i][0] + top[i][2] / 2 - axis) >= 2:
+            out.append(f"{i}: {name} off-center by {top[i][0] + top[i][2] / 2 - axis:g}px (center on x={axis:g})")
+    if gap < 60:
+        out.append(f"content starts {gap:g}px below the subtitle (or title); use 60px+")
+    return out
+
+
+HEX = r"#[0-9A-Fa-f]{6}"
+
+
+def pair(v):
+    """(light, dark) from #RRGGBB or light-dark(a,b); None for none/default."""
+    m = re.fullmatch(rf"light-dark\(({HEX}),\s*({HEX})\)", v or "")
+    if m:
+        return m.group(1), m.group(2)
+    return (v, v) if re.fullmatch(HEX, v or "") else None
+
+
+def contrasts(cells, geo):
+    """WCAG: text 4.5:1 (3:1 at 18pt+, or 14pt+ bold), lines 3:1 against the page.
+    Light mode uses the real fill behind the text; dark mode only checks text with
+    no filled background, because draw.io darkens fills by an amount we can't know."""
+    out = []
+    for i, c in cells.items():
+        st, val = style(c.get("style")), str(c.get("value") or "")
+        if c.get("edge") == "1":
+            col = pair(st.get("strokeColor"))
+            if col:
+                for theme, fg, page in (("light", col[0], "#FFFFFF"), ("dark", col[1], "#121212")):
+                    r = contrast(fg, page)
+                    if r < 3:
+                        out.append(f"{i}: line contrast {r} in {theme} mode (need 3)")
+            continue
+        colors = [pair(st.get("fontColor"))] + [pair(m) for m in re.findall(r"color:\s*(light-dark\([^)]*\)|#[0-9A-Fa-f]{6})", val)]
+        colors = [x for x in colors if x]
+        if not colors or not val.strip():
+            continue
+        size = float(st.get("fontSize", 12))
+        need = 3 if size >= 24 or (size >= 18.5 and ("<b" in val or "fontStyle=1" in str(c.get("style")))) else 4.5
+        bg, opacity, node = None, 1, c
+        # A label outside its shape (icon labels) sits on the parent, not the shape's fill.
+        if st.get("verticalLabelPosition") in ("top", "bottom") or st.get("labelPosition") in ("left", "right"):
+            node = cells.get(c.get("parent"))
+        while node is not None and bg is None:
+            f = pair(style(node.get("style")).get("fillColor"))
+            if f:
+                bg, opacity = f, float(style(node.get("style")).get("fillOpacity", 100)) / 100
+            node = cells.get(node.get("parent"))
+        for fg in colors:
+            r = contrast(fg[0], bg[0] if bg else "#FFFFFF", opacity)
+            if r < need:
+                out.append(f"{i}: text contrast {r} in light mode (need {need:g})")
+            if bg is None and (r := contrast(fg[1], "#121212")) < need:
+                out.append(f"{i}: text contrast {r} in dark mode (need {need:g})")
     return out
 
 
