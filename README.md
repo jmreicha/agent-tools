@@ -27,7 +27,7 @@ Skills live in `skills/<skill-name>/SKILL.md` and are invoked as `/agent-tools:<
 
 | Skill              | Invocation                        | Description                                                                                                                                                                                                                                                                                                                                              |
 | ------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| diagram            | `/agent-tools:diagram`            | Use when asked to draw, diagram, sketch, or visualize architecture, infrastructure, network/traffic paths, request flows, or systems as a draw.io (.drawio) or Excalidraw (.excalidraw) file, or to export a diagram to PNG/SVG/PDF.                                                                                                                     |
+| diagram            | `/agent-tools:diagram`            | Use when asked to draw, diagram, sketch, or visualize architecture, infrastructure, network/traffic paths, request flows, or systems as a draw.io (.drawio), Excalidraw, or Mermaid diagram, to export a diagram to PNG/SVG/PDF, or when an existing doc would read better with a diagram.                                                               |
 | documentation      | `/agent-tools:documentation`      | Generate and maintain project documentation — READMEs, API docs, changelogs, and inline comments. Use when adding new features, onboarding to an unfamiliar codebase, or ensuring docs stay in sync with code.                                                                                                                                           |
 | findings           | `/agent-tools:findings`           | Maintain a per-repo finding file that tracks mistakes, corrections, and what works. Activates EVERY session, unconditionally. Read the finding before doing anything. Write to it continuously as you work — not just at session boundaries. Log your own mistakes, not just user corrections. The finding lives in the repo at `./context/findings.md`. |
 | pr                 | `/agent-tools:pr`                 | Iterate on a PR until CI passes. Use when you need to fix CI failures, address review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.                                                                                                                                                       |
@@ -46,10 +46,8 @@ Skills live in `skills/<skill-name>/SKILL.md` and are invoked as `/agent-tools:<
 
 **Invocation:** `/agent-tools:diagram`
 
-Make diagrams that look hand-made in draw.io: plain black-and-white
-boxes, left-to-right arrows with right-angle bends, real vendor icons, and lots of free-floating
-annotation text. The look is deliberately close to draw.io defaults. Color is reserved
-for vendor icons and an occasional emphasis accent.
+Plain black-and-white boxes, right-angle arrows, real vendor icons, and terse free-floating text.
+The look stays close to draw.io defaults. Color is for vendor icons and the occasional emphasis.
 
 ---
 
