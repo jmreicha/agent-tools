@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 # Offsets under this read as a mistake, not an intended bend.
 JOG = 40
+CLOUD_PORTS = {(0, 0.5), (1, 0.5), (0.5, 0), (0.5, 1)}
 
 
 def geometry(cells):
@@ -62,19 +63,37 @@ def check_page(page):
         if c.get("edge") != "1":
             continue
         src, tgt = geo.get(c.get("source")), geo.get(c.get("target"))
-        g = c.find("mxGeometry")
-        # Edges with explicit waypoints bend on purpose.
-        if not src or not tgt or (g is not None and g.find("Array") is not None):
+        if not src or not tgt:
             continue
         st = style(c.get("style"))
         ex, ey = float(st.get("exitX", 0.5)), float(st.get("exitY", 0.5))
         nx, ny = float(st.get("entryX", 0.5)), float(st.get("entryY", 0.5))
-        (sx, sy), (tx, ty) = port(src, ex, ey), port(tgt, nx, ny)
-        sideways = ex in (0, 1) and nx in (0, 1)
-        vertical = ey in (0, 1) and ny in (0, 1)
-        off = abs(sy - ty) if sideways else abs(sx - tx) if vertical else 0
-        if 1 <= off < JOG:
-            problems.append(f"{c.get('id')}: {c.get('source')} -> {c.get('target')} is {off:g}px out of line")
+        name = f"{c.get('id')}: {c.get('source')} -> {c.get('target')}"
+        # A cloud's outline only touches its box at the middle of each side.
+        for end, fx, fy in (("source", ex, ey), ("target", nx, ny)):
+            if "cloud" in str(cells[c.get(end)].get("style")) and (fx, fy) not in CLOUD_PORTS:
+                problems.append(f"{name}: {end} cloud port ({fx:g},{fy:g}) is not a side midpoint")
+        pts = [port(src, ex, ey)]
+        g = c.find("mxGeometry")
+        arr = g.find("Array") if g is not None else None
+        if arr is not None:
+            pts += [(float(p.get("x", 0)), float(p.get("y", 0))) for p in arr.iter("mxPoint")]
+        pts.append(port(tgt, nx, ny))
+        # Every segment should be exactly straight; a small offset renders as a jog.
+        # End segments only count the offset across the port's direction.
+        last = len(pts) - 2
+        for i, ((ax, ay), (bx, by)) in enumerate(zip(pts, pts[1:])):
+            dx, dy = abs(ax - bx), abs(ay - by)
+            fx, fy = (ex, ey) if i == 0 else (nx, ny)
+            if (i == 0 or i == last) and fx in (0, 1):
+                off = dy
+            elif (i == 0 or i == last) and fy in (0, 1):
+                off = dx
+            else:
+                off = min(dx, dy)
+            if 1 <= off < JOG:
+                problems.append(f"{name} is {off:g}px out of line")
+                break
     return problems + padding(cells, geo)
 
 
@@ -93,6 +112,14 @@ def padding(cells, geo):
         pad = (min(b[1] for b in boxes) - y, y + h - max(b[1] + b[3] for b in boxes))
         kinds.setdefault(kind, []).append((pid, pad))
     out = []
+    # Child groups must sit centered in their parent (equal left/right margins).
+    for pid, boxes in kids.items():
+        groups = [geo[c.get("id")] for c in cells.values() if c.get("parent") == pid and c.get("id") in kids]
+        if groups:
+            x, _, w, _ = geo[pid]
+            left, right = min(b[0] for b in groups) - x, x + w - max(b[0] + b[2] for b in groups)
+            if abs(left - right) >= 2:
+                out.append(f"{pid}: child groups off-center (left {left:g}, right {right:g})")
     for kind, items in kinds.items():
         for side, name in ((0, "top"), (1, "bottom")):
             vals = {pid: round(p[side]) for pid, p in items}

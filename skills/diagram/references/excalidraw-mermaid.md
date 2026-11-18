@@ -1,14 +1,14 @@
 # Excalidraw and Mermaid
 
 Both follow the same visual rules as draw.io: black strokes, no fills, terse labels, left-to-right flow,
-dashed boundaries only for logical constructs.
+solid boundaries only, around real constructs.
 
 ## Excalidraw (only on request)
 
 Write `<name>.excalidraw` wherever a `.drawio` file would go.
 - **File:** `{"type":"excalidraw","version":2,"source":"https://excalidraw.com","elements":[...],"appState":{"viewBackgroundColor":"#ffffff","gridSize":20},"files":{}}`
 - **Every element:** `id, type, x, y, width, height, angle:0, opacity:100, seed, version:1, versionNonce, isDeleted:false, groupIds:[], frameId:null, link:null, locked:false, updated:1, boundElements`.
-- **Shapes:** `"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"roughness":1,"roundness":{"type":3}` at 160×80. A boundary adds `"strokeStyle":"dashed"`.
+- **Shapes:** `"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"roughness":1,"roundness":{"type":3}` at 160×80. A boundary uses the same solid stroke.
 - **Text:**
   - Set `"fontFamily":5` at size 20, plus `text, originalText, fontSize, lineHeight:1.25, textAlign:"center", verticalAlign:"middle", autoResize:true`.
   - A label inside a shape sets `"containerId":"<shape id>"`, and the shape lists `{"type":"text","id":"<text id>"}` in its `boundElements`.
