@@ -59,6 +59,15 @@ GROUPS = {
     "vpc": "grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;fontColor=light-dark(#7A3EF0,#B394FF);",
     "public": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#7AA116;fillColor=#DCEBC6;fillOpacity=40;fontColor=light-dark(#1E6B10,#A6E06A);",
     "private": "grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#00A4A6;fillColor=#C9E9EE;fillOpacity=40;fontColor=light-dark(#0B5A8A,#8ED3F5);",
+    "security_group": "grIcon=mxgraph.aws4.group_security_group;strokeColor=#DD3522;fillColor=none;fontColor=light-dark(#C42B1C,#FF7A6B);",
+    "asg": "grIcon=mxgraph.aws4.group_auto_scaling_group;strokeColor=#ED7100;fillColor=none;fontColor=light-dark(#B35500,#FF9A3D);",
+    "datacenter": "grIcon=mxgraph.aws4.group_corporate_data_center;strokeColor=#7D8998;fillColor=none;fontColor=light-dark(#5A6573,#AEB8C4);",
+}
+# Boundary colors by kind (stroke, label text); see references/palette.md.
+BOUNDARY_KINDS = {
+    "eks": ("#ED7100", "light-dark(#B35500,#FF9A3D)"),
+    "namespace": ("#326CE5", "light-dark(#2457C5,#7FA6F5)"),
+    "datacenter": ("#7D8998", "light-dark(#5A6573,#AEB8C4)"),
 }
 
 
@@ -142,23 +151,27 @@ class Diagram:
     def group(self, id, label, kind, x, y, w, h, parent="1"):
         return self.vertex(id, label, _GROUP + GROUPS[kind], x, y, w, h, parent)
 
-    def boundary(self, id, label, x, y, w, h, icon=None, parent="1"):
+    def boundary(self, id, label, x, y, w, h, icon=None, parent="1", kind=None):
         """Solid boundary. It's a container: put children in it with parent=id.
-        An optional 30x30 vendor icon sits before the label in the top-left."""
-        self.vertex(id, "", BOUNDARY, x, y, w, h, parent)
+        An optional 30x30 vendor icon sits before the label in the top-left.
+        kind (eks, namespace, datacenter) colors the border and label."""
+        stroke, text = BOUNDARY_KINDS[kind] if kind else (None, None)
+        self.vertex(id, "", BOUNDARY + (f"strokeColor={stroke};" if stroke else ""), x, y, w, h, parent)
         lx = x + 20
         if icon:
             self.vertex(id + "_i", "", icon, lx, y + 10, 30, 30, id)
             lx += 40
-        self.text(id + "_l", label, lx, y + 10, w - (lx - x) - 20, 30, "align=left;", id)
+        self.text(id + "_l", label, lx, y + 10, w - (lx - x) - 20, 30,
+                  "align=left;" + (f"fontColor={text};" if text else ""), id)
         return self.geo[id]
 
     def card(self, id, name, facts, icon, x, y, w, h=None, parent="1", extra=""):
-        """Full-detail node: icon left, bold name, gray facts one per line.
-        Leave h out to size it from the number of facts."""
+        """Full-detail node: icon left, bold name, smaller facts one per line.
+        Leave h out to size it from the number of facts. Facts keep the default color:
+        draw.io ignores light-dark() inside label HTML, so an inline gray fails dark mode."""
         h = h or max(64, 34 + 12 * len(facts))
         rows = "<br>".join(facts)
-        label = f'<b>{name}</b><br><span style="font-size:10px;color:{GRAY}">{rows}</span>'
+        label = f'<b>{name}</b><br><span style="font-size:10px">{rows}</span>'
         self.vertex(id, label, CARD + ("" if icon else "spacingLeft=12;") + extra, x, y, w, h, parent)
         if icon:
             self.vertex(id + "_i", "", icon, x + 10, y + (h - 36) // 2, 36, 36, parent)
@@ -167,9 +180,17 @@ class Diagram:
     def note(self, id, title, lines, x, y, w=220, accent=None):
         """Explanation or emphasis note: bold title, one short line each.
         accent colors the title, e.g. ACCENT to match an emphasized path."""
-        color = f' style="color:{RED_TEXT if accent == ACCENT else accent}"' if accent else ""
         body = "<br>".join(lines)
-        return self.vertex(id, f"<b{color}>{title}</b><br>{body}", NOTE, x, y, w, 30 + 15 * len(lines))
+        h = 30 + 15 * len(lines)
+        if not accent:
+            return self.vertex(id, f"<b>{title}</b><br>{body}", NOTE, x, y, w, h)
+        # An accent title is its own cell, so its color can be a fontColor style key:
+        # light-dark() inside label HTML always renders the light value.
+        self.vertex(id, f'<b style="visibility:hidden">{title}</b><br>{body}', NOTE, x, y, w, h)
+        color = RED_TEXT if accent == ACCENT else accent
+        self.vertex(id + "_t", f"<b>{title}</b>", TEXT + f"align=left;verticalAlign=top;spacing=8;fontSize=11;fontColor={color};",
+                    x, y, w, 30, id)
+        return self.geo[id]
 
     def key(self, id, rows, x, y, w=300):
         """Key in the note style: one row per line type, as (edge style, meaning).
@@ -269,6 +290,10 @@ if __name__ == "__main__":
     assert 'parent="eks"' in d.cells[-1] and 'x="50" y="60"' in d.cells[-1]
     assert "#ffffff;" not in aws_service("ec2", "#ED7100").replace(WHITE, "")
     assert lit("apps/<app>.yaml") == "apps/&lt;app&gt;.yaml"
+    d.note("nt", "Hot", ["x"], 0, 950, accent=ACCENT)
+    assert "color:light-dark(" not in d.cells[-2] and RED_TEXT in d.cells[-1]
+    d.boundary("k", "EKS", 0, 700, 300, 200, kind="eks")
+    assert "strokeColor=#ED7100" in d.cells[-2] and "#B35500" in d.cells[-1]
     assert contrast("#C42500", "#FFFFFF") >= 4.5 and contrast("#FF6A3D", "#121212") >= 4.5
     assert contrast("#000000", "#FFFFFF") == 21 and contrast("#1E6B10", "#DCEBC6", 0.4) >= 4.5
     d.key("key", [(ARROW, "request"), (ARROW + DASHED, "virtual")], 40, 400)

@@ -6,7 +6,7 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self-che
 
 ## Full-detail card
 
-- Use `Diagram.card(id, name, facts, icon, x, y, w, h, parent)`: the icon is 36×36 at the left, the name bold, and the facts in 10px gray, one per line.
+- Use `Diagram.card(id, name, facts, icon, x, y, w, h, parent)`: the icon is 36×36 at the left, the name bold, and the facts at 10px in the default color, one per line.
 - Leave `h` out and `card()` sizes it from the fact count (64px minimum, +12px per fact).
 - Rows step 80–90px. Two columns are 480px wide with a 40px gap between them.
 - Icon labels on Brief stay under ~20 characters, so they fit under a 60px icon. Long IDs belong on Full cards.
@@ -39,7 +39,7 @@ When 3 or more edges go from one source to a column of targets:
 
 - The mirror of fan-out: 3 or more sources in a column merge on one trunk into one port, with `d.fanin(prefix, sources, tgt, trunk_x)`.
 
-## Emphasis path
+## Emphasis path (not network diagrams)
 
 - The red path gets its own straight route, crossing no other edge or box.
 - Reorder nodes to make that possible: put the emphasized target first in its row, and line up Internet, the gateway, and the target on one center line.

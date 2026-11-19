@@ -38,6 +38,13 @@ reads clearly. Only fix real defects: overlaps, lines through labels, edges that
   3. ask the user, then offer to save the location
 
   Apply only its palette (as accents on key nodes), its typeface (if draw.io has it), and its hard "never" rules. Don't copy the guide's content anywhere.
+- **Adapt** (editing someone else's diagram: update, add to, fix, extend): match the existing diagram, not this skill. Its owner and readers already know its conventions.
+  - Before editing, read its styles: colors, line types, fonts, sizes, shapes, icon set, spacing, and key.
+  - A new element copies the style of its closest existing sibling (same kind of node, same kind of line). A new line type gets a key row in the existing key's format.
+  - Don't restyle, recolor, re-space, or move anything you weren't asked to change, even where this skill would do it differently.
+  - Fix only real defects in the parts you touch: overlaps, edges that end in mid-air, lines through labels. Report check-layout's other findings (contrast, centering, padding) to the user instead of fixing them.
+  - Switch to Technical only when the user asks for a redraw or a conversion to this style.
+  - If a request like "clean this up" could mean either, ask once: "Keep its current style, or redraw it in ours?"
 
 ## Detail level
 
@@ -55,7 +62,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 
 - **Brief:** shortened IDs, collapsed repeats, terse labels.
 - **Full:** keep every ID, CIDR, rule, and member from the source.
-  - The name stays 12pt. Facts go below it at `fontSize=10;fontColor=light-dark(#666666,#BBBBBB);align=left;`, one fact per line.
+  - The name stays 12pt and bold. Facts go below it at 10px in the default color, one fact per line (`Diagram.card`).
   - List repeats one per line instead of collapsing them, and keep full IDs.
   - Still no prose: explanations go in a note, the key, or the doc.
   - Grow boxes and the page to fit. Split into two diagrams only when links start crossing.
@@ -116,6 +123,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
   - Never hardcode black or white (`#000000`, `#1e1e1e`, `#ffffff`) on fills, strokes, or text. Leave them at the default.
   - Text on an opaque light fill (emphasis fill) gets an explicit `fontColor`. Text on a semi-transparent fill (AWS subnets) keeps the default color, never gray, and subnet labels use the darker/lighter `light-dark()` pairs in aws-network.md.
   - Gray text uses `light-dark(#666666,#BBBBBB)`, because a fixed gray is unreadable on a dark or semi-transparent fill.
+  - `light-dark()` works only in style keys (`fontColor`, `strokeColor`, `fillColor`). Inside label HTML (`<b style="color:…">`), draw.io always renders the light value, so dark mode gets dark text. Color a whole cell with `fontColor`, or give the colored text its own cell; check-layout.py flags inline `light-dark()`.
   - `--theme dark` doesn't match the desktop app exactly, so ask the user to check one diagram in the app.
 - In `value`, escape `&`, `<`, and `"`, and write line breaks as `&lt;br&gt;`.
 
@@ -128,6 +136,7 @@ Build diagrams with `python3` and `<this skill dir>/scripts/drawio_lib.py` (styl
 | includes any product, service, or brand (icons and logos) | [references/icons.md](references/icons.md) |
 | needs step numbers or emphasis on one path | [references/callouts.md](references/callouts.md) |
 | is AWS, or a network or topology diagram | [references/aws-network.md](references/aws-network.md) |
+| colors any group, boundary, or line | [references/palette.md](references/palette.md) |
 | goes into a doc, or a doc might need one | [references/docs.md](references/docs.md) |
 | has groups, Full-detail cards, a fan-out, an emphasis path, or a Brief/Full pair | [references/layout.md](references/layout.md) |
 

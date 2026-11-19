@@ -200,6 +200,11 @@ def contrasts(cells, geo):
                     if r < 3:
                         out.append(f"{i}: line contrast {r} in {theme} mode (need 3)")
             continue
+        # draw.io only resolves light-dark() in style keys; inside label HTML it always
+        # renders the light value, so dark mode gets dark text on a dark page.
+        if re.search(r"color:\s*light-dark\(", val):
+            out.append(f"{i}: inline light-dark() in the label; draw.io ignores it in dark mode. Use the fontColor style key")
+            val = re.sub(r"color:\s*light-dark\([^)]*\)", "", val)
         colors = [pair(st.get("fontColor"))] + [pair(m) for m in re.findall(r"color:\s*(light-dark\([^)]*\)|#[0-9A-Fa-f]{6})", val)]
         colors = [x for x in colors if x]
         if not colors or not val.strip():

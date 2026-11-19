@@ -33,15 +33,14 @@ the SVG from the zips at cloud.google.com/icons and embed it as a data URI.
 
 ## Brand logos (anything without a library shape)
 
-Try these sources in order. Check each URL first with `curl -sL -o /dev/null -w '%{http_code}'`:
-1. `https://cdn.simpleicons.org/<slug>` (`argo`, `terraform`, `pagerduty`, `cloudflare`)
-2. `https://raw.githubusercontent.com/cncf/artwork/main/projects/<name>/icon/color/<name>-icon-color.svg` (for example `crossplane`, `opentelemetry`)
-3. `https://github.com/<org>.png?size=128` (for example `honeycombio`)
-4. the vendor's press kit, found by web search
+Find one with `python3 <this skill dir>/scripts/find-logo.py <name> [--domain example.com] [--github org]`.
+It tries simple-icons, CNCF artwork, the GitHub org avatar, then the vendor site's icons, and prints every working URL; the first is the pick.
+It rejects rasters under 64px and flags all-black SVGs. If it finds nothing, try the vendor's press kit.
 
 Use the URL as `shape=image;imageAspect=0;image=<url>;`, then embed every URL so the diagram works offline:
 `python3 <this skill dir>/scripts/embed-icons.py <file.drawio|file.excalidraw>`
 The script exits non-zero if any fetch fails or a URL returns something that isn't an image.
-**Black logos vanish in dark mode.** draw.io can't recolor images, and an SVG's `prefers-color-scheme` follows the OS, not draw.io's theme. Use a library shape with a `light-dark()` fill (GitHub above). With no shape, put the logo on a `rounded=1;strokeColor=none;fillColor=light-dark(#ffffff,#ffffff);` tile 10px larger than the logo. Colored logos (Helm, Argo) read fine as they are.
+**Black logos vanish in dark mode.** draw.io can't recolor images, and an SVG's `prefers-color-scheme` follows the OS, not draw.io's theme. Use a library shape with a `light-dark()` fill (GitHub above). With no shape, put the logo on a `rounded=1;strokeColor=none;fillColor=light-dark(#ffffff,#ffffff);` tile 10px larger than the logo. The same goes for a logo with any dark part, like Honeycomb's "h". Colored logos (Helm, Argo) read fine as they are.
+A library icon with a dark fill (`#232F3E`) gets lightened in dark mode and its white glyph washes out. Pin it: `fillColor=light-dark(#232F3E,#232F3E)`.
 
 If no source has a logo, use a cloud shape for an edge or CDN service and a plain box for anything else.

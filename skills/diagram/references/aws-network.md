@@ -14,7 +14,7 @@ This follows the AWS architecture icon guidelines (the look of AWS blog diagrams
   | VPC | `grIcon=mxgraph.aws4.group_vpc;strokeColor=#8C4FFF;fillColor=none;fontColor=light-dark(#7A3EF0,#B394FF);` |
   | Public subnet | `grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#7AA116;fillColor=#DCEBC6;fillOpacity=40;fontColor=light-dark(#1E6B10,#A6E06A);` |
   | Private subnet | `grIcon=mxgraph.aws4.group_security_group;grStroke=0;strokeColor=#00A4A6;fillColor=#C9E9EE;fillOpacity=40;fontColor=light-dark(#0B5A8A,#8ED3F5);` |
-  | AZ (no icon; plain style, not the base) | `fillColor=none;strokeColor=#147EBA;verticalAlign=top;fontColor=light-dark(#0F6A9E,#5FB4E8);whiteSpace=wrap;html=1;container=1;collapsible=0;` |
+  | AZ (no icon; plain style, not the base) | `fillColor=none;strokeColor=#147EBA;verticalAlign=top;align=left;spacingLeft=10;fontColor=light-dark(#0F6A9E,#5FB4E8);whiteSpace=wrap;html=1;container=1;collapsible=0;` |
 - Put CIDRs in group labels: `VPC 10.0.0.0/16`.
 - Public and private subnet tints are deliberately close: subtly different, never contrasting.
 - **Names:** a service name takes at most 2 lines and never breaks mid-word. Keep "AWS" or "Amazon" with the name. Short forms (`EKS`) are fine once the full name has appeared.
@@ -30,7 +30,7 @@ This follows the AWS architecture icon guidelines (the look of AWS blog diagrams
   - Each link gets one label, `medium + speed + role`: `DX 10G primary`.
   - Interface, VLAN, and IP detail goes on the link ends only, and only when the diagram is about that layer.
 - **Color:** links may be colored by type, but only with a key row per color (a line sample plus `DX`, `VPN`). Never color alone.
-  Line colors never reuse an AWS group or icon color (`#7AA116`, `#00A4A6`, `#147EBA`, `#8C4FFF`, `#CD2264`, or the AWS Cloud's `#232F3E`/`#D5DBDB`), so a line never blends into a border. Gray is out too: it reads as the AWS Cloud border in dark mode. Use green `light-dark(#1B7F3B,#3DDC84)`, blue `light-dark(#1F4FD1,#6E9BFF)`, amber `light-dark(#9A6200,#E8A33D)`, and red `#F62E00`, at `strokeWidth=2`. Map the source's hues onto the nearest of these.
+  Line colors come from [palette.md](palette.md), which never reuses a group color. Map the source's hues onto the nearest one.
 - **Redundancy:** place pairs side by side, with the role in the label (`Primary` / `Standby`), never shown by color alone.
 - **BGP:** the ASN goes in the node label (`AS64512`). Draw the session as a labeled dashed edge.
 - **Detail:** network diagrams get a Brief page and a Full page (see SKILL.md). The Full page keeps resource IDs, route tables, subnet lists (AZ, CIDR, name), listeners, and SG rules under the resource they belong to (`SG: 0.0.0.0/0 TCP 443`).
