@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Flag layout defects: edges with a small jog, uneven group padding, an
-off-center title, and text or lines below WCAG contrast.
+off-center title, text or lines below WCAG contrast, lines through labels, and
+edge labels on borders or on each other, and image icons without the standard tile.
 Usage: check-layout.py <file.drawio>
 """
 import os
@@ -64,7 +65,7 @@ def check(path):
 def check_page(page):
     cells = {c.get("id"): c for c in page.iter("mxCell")}
     geo = geometry(cells)
-    problems = []
+    problems, paths = [], {}
     for c in cells.values():
         if c.get("edge") != "1":
             continue
@@ -85,6 +86,7 @@ def check_page(page):
         if arr is not None:
             pts += [(float(p.get("x", 0)), float(p.get("y", 0))) for p in arr.iter("mxPoint")]
         pts.append(port(tgt, nx, ny))
+        paths[c.get("id")] = pts
         # Every segment should be exactly straight; a small offset renders as a jog.
         # End segments only count the offset across the port's direction.
         last = len(pts) - 2
@@ -100,7 +102,18 @@ def check_page(page):
             if 1 <= off < JOG:
                 problems.append(f"{name} is {off:g}px out of line")
                 break
-    return problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
+    return (problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
+            + crossings(cells, geo, paths) + tiles(cells, geo))
+
+
+def tiles(cells, geo):
+    """Image icons (not screenshots) must carry embed-icons.py's standard tile."""
+    out = []
+    for i, c in cells.items():
+        st, b = style(c.get("style")), geo.get(i)
+        if st.get("shape") == "image" and b and max(b[2], b[3]) <= 100 and st.get("iconTile") != "1":
+            out.append(f"{i}: icon has no tile; use a library shape, or image() + embed-icons.py (icons.md)")
+    return out
 
 
 def padding(cells, geo):
@@ -226,6 +239,100 @@ def contrasts(cells, geo):
                 out.append(f"{i}: text contrast {r} in light mode (need {need:g})")
             if bg is None and (r := contrast(fg[1], "#121212")) < need:
                 out.append(f"{i}: text contrast {r} in dark mode (need {need:g})")
+    return out
+
+
+def text_box(value, size, cx=None, x=None, y=0):
+    """Rough rendered extent of a label: ~0.55em per character, 1.25em per line."""
+    lines = re.split(r"<br\s*/?>|\n", re.sub(r"<(?!br)[^>]+>", "", value))
+    w, h = max(len(ln) for ln in lines) * size * 0.55, len(lines) * size * 1.25
+    return (cx - w / 2 if x is None else x, y, w, h)
+
+
+def labels(cells, geo):
+    """{id: box} for text a line shouldn't cross: free text, icon labels, group labels."""
+    out = {}
+    for i, c in cells.items():
+        b, val = geo.get(i), str(c.get("value") or "").strip()
+        if not b or not val:
+            continue
+        st, raw = style(c.get("style")), str(c.get("style"))
+        size = float(st.get("fontSize", 12))
+        x, y, w, h = b
+        if st.get("verticalLabelPosition") == "bottom":
+            out[i] = text_box(val, size, cx=x + w / 2, y=y + h + 2)
+        elif st.get("verticalLabelPosition") == "top":
+            t = text_box(val, size, cx=x + w / 2)
+            out[i] = (t[0], y - t[3] - 2, t[2], t[3])
+        elif st.get("labelPosition") in ("left", "right"):
+            t = text_box(val, size, cx=0, y=y + h / 2)
+            lx = x + w + 2 if st["labelPosition"] == "right" else x - t[2] - 2
+            out[i] = (lx, y + (h - t[3]) / 2, t[2], t[3])
+        elif "mxgraph.aws4.group" in raw:
+            out[i] = text_box(val, size, x=x + float(st.get("spacingLeft", 0)), y=y + 4)
+        elif raw.startswith("text;"):
+            t = text_box(val, size, cx=x + w / 2, y=y + (h - text_box(val, size, cx=0)[3]) / 2)
+            out[i] = (x, t[1], t[2], t[3]) if st.get("align") == "left" else t
+    return out
+
+
+def hits(seg, box, pad=1):
+    """True when an axis-aligned segment passes through a box's interior."""
+    (ax, ay), (bx, by) = seg
+    x, y, w, h = box
+    x, y, w, h = x + pad, y + pad, w - 2 * pad, h - 2 * pad
+    if ax != bx and ay != by:
+        return False
+    return min(ax, bx) < x + w and max(ax, bx) > x and min(ay, by) < y + h and max(ay, by) > y
+
+
+def along(pts, frac):
+    """Point at a fraction of a path's length."""
+    segs = list(zip(pts, pts[1:]))
+    lens = [abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in segs]
+    left = sum(lens) * frac
+    for (a, b), ln in zip(segs, lens):
+        if left <= ln and ln:
+            t = left / ln
+            return a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+        left -= ln
+    return pts[-1]
+
+
+def crossings(cells, geo, paths):
+    """Defects a render shows but the XML hides: a line through a label, an edge label
+    on a group border, and two edge labels on top of each other."""
+    out, texts, edge_labels = [], labels(cells, geo), {}
+    for eid, pts in paths.items():
+        for tid, box in texts.items():
+            if any(hits(seg, box) for seg in zip(pts, pts[1:])):
+                out.append(f"{eid}: line crosses {tid}'s label; reroute it or move the label")
+        val = str(cells[eid].get("value") or "").strip()
+        if val:
+            g = cells[eid].find("mxGeometry")
+            cx, cy = along(pts, (float(g.get("x", 0)) + 1) / 2)
+            size = float(style(cells[eid].get("style")).get("fontSize", 11))
+            t = text_box(val, size, cx=cx)
+            edge_labels[eid] = (t[0], cy - t[3] / 2, t[2], t[3])
+    def is_group(i, b):
+        st = style(cells[i].get("style"))
+        # Older diagrams draw a boundary as a large empty box instead of a container.
+        plain = st.get("fillColor") == "none" and not cells[i].get("value") and min(b[2], b[3]) >= 150
+        return st.get("container") == "1" or plain or any(c.get("parent") == i for c in cells.values())
+    groups = {i: b for i, b in geo.items() if b and is_group(i, b)}
+    for eid, (x, y, w, h) in edge_labels.items():
+        for gid, (gx, gy, gw, gh) in groups.items():
+            sides = [((gx, gy), (gx, gy + gh)), ((gx + gw, gy), (gx + gw, gy + gh)),
+                     ((gx, gy), (gx + gw, gy)), ((gx, gy + gh), (gx + gw, gy + gh))]
+            if any(hits(s, (x, y, w, h)) for s in sides):
+                out.append(f"{eid}: label sits on {gid}'s border; move it with label_at")
+    ids = sorted(edge_labels)
+    for n, a in enumerate(ids):
+        for b in ids[n + 1:]:
+            ax, ay, aw, ah = edge_labels[a]
+            bx, by, bw, bh = edge_labels[b]
+            if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
+                out.append(f"{a}: label overlaps {b}'s label")
     return out
 
 

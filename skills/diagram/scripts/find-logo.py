@@ -99,13 +99,13 @@ def check(url):
     except Exception as e:
         return False, str(e)
     if ctype == "image/svg+xml":
-        return True, "svg" + ("; dark logo: use a library shape or the white tile (icons.md)" if dark_svg(body) else "")
+        return True, "svg" + ("; all black: embed-icons.py tiles it, or use a library shape (icons.md)" if dark_svg(body) else "")
     size = png_size(body)
     if not size:
         return False, f"{ctype}: not PNG or SVG"
     if min(size) < MIN_PX:
         return False, f"{size[0]}x{size[1]}px, under {MIN_PX}px"
-    return True, f"png {size[0]}x{size[1]}; render both themes to check a dark logo"
+    return True, f"png {size[0]}x{size[1]}; prefer an SVG, which tiles in its own color"
 
 
 def self_test():

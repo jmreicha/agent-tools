@@ -75,7 +75,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
   - a diagram about the current repo goes in `docs/diagrams/<name>.drawio`, or in the repo root if there's no `docs/`
   - anything else goes in `~/Documents/<name>.drawio`
 
-  Use kebab-case names and uncompressed XML: one page per file, or two for Brief + Full.
+  Use kebab-case names and uncompressed XML: one page per file, or two for Brief + Full. A single page is named after the title (`Diagram.title` does this), never `Page-1`.
 
 ## Style contract
 
@@ -142,7 +142,7 @@ Build diagrams with `python3` and `<this skill dir>/scripts/drawio_lib.py` (styl
 
 ## Verify before handing back
 
-Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix everything it flags: edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off-center title or subtitle, content closer than 60px to the heading, and low contrast. Then render the diagram and look at it. Fix overlaps, lines through labels, and edges that end in mid-air:
+Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix everything it flags: edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off-center title or subtitle, content closer than 60px to the heading, low contrast, lines through labels, edge labels on borders or on each other, and logos without the standard tile. Then render the diagram and look at it. The label checks estimate text width, so still look for overlaps, crowded labels, and edges that end in mid-air:
 `drawio -x -f png -b 10 -p <page> --theme <light|dark> -o /tmp/<name>.png <name>.drawio`, then Read the PNG. Check every page in both themes (`-p` is 1-based). The `Updated` date is today; the subtitle's data date comes from the source, and the two may differ.
 No `image=https` may remain (see icons.md). Export only on request, keeping the diagram embedded so it stays editable:
 `drawio -x -e -f <png|svg|pdf> -b 10 -o <name>.drawio.<ext> <name>.drawio`.

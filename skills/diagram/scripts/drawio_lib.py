@@ -126,13 +126,14 @@ def image(src):
 
 def cloudflare(product):
     """Cloudflare product icon (workers, r2, d1, kv, dns, waf, tunnel, access...), CC-BY-4.0.
-    Outline-only, so embed-icons.py draws it orange on a peach tile, as Cloudflare's own diagrams do."""
-    return image(f"https://raw.githubusercontent.com/cloudflare/cloudflare-docs/production/src/icons/{product}.svg#tile=FEF4E6,F6821F")
+    Outline-only, so it passes the brand orange; embed-icons.py tiles it like every other logo."""
+    return image(f"https://raw.githubusercontent.com/cloudflare/cloudflare-docs/production/src/icons/{product}.svg#tile=F6821F")
 
 
 class Diagram:
     def __init__(self):
         self.cells, self.geo, self.n = [], {"1": (0, 0, 0, 0)}, 0
+        self.name = "Diagram"
 
     def _id(self, base):
         self.n += 1
@@ -151,7 +152,9 @@ class Diagram:
 
     def title(self, label, cx, y=20):
         """36pt title centered on cx, the main box's center (not the page's), so it lines
-        up with the diagram. Keep the first content row 60px+ below it (or the subtitle)."""
+        up with the diagram. Keep the first content row 60px+ below it (or the subtitle).
+        It also names the page, so the tab doesn't read "Page-1"."""
+        self.name = label
         return self.text("title", label, cx - 400, y, 800, 50, "fontSize=36;")
 
     def group(self, id, label, kind, x, y, w, h, parent="1"):
@@ -261,13 +264,14 @@ class Diagram:
         for i, s in enumerate(sources):
             self.edge(f"{prefix}{i}", s, tgt, style, entry=(0, entry_y), points=[(trunk_x, self.center(s)[1]), (trunk_x, ty)])
 
-    def xml(self, w, h, name="Page-1", page_id="p1"):
+    def xml(self, w, h, name=None, page_id="p1"):
         body = "\n".join(self.cells)
+        name = escape(name or self.name, {'"': "&quot;"})
         return (f'<diagram name="{name}" id="{page_id}"><mxGraphModel grid="1" gridSize="10" page="1" '
                 f'pageWidth="{w}" pageHeight="{h}"><root><mxCell id="0"/><mxCell id="1" parent="0"/>\n'
                 f'{body}\n</root></mxGraphModel></diagram>')
 
-    def save(self, path, w, h, name="Page-1"):
+    def save(self, path, w, h, name=None):
         with open(path, "w") as f:
             f.write(f'<mxfile host="Electron">{self.xml(w, h, name)}</mxfile>')
 
@@ -309,4 +313,8 @@ if __name__ == "__main__":
     out = os.path.join(tempfile.mkdtemp(), "t.drawio")
     save_pages(out, [("Brief", d, 1000, 600), ("Full", d, 1000, 600)])
     assert [p.get("name") for p in ET.parse(out).iter("diagram")] == ["Brief", "Full"]
+    t = Diagram()
+    t.title("dibs & co", 500)
+    t.save(out, 1000, 600)
+    assert [p.get("name") for p in ET.parse(out).iter("diagram")] == ["dibs & co"]
     print("ok")

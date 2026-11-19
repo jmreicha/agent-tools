@@ -4,8 +4,8 @@
 .drawio:      every style `image=https://...`
 .excalidraw:  every `files.<id>.dataURL` that is still an http(s) URL
 
-A `#tile=<tile hex>[,<glyph hex>]` suffix on an SVG URL puts a one-color glyph (white by default)
-on a rounded tile, for vendors that ship only outline icons (Cloudflare).
+Every draw.io icon lands on the same rounded tile (see tile()). Outline sets with no color of
+their own (Cloudflare) pass their brand color as a `#tile=<hex>` suffix on the URL.
 """
 
 import base64
@@ -15,6 +15,9 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+
+sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(__file__)))
+from drawio_lib import contrast  # noqa: E402
 
 # Icon CDNs reject urllib's default user agent.
 UA = {"User-Agent": "Mozilla/5.0"}
@@ -33,31 +36,48 @@ def fetch(url):
     return ctype, body
 
 
-def tile(svg, colors):
-    """Glyph on a 64px rounded tile, fixed colors so it reads the same in both themes.
-    colors is "<tile>" (white glyph) or "<tile>,<glyph>"."""
-    color, _, ink = colors.partition(",")
-    ink = "#" + ink if ink else "#ffffff"
-    svg = svg.decode()
-    vb = re.search(r'viewBox="([^"]+)"', svg).group(1)
-    inner = re.sub(r"^.*?<svg\b[^>]*>|</svg>\s*$", "", svg, flags=re.S)
-    # Outline sets draw in black or currentColor; both become the glyph color.
-    inner = re.sub(r'(fill|stroke)="(currentColor|#000|#000000|black)"', rf'\1="{ink}"', inner)
+NEUTRAL, DARK = "#F4F4F4", "#232F3E"  # multicolor/raster tile; tile for a glyph too light for its tint
+INK = r'(fill|stroke)="(currentColor|#000|#000000|black)"'
+
+
+def tint(c, amount=0.1):
+    """c mixed with white, the pale tile behind a one-color glyph."""
+    rgb = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(255 - (255 - v) * amount):02X}" for v in rgb)
+
+
+def tile(body, ctype, brand=None):
+    """Every non-library icon on the same 64px rounded tile, in fixed colors so it reads the
+    same in both themes: a one-color glyph in its color on a tint of it, anything else on gray."""
+    if ctype != "image/svg+xml":
+        uri = f"data:{ctype};base64," + base64.b64encode(body).decode()
+        inner, bg = f'<image x="8" y="8" width="48" height="48" href="{uri}"/>', NEUTRAL
+    else:
+        svg = body.decode()
+        vb = re.search(r'viewBox="([^"]+)"', svg).group(1)
+        root = re.match(r".*?<svg\b[^>]*>", svg, re.S).group(0)
+        inner = svg[len(root):].rsplit("</svg>", 1)[0]
+        colors = {c.upper() for c in re.findall(r'(?:fill|stroke)="(#[0-9A-Fa-f]{6})"', svg)} - {"#FFFFFF"}
+        if len(colors) > 1:
+            inner = f'<svg x="12" y="12" width="40" height="40" viewBox="{vb}">{inner}</svg>'
+            bg = NEUTRAL
+        else:
+            ink = "#" + brand.upper() if brand else (colors.pop() if colors else "#000000")
+            inner = re.sub(INK, rf'\1="{ink}"', inner)
+            inner = f'<svg x="12" y="12" width="40" height="40" viewBox="{vb}" fill="{ink}" color="{ink}">{inner}</svg>'
+            bg = tint(ink) if contrast(ink, tint(ink)) >= 1.5 else DARK
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
-            f'<rect width="64" height="64" rx="8" fill="#{color}"/>'
-            f'<svg x="12" y="12" width="40" height="40" viewBox="{vb}" fill="{ink}" color="{ink}">'
-            f"{inner}</svg></svg>").encode()
+            f'<rect width="64" height="64" rx="8" fill="{bg}"/>{inner}</svg>').encode()
 
 
 def embed_drawio(text, failed):
     def swap(m):
         try:
-            url, _, frag = m.group(1).partition("#tile=")
+            url, _, brand = m.group(1).partition("#tile=")
             ctype, body = fetch(url)
-            if frag:
-                body = tile(body, frag)
+            body = tile(body, ctype, brand or None)
             # draw.io expects "data:<type>," + base64, without the ";base64" marker.
-            return f"image=data:{ctype}," + base64.b64encode(body).decode()
+            return "iconTile=1;image=data:image/svg+xml," + base64.b64encode(body).decode()
         except Exception as e:
             failed.append(f"{m.group(1)}: {e}")
             return m.group(0)
@@ -93,13 +113,20 @@ def embed(path):
 
 
 def self_test():
-    g = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="currentColor" d="M0"/><path fill="none" d="M1"/><path d="M2"/></svg>'
-    out = tile(g.encode(), "F38020").decode()
-    assert '<rect width="64" height="64" rx="8" fill="#F38020"/>' in out, out
-    assert 'viewBox="0 0 48 48"' in out and 'fill="#ffffff"' in out
-    assert "currentColor" not in out and 'fill="none"' in out
-    out = tile(g.encode(), "FEF4E6,F6821F").decode()
-    assert 'fill="#FEF4E6"/>' in out and 'fill="#F6821F" color="#F6821F"' in out, out
+    outline = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="currentColor" d="M0"/><path fill="none" d="M1"/><path d="M2"/></svg>'
+    out = tile(outline, "image/svg+xml", "F6821F").decode()
+    assert 'rx="8" fill="#FEF2E9"' in out and 'fill="#F6821F" color="#F6821F"' in out, out
+    assert "currentColor" not in out and 'fill="none"' in out and 'viewBox="0 0 48 48"' in out
+    okta = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#007DC1"><path d="M0"/></svg>'
+    assert 'fill="#E6F2F9"' in tile(okta, "image/svg+xml").decode()
+    vault = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFEC6E"><path d="M0"/></svg>'
+    assert 'fill="#232F3E"' in tile(vault, "image/svg+xml").decode(), "a glyph lost on its tint gets a dark tile"
+    multi = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9"><path fill="#EF7B4D" d="M0"/><path fill="#2875E2" d="M1"/></svg>'
+    out = tile(multi, "image/svg+xml").decode()
+    assert 'fill="#F4F4F4"' in out and "#EF7B4D" in out and "#2875E2" in out
+    png = b"\x89PNG\r\n\x1a\n" + b"\0" * 16
+    assert 'href="data:image/png;base64,' in tile(png, "image/png").decode()
+    assert embed_drawio('style="shape=image;image=data:x;"', []) == 'style="shape=image;image=data:x;"'
     print("ok")
 
 
