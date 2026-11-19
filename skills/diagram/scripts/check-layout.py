@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Flag layout defects: edges with a small jog, uneven group padding, an
 off-center title, text or lines below WCAG contrast, lines through labels, and
-edge labels on borders or on each other, and image icons without the standard tile.
+edge labels on borders or on each other, image icons without the standard tile,
+and icon labels moved off the bottom with no line there.
 Usage: check-layout.py <file.drawio>
 """
 import os
@@ -103,7 +104,26 @@ def check_page(page):
                 problems.append(f"{name} is {off:g}px out of line")
                 break
     return (problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
-            + crossings(cells, geo, paths) + tiles(cells, geo))
+            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells))
+
+
+def side_labels(cells):
+    """A moved icon label widens its box; it's only for a line at the icon's bottom."""
+    bottom = set()
+    for c in cells.values():
+        st = style(c.get("style"))
+        if c.get("edge") == "1":
+            if st.get("exitY") == "1":
+                bottom.add(c.get("source"))
+            if st.get("entryY") == "1":
+                bottom.add(c.get("target"))
+    out = []
+    for i, c in cells.items():
+        st = style(c.get("style"))
+        moved = st.get("verticalLabelPosition") == "top" or st.get("labelPosition") in ("left", "right")
+        if moved and c.get("value") and i not in bottom:
+            out.append(f"{i}: label is beside the icon; keep it below and bring the line in from a side")
+    return out
 
 
 def tiles(cells, geo):

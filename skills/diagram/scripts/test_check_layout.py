@@ -96,4 +96,14 @@ found = problems(d)
 assert has(found, "zl: label sits on zone's border"), found
 assert has(found, "bare: icon has no tile"), found
 assert not has(found, "tiled:") and not has(found, "shot:"), found
+
+# Icon labels go below; moving one is only for an icon with a line at its bottom.
+d = base()
+d.vertex("bkt", "a-long-bucket-name", label_at(aws_service("s3", "#7AA116"), "right"), 300, 300, 60, 60)
+d.vertex("src", "Src", label_at(aws_service("sqs", "#E7157B"), "top"), 600, 300, 60, 60)
+d.vertex("dst", "Dst", aws_service("sqs", "#E7157B"), 600, 500, 60, 60)
+d.edge("down", "src", "dst", exit=(0.5, 1), entry=(0.5, 0))
+found = problems(d)
+assert has(found, "bkt: label is beside the icon"), found
+assert not has(found, "src: label"), found
 print("ok")
