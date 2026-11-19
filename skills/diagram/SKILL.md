@@ -29,6 +29,17 @@ Technical diagrams should look hand-made: balanced, but not machine-perfect. A s
 gap, a long route, or a crossing that can't be avoided is fine. Stop polishing once the diagram
 reads clearly. Only fix real defects: overlaps, lines through labels, edges that end in mid-air.
 
+## Feng shui
+
+Wabi-sabi lets a diagram be imperfect. Feng shui keeps it calm. Busy diagrams, and busy lines most of all, are the most common complaint. These are judgment calls for the render review, not rules to enforce:
+- **Fewer lines.** Draw only the edges that tell the story. Leave out ones the reader assumes (image pulls, secret mounts, health checks). Two parallel lines between the same groups can become one labeled line.
+- **Short, direct lines.** Move nodes so each line is short with at most one bend. A long detour around other nodes means a node is in the wrong place.
+- **One direction.** Lines follow the reading direction. U-turns, lines doubling back, and long return paths break the flow. If one is needed, give it its own lane on the edge of the diagram.
+- **Room for the main node.** The node the diagram is about sits where the eye lands first, with space around it. More than two lines arriving on one side crowds it.
+- **Even weight.** No dense corner next to an empty one, and no large group that's mostly empty. Shrink or rearrange instead.
+- **Calm, not vague.** These are engineers' diagrams: keep the terse facts (names, intervals, roles, protocols). When you cut a line, move its fact into a node label, an edge label, or the subtitle (`describe (dibs-reader)`, `poll (2 min)`) instead of dropping it.
+- **Split by concern.** When a diagram stays busy after this, split it into pages, one concern each (`Runtime`, `Discovery`, `Deploy`), then add a last page named `Full` with everything combined. Readers land on the calm pages first, and engineers still have the whole picture. All pages share names, labels, and icons.
+
 ## Modes
 
 - **Technical** (the default): everything in this skill.
@@ -75,7 +86,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
   - a diagram about the current repo goes in `docs/diagrams/<name>.drawio`, or in the repo root if there's no `docs/`
   - anything else goes in `~/Documents/<name>.drawio`
 
-  Use kebab-case names and uncompressed XML: one page per file, or two for Brief + Full. A single page is named after the title (`Diagram.title` does this), never `Page-1`.
+  Use kebab-case names and uncompressed XML: one page per file, two for Brief + Full, or concern pages plus a last `Full` page when split (see Feng shui). A single page is named after the title (`Diagram.title` does this), never `Page-1`.
 
 ## Style contract
 
@@ -142,7 +153,7 @@ Build diagrams with `python3` and `<this skill dir>/scripts/drawio_lib.py` (styl
 
 ## Verify before handing back
 
-Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix everything it flags: edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off-center title or subtitle, content closer than 60px to the heading, low contrast, lines through labels, edge labels on borders or on each other, and logos without the standard tile. Then render the diagram and look at it. The label checks estimate text width, so still look for overlaps, crowded labels, and edges that end in mid-air:
+Run `python3 <this skill dir>/scripts/check-layout.py <name>.drawio` and fix everything it flags: edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off-center title or subtitle, content closer than 60px to the heading, low contrast, lines through labels, edge labels on borders or on each other, and logos without the standard tile. Then render the diagram and look at it. The label checks estimate text width, so still look for overlaps, crowded labels, and edges that end in mid-air. Then give it a feng shui pass: if it looks busy, cut or shorten lines before polishing anything else:
 `drawio -x -f png -b 10 -p <page> --theme <light|dark> -o /tmp/<name>.png <name>.drawio`, then Read the PNG. Check every page in both themes (`-p` is 1-based). The `Updated` date is today; the subtitle's data date comes from the source, and the two may differ.
 No `image=https` may remain (see icons.md). Export only on request, keeping the diagram embedded so it stays editable:
 `drawio -x -e -f <png|svg|pdf> -b 10 -o <name>.drawio.<ext> <name>.drawio`.
