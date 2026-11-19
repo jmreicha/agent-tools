@@ -39,6 +39,10 @@ assert not has(problems(base()), "title"), problems(base())
 assert has(problems(base(title_cx=800)), "title off-center")
 assert has(problems(base(sub_cx=800)), "subtitle off-center")
 assert has(problems(base(gap=20)), "below the subtitle")
+# A side note sits outside the body, so it doesn't move the title's center line.
+d = base()
+d.note("how", "How it works", [(1, "A step that explains a piece of the diagram.")], 2300, 300, 340)
+assert not has(problems(d), "title off-center"), problems(d)
 
 d = base()
 d.text("bad", "red", 300, 300, 100, 20, "fontColor=#F62E00;")
@@ -100,10 +104,17 @@ assert not has(found, "tiled:") and not has(found, "shot:"), found
 # Icon labels go below; moving one is only for an icon with a line at its bottom.
 d = base()
 d.vertex("bkt", "a-long-bucket-name", label_at(aws_service("s3", "#7AA116"), "right"), 300, 300, 60, 60)
-d.vertex("src", "Src", label_at(aws_service("sqs", "#E7157B"), "top"), 600, 300, 60, 60)
+d.vertex("src", "ec2-sweep (daily)", label_at(aws_service("sqs", "#E7157B"), "top"), 600, 300, 60, 60)
 d.vertex("dst", "Dst", aws_service("sqs", "#E7157B"), 600, 500, 60, 60)
 d.edge("down", "src", "dst", exit=(0.5, 1), entry=(0.5, 0))
 found = problems(d)
 assert has(found, "bkt: label is beside the icon"), found
 assert not has(found, "src: label"), found
+
+# A step badge must not sit on a label.
+d.badge(1, at=(600, 290))
+d.badge(2, "dst")
+found = problems(d)
+assert has(found, "badge on src's label"), found
+assert not has(found, "badge on dst's label"), found
 print("ok")

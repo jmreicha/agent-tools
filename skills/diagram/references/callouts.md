@@ -3,14 +3,16 @@
 ## Step numbers
 
 Number the steps when order matters and the layout doesn't make it obvious: sequences, branches, loops, roughly 4+ steps.
+Also number pieces a reader can't work out from their labels (jobs, sync loops, schedules, ownership or retry rules), even when order doesn't matter.
 - Badge: `Diagram.badge(n, target)` (style `BADGE`: a 22×22 dark circle with `light-dark()` colors). Every badge is the same size.
-- **Placement:** center the badge on the top-left corner of the node that performs the step. A step with no node of its own (a return trip, a hand-off) gets its badge on its arrow, just above the line. Never put a badge on a line or a label.
+- **Placement:** center the badge on the top-left corner of the node that performs the step (bottom-left when its label is on top; `badge()` does this, and check-layout flags a badge on a label). A step with no node of its own (a return trip, a hand-off) gets its badge on its arrow, just above the line. Never put a badge on a line or a label.
 - **Order:**
   - Count in reading order: left to right, top to bottom, or clockwise.
   - A return trip keeps counting.
   - Parallel steps share the same number, with no letters.
 - **Labels:** the badge replaces an edge label that would be self-explanatory.
-- **Key:** if steps need explaining, add one numbered key in the note style, in the key row centered below the diagram (see the Key row in SKILL.md), one short line per step.
+- **How it works:** explain the numbered pieces in one note titled `How <it> works`, beside the diagram on the right, level with the pieces it explains. Pass the steps to `note()` as `(number, text)` pairs, one sentence or two each: it renders a numbered list with hanging indents that wraps to the box, keeps the badge numbers (3, 4, 7…), and leaves a blank line under the title. Don't break lines by hand. Give the facts a reader can't see: schedule, what it reads and writes, what it decides, and where failures go.
+- **Every page:** if a piece is numbered on one page, number it the same way on every page that shows it (Brief and Full alike).
 
 ## Emphasis
 

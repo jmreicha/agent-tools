@@ -39,6 +39,7 @@ Wabi-sabi lets a diagram be imperfect. Feng shui keeps it calm. Busy diagrams, a
 - **Room for the main node.** The node the diagram is about sits where the eye lands first, with space around it. More than two lines arriving on one side crowds it.
 - **Even weight.** No dense corner next to an empty one, and no large group that's mostly empty. Shrink or rearrange instead.
 - **Calm, not vague.** These are engineers' diagrams: keep the terse facts (names, intervals, roles, protocols). When you cut a line, move its fact into a node label, an edge label, or the subtitle (`describe (dibs-reader)`, `poll (2 min)`) instead of dropping it.
+- **Explain the non-obvious.** When labels can't say what a piece does (a job, a sync loop, an ownership rule), number it and explain it in a `How it works` note beside the diagram (callouts.md). Don't make the label longer.
 - **Split by concern.** When a diagram stays busy after this, split it into pages, one concern each (`Runtime`, `Discovery`, `Deploy`), then add a last page named `Full` with everything combined. Readers land on the calm pages first, and engineers still have the whole picture. All pages share names, labels, and icons.
 
 ## Modes
@@ -98,7 +99,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 | Arrow | `edgeStyle=orthogonalEdgeStyle;endArrow=classic;html=1;rounded=0;curved=0;` | — |
 | Boundary | `rounded=1;whiteSpace=wrap;html=1;fillColor=none;absoluteArcSize=1;arcSize=24;`, with an empty `value` and a separate free-text label inside the top-left | fit |
 | Note link | `endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;` | — |
-| Note | `rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=11;fillColor=none;absoluteArcSize=1;arcSize=8;strokeColor=light-dark(#BBBBBB,#666666);`, with a bold title line, then one short line each (`Diagram.note`). Never sticky notes | ~220 wide |
+| Note | `rounded=1;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacing=8;fontSize=11;fillColor=none;absoluteArcSize=1;arcSize=8;strokeColor=light-dark(#BBBBBB,#666666);`, with a bold title, a blank line, then one short line each, or numbered steps that wrap (`Diagram.note`). Never sticky notes | ~220 wide |
 | Key | only when 3 or more symbols need decoding (see Lines and color). The note style, titled **Key**, 40px below the diagram and centered on the title's center line too (together with any "How to read" note beside it, same top and height), with one row per symbol: a short sample of the line (its dash and color), then its meaning (`Diagram.key`) | ~300 wide |
 | Internet / CDN | `shape=cloud;whiteSpace=wrap;html=1;` (no `ellipse;`, which bends edges). The internet is always this cloud, never a box or an icon. Connect only at side midpoints | 160×90 |
 | Title | free text + `fontSize=36;`, centered on the main box (the outermost boundary or group), not the page (`Diagram.title`). The subtitle and the bottom key row share that center line, with the first content row 60px or more below it (below the subtitle, when there is one). If the source has no title, name what it shows (`prod VPC traffic`) | — |
@@ -116,7 +117,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 - Every boundary is solid; dashes are for lines only. If a boundary seems to need dashes, ask the user instead of choosing. A boundary goes only around a real construct (cluster, environment, trust zone), and a diagram rarely needs more than 1–2. AWS accounts and VPCs use the AWS groups in aws-network.md. A dashed arrow means planned, async, or optional. In network diagrams, dashed also means a virtual link (see aws-network.md).
 - Group by proximity, not boxes. Never use fills, shadows, gradients, `sketch=1`, swimlanes, or color for decoration.
 - **Key:** add one only when the diagram uses 3 or more symbols a reader can't decode from the labels (dash patterns, line colors, user colors). Never list a plain solid arrow. With 1–2 such symbols, label the edges instead (`peering`, `later`). If you don't know what a source's notation means, ask or leave it out; never guess.
-- Put an explanation as free text next to the thing it explains, or as a note when it needs a title. In a flow, the note sits before the flow's entry point in reading order (left of it in a left-to-right flow), centered on it, never below the flow. Use a note link only when the note has to sit far away, and line up the note's center with its target so the link is straight.
+- Put an explanation as free text next to the thing it explains, or as a note when it needs a title. In a flow, the note sits before the flow's entry point in reading order (left of it in a left-to-right flow), centered on it, never below the flow. A numbered `How it works` note is the exception: it goes on the right (callouts.md). Use a note link only when the note has to sit far away, and line up the note's center with its target so the link is straight.
 
 **Contrast** (WCAG)
 - Text needs a contrast ratio of 4.5:1 against what's behind it: 3:1 for large text (18pt, or 14pt bold), and aim for 7:1 at 10–11px. Lines, icons, and borders that carry meaning need 3:1 against the page.
@@ -146,7 +147,7 @@ Build diagrams with `python3` and `<this skill dir>/scripts/drawio_lib.py` (styl
 | When the diagram… | Read |
 |---|---|
 | includes any product, service, or brand (icons and logos) | [references/icons.md](references/icons.md) |
-| needs step numbers or emphasis on one path | [references/callouts.md](references/callouts.md) |
+| needs step numbers, a `How it works` note for non-obvious pieces, or emphasis on one path | [references/callouts.md](references/callouts.md) |
 | is AWS, or a network or topology diagram | [references/aws-network.md](references/aws-network.md) |
 | colors any group, boundary, or line | [references/palette.md](references/palette.md) |
 | goes into a doc, or a doc might need one | [references/docs.md](references/docs.md) |

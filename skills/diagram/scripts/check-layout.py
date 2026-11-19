@@ -2,7 +2,7 @@
 """Flag layout defects: edges with a small jog, uneven group padding, an
 off-center title, text or lines below WCAG contrast, lines through labels, and
 edge labels on borders or on each other, image icons without the standard tile,
-and icon labels moved off the bottom with no line there.
+icon labels moved off the bottom with no line there, and badges on labels.
 Usage: check-layout.py <file.drawio>
 """
 import os
@@ -104,8 +104,22 @@ def check_page(page):
                 problems.append(f"{name} is {off:g}px out of line")
                 break
     return (problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
-            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells))
+            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells) + badges(cells, geo))
 
+
+
+def badges(cells, geo):
+    """Step badges sit on a node's corner, never on its label."""
+    boxes = labels(cells, geo)
+    out = []
+    for i, c in cells.items():
+        b = geo.get(i)
+        if not b or not str(c.get("style")).startswith("ellipse;") or "fontStyle=1" not in str(c.get("style")):
+            continue
+        for j, (lx, ly, lw, lh) in boxes.items():
+            if b[0] < lx + lw and lx < b[0] + b[2] and b[1] < ly + lh and ly < b[1] + b[3]:
+                out.append(f"{i}: badge on {j}'s label; move it to a free corner")
+    return out
 
 def side_labels(cells):
     """A moved icon label widens its box; it's only for a line at the icon's bottom."""
@@ -180,7 +194,8 @@ def title_axis(cells, geo):
                 and "text" in str(cells[i].get("style"))), None)
     head_bottom = top[sub][1] + top[sub][3] if sub else ty + th
     body = {i: b for i, b in top.items() if i not in (t, sub)
-            and not str(cells[i].get("value") or "").startswith("Updated")}
+            and not str(cells[i].get("value") or "").startswith("Updated")
+            and "spacing=8;fontSize=11" not in str(cells[i].get("style"))}  # notes and keys sit beside the body
     if not body:
         return None
     left = min(b[0] for b in body.values())

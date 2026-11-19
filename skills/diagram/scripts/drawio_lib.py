@@ -132,7 +132,7 @@ def cloudflare(product):
 
 class Diagram:
     def __init__(self):
-        self.cells, self.geo, self.n = [], {"1": (0, 0, 0, 0)}, 0
+        self.cells, self.geo, self.styles, self.n = [], {"1": (0, 0, 0, 0)}, {}, 0
         self.name = "Diagram"
 
     def _id(self, base):
@@ -141,7 +141,7 @@ class Diagram:
 
     def vertex(self, id, label, style, x, y, w, h, parent="1"):
         px, py = self.geo[parent][:2]
-        self.geo[id] = (x, y, w, h)
+        self.geo[id], self.styles[id] = (x, y, w, h), style
         value = escape(label, {'"': "&quot;"})
         self.cells.append(f'<mxCell id="{id}" value="{value}" style="{style}" vertex="1" parent="{parent}">'
                           f'<mxGeometry x="{x - px}" y="{y - py}" width="{w}" height="{h}" as="geometry"/></mxCell>')
@@ -187,15 +187,23 @@ class Diagram:
         return self.geo[id]
 
     def note(self, id, title, lines, x, y, w=220, accent=None):
-        """Explanation or emphasis note: bold title, one short line each.
+        """Explanation or emphasis note: bold title, a blank line, then the body.
+        lines: short strings, one per line, or (n, text) steps, which render as a numbered
+        list that wraps to the box and keeps the badge numbers (3, 4, 7...).
         accent colors the title, e.g. ACCENT to match an emphasized path."""
-        body = "<br>".join(lines)
-        h = 30 + 15 * len(lines)
+        per_line = max(1, int((w - 34) / 5.5))  # ~5.5px a character at 11px, inside spacing and list indent
+        if lines and isinstance(lines[0], tuple):
+            body = ('<ol style="margin:0;padding-left:18px">'
+                    + "".join(f'<li value="{n}" style="margin-bottom:4px">{t}</li>' for n, t in lines) + "</ol>")
+            rows = sum(-(-len(t) // per_line) for _, t in lines) + 0.3 * len(lines)
+        else:
+            body, rows = "<br>".join(lines), len(lines)
+        h = round(38 + 14 * rows)  # 11px text renders ~13.5px a line; 38 = padding, title, blank line
         if not accent:
-            return self.vertex(id, f"<b>{title}</b><br>{body}", NOTE, x, y, w, h)
+            return self.vertex(id, f"<b>{title}</b><br><br>{body}", NOTE, x, y, w, h)
         # An accent title is its own cell, so its color can be a fontColor style key:
         # light-dark() inside label HTML always renders the light value.
-        self.vertex(id, f'<b style="visibility:hidden">{title}</b><br>{body}', NOTE, x, y, w, h)
+        self.vertex(id, f'<b style="visibility:hidden">{title}</b><br><br>{body}', NOTE, x, y, w, h)
         color = RED_TEXT if accent == ACCENT else accent
         self.vertex(id + "_t", f"<b>{title}</b>", TEXT + f"align=left;verticalAlign=top;spacing=8;fontSize=11;fontColor={color};",
                     x, y, w, 30, id)
@@ -221,10 +229,11 @@ class Diagram:
         return self.geo[id]
 
     def badge(self, n, target=None, at=None):
-        """Step number. On a node: centered on its top-left corner. With at=(x, y):
-        centered there, for steps with no node (put it just above the arrow)."""
+        """Step number. On a node: centered on its top-left corner, or bottom-left when the
+        label is on top. With at=(x, y): centered there, for steps with no node (just above the arrow)."""
         if target:
-            x, y = self.geo[target][:2]
+            x, y, _, h = self.geo[target]
+            y += h if "verticalLabelPosition=top" in self.styles.get(target, "") else 0
         else:
             assert at, "badge needs a target or at=(x, y)"
             x, y = at
@@ -317,4 +326,16 @@ if __name__ == "__main__":
     t.title("dibs & co", 500)
     t.save(out, 1000, 600)
     assert [p.get("name") for p in ET.parse(out).iter("diagram")] == ["dibs & co"]
+    b = Diagram()
+    b.vertex("job", "job", label_at(k8s("job"), "top"), 100, 100, 60, 60)
+    b.badge(1, "job")
+    assert 'x="89" y="149"' in b.cells[-1], "top label: badge moves to the bottom-left"
+    # Notes: a blank line after the title; numbered steps become a wrapped list that keeps badge numbers
+    b.note("n1", "Plain", ["one line"], 0, 0)
+    assert "&lt;/b&gt;&lt;br&gt;&lt;br&gt;one line" in b.cells[-1], "blank line after the title"
+    _, _, _, short = b.note("n2", "How", [(3, "Short.")], 0, 0, 340)
+    _, _, _, long = b.note("n3", "How", [(3, "word " * 60), (7, "Short.")], 0, 0, 340)
+    assert "&lt;li value=&quot;7&quot;" in b.cells[-1], "list keeps badge numbers"
+    assert "&lt;br&gt;" not in b.cells[-1].split("&lt;ol")[1], "steps wrap to the box, not by hand"
+    assert long > short + 40, "height follows the wrapped text"
     print("ok")
