@@ -20,11 +20,12 @@ Look styles up in this order:
 | K8s | `shape=mxgraph.kubernetes.icon;prIcon=<pod\|svc\|deploy\|ing\|crd\|secret\|cm\|job\|ns\|node\|api>;fillColor=#2875E2;strokeColor=light-dark(#ffffff,#ffffff);` |
 | AWS | `shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.<service>;fillColor=<category color>;strokeColor=light-dark(#ffffff,#ffffff);` |
 | AWS (legacy look) | `shape=mxgraph.aws3.<route_53\|application_load_balancer\|rds\|s3>;fillColor=<#F58536\|#F58534\|#2E73B8\|#E05243>;outlineConnect=0;` |
-| EKS | `shape=mxgraph.aws4.productIcon;prIcon=mxgraph.aws4.eks;fillColor=#232F3E;strokeColor=light-dark(#ffffff,#ffffff);` |
+| EKS | `shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eks;fillColor=#ED7100;strokeColor=light-dark(#ffffff,#ffffff);` (orange, like the cluster border; never the navy productIcon) |
 | GCP | `shape=mxgraph.gcp2.hexIcon;prIcon=<service>;fillColor=#5184F3;strokeColor=none;` |
 | Azure | `shape=image;image=img/lib/azure2/<category>/<Service>.svg;` |
 | GitHub | `shape=mxgraph.azure.github_code;fillColor=light-dark(#181717,#E6E6E6);strokeColor=none;` (never the simple-icons image) |
 | Cisco | `shape=mxgraph.cisco.<category>.<device>;fillColor=#036897;strokeColor=light-dark(#ffffff,#ffffff);` (for example `routers.router`, `security.firewall`) |
+| Cloudflare | `cloudflare("<product>")` in drawio_lib, then embed-icons.py. Products are the file names in [cloudflare-docs/src/icons](https://github.com/cloudflare/cloudflare-docs/tree/production/src/icons) (`workers`, `r2`, `d1`, `kv`, `dns`, `waf`, `tunnel`, `access`, `load-balancing`…). Orange on a peach tile, as in Cloudflare's reference architectures. Use the [simple-icons logo](https://cdn.simpleicons.org/cloudflare) for the Cloudflare boundary |
 
 draw.io's GCP set (`gcp2`) is Google's pre-2025 style. In the current system, about 19 flagship products
 (GKE, Cloud Run, BigQuery, Cloud SQL, Cloud Storage, Compute Engine…) have unique icons, and every other
@@ -40,6 +41,7 @@ It rejects rasters under 64px and flags all-black SVGs. If it finds nothing, try
 Use the URL as `shape=image;imageAspect=0;image=<url>;`, then embed every URL so the diagram works offline:
 `python3 <this skill dir>/scripts/embed-icons.py <file.drawio|file.excalidraw>`
 The script exits non-zero if any fetch fails or a URL returns something that isn't an image.
+For a vendor that ships only one-color outline icons, add `#tile=<tile hex>[,<glyph hex>]` to the SVG URL (no `#` in the colors; the glyph defaults to white). embed-icons then draws the glyph on a rounded tile with fixed colors, so it looks the same in both themes. Match the vendor's own diagrams: Cloudflare is `FEF4E6,F6821F`, an orange glyph on a peach tile.
 **Black logos vanish in dark mode.** draw.io can't recolor images, and an SVG's `prefers-color-scheme` follows the OS, not draw.io's theme. Use a library shape with a `light-dark()` fill (GitHub above). With no shape, put the logo on a `rounded=1;strokeColor=none;fillColor=light-dark(#ffffff,#ffffff);` tile 10px larger than the logo. The same goes for a logo with any dark part, like Honeycomb's "h". Colored logos (Helm, Argo) read fine as they are.
 A library icon with a dark fill (`#232F3E`) gets lightened in dark mode and its white glyph washes out. Pin it: `fillColor=light-dark(#232F3E,#232F3E)`.
 

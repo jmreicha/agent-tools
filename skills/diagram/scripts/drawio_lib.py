@@ -124,6 +124,12 @@ def image(src):
     return ICON + f"strokeColor=none;shape=image;imageAspect=0;image={src};"
 
 
+def cloudflare(product):
+    """Cloudflare product icon (workers, r2, d1, kv, dns, waf, tunnel, access...), CC-BY-4.0.
+    Outline-only, so embed-icons.py draws it orange on a peach tile, as Cloudflare's own diagrams do."""
+    return image(f"https://raw.githubusercontent.com/cloudflare/cloudflare-docs/production/src/icons/{product}.svg#tile=FEF4E6,F6821F")
+
+
 class Diagram:
     def __init__(self):
         self.cells, self.geo, self.n = [], {"1": (0, 0, 0, 0)}, 0
