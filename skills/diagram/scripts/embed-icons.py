@@ -5,7 +5,8 @@
 .excalidraw:  every `files.<id>.dataURL` that is still an http(s) URL
 
 Every draw.io icon lands on the same rounded tile (see tile()). Outline sets with no color of
-their own (Cloudflare) pass their brand color as a `#tile=<hex>` suffix on the URL.
+their own (Cloudflare) pass their brand color as a `#tile=<hex>` suffix on the URL; icons that
+already sit on their own tile pass `#tile=none`.
 """
 
 import base64
@@ -49,6 +50,8 @@ def tint(c, amount=0.1):
 def tile(body, ctype, brand=None):
     """Every non-library icon on the same 64px rounded tile, in fixed colors so it reads the
     same in both themes: a one-color glyph in its color on a tint of it, anything else on gray."""
+    if brand == "none":  # the icon brings its own tile (DigitalOcean); a second one would nest
+        return body
     if ctype != "image/svg+xml":
         uri = f"data:{ctype};base64," + base64.b64encode(body).decode()
         inner, bg = f'<image x="8" y="8" width="48" height="48" href="{uri}"/>', NEUTRAL
@@ -76,8 +79,9 @@ def embed_drawio(text, failed):
             url, _, brand = m.group(1).partition("#tile=")
             ctype, body = fetch(url)
             body = tile(body, ctype, brand or None)
+            ctype = ctype if brand == "none" else "image/svg+xml"
             # draw.io expects "data:<type>," + base64, without the ";base64" marker.
-            return "iconTile=1;image=data:image/svg+xml," + base64.b64encode(body).decode()
+            return f"iconTile=1;image=data:{ctype}," + base64.b64encode(body).decode()
         except Exception as e:
             failed.append(f"{m.group(1)}: {e}")
             return m.group(0)
@@ -126,6 +130,7 @@ def self_test():
     assert 'fill="#F4F4F4"' in out and "#EF7B4D" in out and "#2875E2" in out
     png = b"\x89PNG\r\n\x1a\n" + b"\0" * 16
     assert 'href="data:image/png;base64,' in tile(png, "image/png").decode()
+    assert tile(png, "image/png", "none") == png, "an icon with its own tile stays as-is"
     assert embed_drawio('style="shape=image;image=data:x;"', []) == 'style="shape=image;image=data:x;"'
     print("ok")
 

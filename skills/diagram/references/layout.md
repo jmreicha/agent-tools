@@ -19,6 +19,7 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self-che
 - Boundaries are containers (`d.boundary(..., icon=...)`): put their children inside with `parent=`. Their label row takes 40px, so content starts 60px below the top.
 - A gateway (IGW) sits inside the VPC's left margin. Widen the VPC so both margins stay equal.
 - Keep about 40px of clear space between a fan-out and any other label.
+- A labeled straight edge between two side-by-side nodes needs a gap of at least the label's width plus 20px, so it clears both ends. Width is about 6px per character of the longest line at 11pt (`anomaly alerts` → 105px).
 
 ## Ports and straight lines
 
@@ -27,6 +28,8 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self-che
 - Line up a source's center with its target's center whenever a straight line is possible.
 - Stack right-hand destinations top to bottom in the same order as their source exits (Internet outbound, then endpoints, then peers), so the lines never cross.
 - Internet inbound sits on the left and Internet outbound on the right, both as clouds.
+- Stores and branches sit centered directly above or below their owner, all on the same side.
+- A return edge (response, callback, ack) runs on an empty side, never back along the forward route.
 
 ## Fan-out
 
@@ -57,4 +60,5 @@ When 3 or more edges go from one source to a column of targets:
 
 - Crop low-resolution PNGs into regions and scale each 2×: `sips -c <h> <w> --cropOffset <y> <x> in.png --out part.png && sips -z <2h> <2w> part.png`. Use offsets of at least 1, because `sips` ignores `0 0`.
 - Transcribe IDs exactly, and list every uncertain value for the user to check.
+- Never add a component the source doesn't show; ask about it instead. Hand back a short change record: what you merged, collapsed, renamed, or dropped.
 - Keep the source's color coding for every line you draw. The key lists only symbols that appear on this diagram; drop source legend rows with no matching line. Use the line palette in aws-network.md. When the emphasis red would clash with a source color, the source color wins on lines, and red stays on the box and its note.

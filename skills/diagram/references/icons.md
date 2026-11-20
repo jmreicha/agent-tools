@@ -35,6 +35,11 @@ the SVG from the zips at cloud.google.com/icons and embed it as a data URI.
 
 ## Brand logos (anything without a library shape)
 
+**Vendor product icons (DigitalOcean, OCI, Fortinet, GitLab…)** come first from draw.io's [extra icon sets](https://icons.diagrams.net/), not a logo search. Find the set, then the icon URL:
+`curl -s https://icons.diagrams.net/sitemap.xml | grep -o 'sets/[a-z0-9_-]*' | grep -i <vendor>`, then
+`curl -s https://icons.diagrams.net/libs/<set>/1/library.xml | grep -oE 'image=https://[^;&]+' | grep -i <term>` (if `/1/` 404s, take the library.xml link from the set page).
+Use the URL like any logo below; if the icon already sits on its own tile (DigitalOcean's blue circles), add `#tile=none`. Pick the product icon (`Compute_-_Standard_Droplet`), never the set's `General_-_*` marketing art or `Logo_-_*` wordmarks.
+
 Find one with `python3 <this skill dir>/scripts/find-logo.py <name> [--domain example.com] [--github org]`.
 It tries simple-icons, CNCF artwork, the GitHub org avatar, then the vendor site's icons, and prints every working URL; the first is the pick.
 It rejects rasters under 64px and flags all-black SVGs. If it finds nothing, try the vendor's press kit.
@@ -49,7 +54,7 @@ Use the URL with `image(url)` (or `shape=image;imageAspect=0;image=<url>;`), the
 | One color too pale for its tint (Vault yellow) | `#232F3E` (AWS dark) | its own |
 | Several colors (Honeycomb, Crossplane), or a PNG | `#F4F4F4` | its own |
 
-An outline set with no color of its own passes its brand color as a URL suffix: `<url>#tile=<hex>` (`cloudflare()` does this).
+An outline set with no color of its own passes its brand color as a URL suffix: `<url>#tile=<hex>` (`cloudflare()` does this). An icon with its own tile passes `#tile=none` and is embedded as-is.
 Don't pick tile colors by hand. check-layout.py flags any image icon without the tile. The script exits non-zero if any fetch fails or a URL returns something that isn't an image.
 A library icon with a dark fill (`#232F3E`) gets lightened in dark mode and its white glyph washes out. Pin it: `fillColor=light-dark(#232F3E,#232F3E)`.
 
