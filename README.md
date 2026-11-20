@@ -30,6 +30,8 @@ Skills live in `skills/<skill-name>/SKILL.md` and are invoked as `/agent-tools:<
 | diagram            | `/agent-tools:diagram`            | Use when asked to draw, diagram, sketch, or visualize architecture, infrastructure, network/traffic paths, request flows, or systems as a draw.io (.drawio), Excalidraw, or Mermaid diagram, to export a diagram to PNG/SVG/PDF, or when an existing doc would read better with a diagram.                                                                            |
 | documentation      | `/agent-tools:documentation`      | Layered technical-writing standard (Diátaxis structure, Google developer style, STE instruction rules, Global English syntax). Use whenever writing, editing, or reviewing prose for engineers — READMEs, docs pages, tutorials, how-tos, reference, ADRs, RFCs, design docs, runbooks, changelogs, PR descriptions, commit messages, issue bodies, or code comments. |
 | findings           | `/agent-tools:findings`           | Maintain a per-repo finding file that tracks mistakes, corrections, and what works. Activates EVERY session, unconditionally. Read the finding before doing anything. Write to it continuously as you work — not just at session boundaries. Log your own mistakes, not just user corrections. The finding lives in the repo at `./context/findings.md`.              |
+| goal               | `/agent-tools:goal`               | Use at the start of a task to set a measurable goal and done-criteria, then keep the work aimed at it. Triggers on "/goal", "set a goal", or "what does done look like".                                                                                                                                                                                              |
+| optimize           | `/agent-tools:optimize`           | Use when code or infrastructure is slow and needs a performance fix. Measure first, find the bottleneck, change it, and measure again. Triggers on "/optimize", "make this faster", or "performance".                                                                                                                                                                 |
 | pr                 | `/agent-tools:pr`                 | Iterate on a PR until CI passes. Use when you need to fix CI failures, address review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.                                                                                                                                                                    |
 | project-management | `/agent-tools:project-management` | Manage issues, milestones, and project tracking via GitHub CLI. Use when triaging bugs, planning sprints, updating issue status, or reporting on project progress.                                                                                                                                                                                                    |
 | research           | `/agent-tools:research`           | Use before implementing new features to gather context from documentation, real-world code examples, and web resources. Provides structured findings to inform implementation decisions.                                                                                                                                                                              |
@@ -78,6 +80,26 @@ patterns that work or don't. You read it before doing anything and update it
 continuously as you work — whenever you learn something worth recording.
 
 **This skill is always active. Every session. No trigger required.**
+
+---
+
+### goal
+
+**Invocation:** `/agent-tools:goal`
+
+Set one measurable goal for the current task before starting work.
+
+<!-- TODO: flesh out the workflow. -->
+
+---
+
+### optimize
+
+**Invocation:** `/agent-tools:optimize`
+
+Improve performance with evidence, not guesses.
+
+<!-- TODO: flesh out the workflow. -->
 
 ---
 
