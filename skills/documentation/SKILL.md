@@ -17,6 +17,8 @@ Write so a tired engineer understands on the first read.
 - Write the real symbol, file, flag, or command name, not a synonym or a description of it.
 - Don't invent jargon. Use the words a developer would say out loud. Say what a named pattern means the first time.
 
+Read [references/voice.md](references/voice.md) before writing. It sets the author's voice and overrides the rules below where they conflict.
+
 ## Vary the rhythm
 
 - Mix sentence lengths. Split the sentence that carries two thoughts. Keep the long sentence that carries one.
@@ -67,19 +69,20 @@ One document, one mode. Don't mix modes. Split and link instead.
 
 ## Voice and specifics
 
-- If the **humanizer** skill is available, run it on every doc this skill touches. It owns the AI-slop catalog: AI vocabulary, filler, hedging, formatting tells.
 - PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute. Don't paste agent logs, SHA lists, or metric tables. Link them.
 - Code comments: 1-2 lines, say why, not what.
 - Product UI strings are not documentation. Use the product's copy guidelines for those.
 - Match the repo's existing code snippet indentation. Write real paths. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.
 
-## Check the prose with Vale and lychee
+## Check the prose
 
-Run both tools on the prose files you changed. Skip a tool that isn't installed, and don't install it yourself.
+Run these steps in order on the prose files you changed. Skip a step whose skill or tool isn't installed, and don't install it yourself.
 
-- Run `vale <files>`. Treat each alert as advice. Fix the clear errors, and leave a sentence alone when the fix makes it worse.
-- Run `lychee --offline --include-fragments --no-progress <files>`. Fix every broken local link and anchor.
-- To lint a commit message, pipe it in: `vale --path=COMMIT_EDITMSG < msg.txt`.
+1. Run the **humanizer** skill. It owns the AI-slop catalog: AI vocabulary, filler, hedging, and formatting tells.
+2. Run `vale <files>`. Treat each alert as advice. Fix the clear errors, and leave a sentence alone when the fix makes it worse.
+3. Run `lychee --offline --include-fragments --no-progress <files>`. Fix every broken local link and anchor.
+
+To lint a commit message, pipe it in: `vale --path=COMMIT_EDITMSG < msg.txt`.
 
 With no `.vale.ini` in the repo, Vale uses the global config at `~/Library/Application Support/vale/.vale.ini` (macOS).
 

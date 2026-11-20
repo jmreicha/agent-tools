@@ -85,7 +85,7 @@ Would someone copy an ID, CIDR, IP, or rule from it? Then it needs Full. Will it
 
 - **draw.io** is the default. **Excalidraw** only when the user says excalidraw, sketch, whiteboard, or brainstorm. **Mermaid** inline is for simple flowcharts or sequences in repo markdown (about 8 nodes or fewer, no icons). For either of those, see [references/excalidraw-mermaid.md](references/excalidraw-mermaid.md).
 - **Location:**
-  - a diagram about the current repo goes in `docs/diagrams/<name>.drawio`, or in the repo root if there's no `docs/`
+  - a diagram about the current repo goes next to its existing architecture docs or diagrams. Find them first: `git ls-files '*.drawio' '*.excalidraw' '*.mmd'`, plus any `architecture`, `design`, or `diagrams` folder. If none exist, create `docs/diagrams/<name>.drawio`.
   - anything else goes in `~/Documents/<name>.drawio`
 
   Use kebab-case names and uncompressed XML: one page per file, two for Brief + Full, or concern pages plus a last `Full` page when split (see Feng shui). A single page is named after the title (`Diagram.title` does this), never `Page-1`.
