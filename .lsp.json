@@ -13,11 +13,7 @@
         "validate": true,
         "schemaStore": { "enable": true },
         "schemas": {
-          "kubernetes": [
-            "**/k8s/**/*.yaml",
-            "**/manifests/**/*.yaml",
-            "**/kubernetes/**/*.yaml"
-          ]
+          "kubernetes": ["**/k8s/**/*.yaml", "**/manifests/**/*.yaml", "**/kubernetes/**/*.yaml"]
         }
       }
     }

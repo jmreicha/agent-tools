@@ -1,0 +1,15 @@
+extends: existence
+message: "'%s' goes stale. Name the version or date instead."
+level: warning
+ignorecase: true
+tokens:
+  - currently
+  - at the moment
+  - as of now
+  - as of this writing
+  - nowadays
+  - recently
+  - in the near future
+  - (?<!as )soon(?! as)
+  - latest version
+  - newly

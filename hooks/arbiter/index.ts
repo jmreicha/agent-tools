@@ -62,14 +62,11 @@ const COMMANDS: [string, string][] = [
 ];
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-const byPath = (a: Problem, b: Problem) =>
-  cmp(a.path, b.path) || (a.line ?? 0) - (b.line ?? 0);
+const byPath = (a: Problem, b: Problem) => cmp(a.path, b.path) || (a.line ?? 0) - (b.line ?? 0);
 
 // Rows padded into aligned columns, trailing spaces trimmed.
 function table(rows: string[][]): string {
-  const widths = rows[0].map((_, c) =>
-    Math.max(...rows.map((r) => r[c].length)),
-  );
+  const widths = rows[0].map((_, c) => Math.max(...rows.map((r) => r[c].length)));
   return rows
     .map((r) =>
       r
@@ -214,9 +211,7 @@ function tally($: EngineInterface, e: any, v: Verdict, blocked: boolean) {
   ];
   $.ui.status(`arbiter: ${parts.filter(Boolean).join(" · ")}`);
   if (blocked)
-    $.ui.toast(
-      `arbiter denied ${subject(e) ?? e.tool} (${v.fired.map((r) => r.id).join(", ")})`,
-    );
+    $.ui.toast(`arbiter denied ${subject(e) ?? e.tool} (${v.fired.map((r) => r.id).join(", ")})`);
 }
 
 async function history($: EngineInterface): Promise<string> {
@@ -227,8 +222,7 @@ async function history($: EngineInterface): Promise<string> {
   let hits = 0;
   let sessions = 0;
   for (const f of entries) {
-    if (f.kind !== "file" || !f.name.endsWith(".jsonl") || f.mtimeMs < cutoff)
-      continue;
+    if (f.kind !== "file" || !f.name.endsWith(".jsonl") || f.mtimeMs < cutoff) continue;
     const before = hits;
     for (const l of (await $.fs.read(`${dir}/${f.name}`)).split("\n")) {
       let h;
@@ -263,12 +257,13 @@ async function history($: EngineInterface): Promise<string> {
     .sort(([a, x], [b, y]) => (y.hits as number) - (x.hits as number) || cmp(a, b))
     .map(([id, s]) => [
       id,
-      ...["hits", "deny", "ask", "rewrite", "warn", "allowed", "refused"].map((k) =>
-        String(s[k]),
-      ),
+      ...["hits", "deny", "ask", "rewrite", "warn", "allowed", "refused"].map((k) => String(s[k])),
       (s.last as string).slice(0, 10),
     ]);
-  const idle = rules.rules.map((r) => r.id).filter((id) => !by.has(id)).sort(cmp);
+  const idle = rules.rules
+    .map((r) => r.id)
+    .filter((id) => !by.has(id))
+    .sort(cmp);
   return [
     `${hits} hit${hits === 1 ? "" : "s"} in ${sessions} session${sessions === 1 ? "" : "s"}, last ${RETAIN_DAYS} days`,
     table([
@@ -348,9 +343,7 @@ function list(filter: string): string {
 
 // Path with the home directory shown as ~.
 function short(path: string): string {
-  return home && path.startsWith(home + "/")
-    ? "~" + path.slice(home.length)
-    : path;
+  return home && path.startsWith(home + "/") ? "~" + path.slice(home.length) : path;
 }
 
 function init(): string {
@@ -396,8 +389,7 @@ function testAll(): string {
     head,
     ...skipped.map((p) => `SKIPPED ${describe(p)}`),
     ...failed.map(
-      (t) =>
-        `FAIL ${t.id}: ${JSON.stringify(t.input)} expected ${t.expected}, got ${t.actual}`,
+      (t) => `FAIL ${t.id}: ${JSON.stringify(t.input)} expected ${t.expected}, got ${t.actual}`,
     ),
   ].join("\n");
 }
@@ -413,10 +405,7 @@ const COLOR: Record<string, string> = {
 type Seg = [string, Record<string, unknown>?];
 
 // One output line as styled segments; the text itself is unchanged.
-function segments(
-  line: string,
-  table: { action: number; layer: number } | null,
-): Seg[] {
+function segments(line: string, table: { action: number; layer: number } | null): Seg[] {
   let m: RegExpExecArray | null;
   if ((m = /^(DENY|ASK|REWRITE|WARN|ALLOW)\b(.*)$/s.exec(line)))
     return [[m[1], { color: COLOR[m[1].toLowerCase()], bold: true }], [m[2]]];
@@ -593,14 +582,10 @@ async function drawPane($: EngineInterface, e: any) {
   const problems = [
     ...[...rules.errors]
       .sort(byPath)
-      .map((p) =>
-        Text({ color: "yellow", wrap: "wrap", children: [describe(p)] }),
-      ),
+      .map((p) => Text({ color: "yellow", wrap: "wrap", children: [describe(p)] })),
     ...[...rules.warnings]
       .sort(byPath)
-      .map((p) =>
-        Text({ color: "yellow", wrap: "wrap", children: [describe(p)] }),
-      ),
+      .map((p) => Text({ color: "yellow", wrap: "wrap", children: [describe(p)] })),
   ];
   const hits = recent.length
     ? recent.map((h) =>
@@ -645,8 +630,7 @@ export function register(on) {
     await $.command.register({
       name: "arbiter",
       description: "Show and test arbiter rules",
-      argumentHint:
-        "[help | init | list | check <command> | test | reload | history | pane]",
+      argumentHint: "[help | init | list | check <command> | test | reload | history | pane]",
       immediate: true,
     });
     sessionId = await $.session.id();
@@ -663,23 +647,18 @@ export function register(on) {
     return next(e);
   });
 
-  on("tool.call", async ($, e, next) => guardCall($, e, next)).catch(
-    async ($, e, next) =>
-      // Once the tool has run, replay its real outcome rather than claim a refusal.
-      next.called
-        ? next(e)
-        : {
-            deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
-          },
+  on("tool.call", async ($, e, next) => guardCall($, e, next)).catch(async ($, e, next) =>
+    // Once the tool has run, replay its real outcome rather than claim a refusal.
+    next.called
+      ? next(e)
+      : {
+          deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
+        },
   );
 
   on("command.run", { command: "arbiter" }, async ($, e) => runCommand($, e));
 
-  on("ui.render", { component: "CommandOutput" }, async ($, e, next) =>
-    drawOutput($, e, next),
-  );
+  on("ui.render", { component: "CommandOutput" }, async ($, e, next) => drawOutput($, e, next));
 
-  on("ui.render", { component: "Pane", requestId: "arbiter" }, async ($, e) =>
-    drawPane($, e),
-  );
+  on("ui.render", { component: "Pane", requestId: "arbiter" }, async ($, e) => drawPane($, e));
 }

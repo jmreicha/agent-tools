@@ -1,26 +1,26 @@
-# Testing Frameworks - Detailed Guide
+# Testing frameworks - detailed guide
 
 > **Part of:** [terraform-skill](./SKILL.md)
 > **Purpose:** Detailed guides for Terraform/OpenTofu testing frameworks
 
-This document provides in-depth guidance on testing frameworks for Infrastructure as Code. For the decision matrix and high-level overview, see the [main skill file](../SKILL.md#testing-strategy-framework).
+This document provides in depth guidance on testing frameworks for Infrastructure as Code. For the decision matrix and high level overview, see the [main skill file](SKILL.md#testing-strategy-framework).
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Static Analysis](#static-analysis)
 2. [Plan Testing](#plan-testing)
 3. [Native Terraform Tests](#native-terraform-tests)
-4. [Terratest (Go-based)](#terratest-go-based)
+4. [Terratest](#terratest)
 
 ---
 
-## Static Analysis
+## Static analysis
 
 **Always do this first.** Zero cost, catches 40%+ of issues before deployment.
 
-### Pre-commit Hooks
+### Pre-commit hooks
 
 ```yaml
 # In .pre-commit-config.yaml
@@ -31,24 +31,24 @@ This document provides in-depth guidance on testing frameworks for Infrastructur
     - id: terraform_tflint
 ```
 
-### What Each Tool Checks
+### What each tool checks
 
 - **`terraform fmt`** - Code formatting consistency
 - **`terraform validate`** - Syntax and internal consistency
-- **`TFLint`** - Best practices, provider-specific rules
+- **`TFLint`** - Best practices, provider specific rules
 - **`trivy` / `checkov`** - Security vulnerabilities
 
-### When to Use
+### When to use
 
 Every commit, always. Zero cost, catches 40%+ of issues.
 
 ---
 
-## Plan Testing
+## Plan testing
 
-### What terraform plan Validates
+### What terraform plan validates
 
-- Verify expected resources will be created/modified/destroyed
+- Verify which resources get created, changed, or destroyed
 - Catch provider authentication issues
 - Validate variable combinations
 - Review before applying
@@ -67,21 +67,21 @@ terraform show -json tfplan | jq '.'
 
 - Doesn't deploy real infrastructure
 - Can't catch runtime issues (IAM permissions, network connectivity)
-- Won't find resource-specific bugs
+- Won't find resource specific bugs
 
 ---
 
-## Native Terraform Tests
+## Native Terraform tests
 
 **Available:** Terraform 1.6+, OpenTofu 1.6+
 
-### When to Use
+### When to use
 
 - Team primarily works in HCL (no Go/Ruby experience needed)
 - Testing logical operations and module behavior
 - Want to avoid external testing dependencies
 
-### Basic Structure
+### Basic structure
 
 ```hcl
 # tests/s3_bucket.tftest.hcl
@@ -104,7 +104,7 @@ run "verify_encryption" {
 }
 ```
 
-### Critical: Validate Resource Schemas First
+### Critical: validate resource schemas first
 
 **Always use Terraform MCP to validate resource schemas before writing tests:**
 
@@ -138,7 +138,7 @@ mcp__terraform__get_provider_details({
 | `transition` in `aws_s3_bucket_lifecycle_configuration`        | **set**    | ❌ Cannot use `[0]` |
 | `noncurrent_version_expiration` in lifecycle                   | **list**   | ✅ Can use `[0]`    |
 
-### Working with Set-Type Blocks
+### Working with set-type blocks
 
 **Problem:** Cannot index sets with `[0]`
 
@@ -196,7 +196,7 @@ run "test_encryption_algorithm" {
 }
 ```
 
-### command = plan vs command = apply
+### `command = plan` or `command = apply`
 
 **Critical decision:** When to use each command mode
 
@@ -205,7 +205,7 @@ run "test_encryption_algorithm" {
 **When:**
 
 - Checking input validation
-- Verifying resource will be created
+- Verifying that a resource gets created
 - Testing variable defaults
 - Checking resource attributes that are **input-derived** (not computed)
 
@@ -254,7 +254,7 @@ run "test_computed_values" {
 }
 ```
 
-#### Common Pitfall: Checking Computed Values in Plan Mode
+#### Common pitfall: checking computed values in plan mode
 
 **Problem:**
 
@@ -295,7 +295,7 @@ run "test_bucket_prefix" {
 
 **Quick Decision Guide:**
 
-```
+```text
 Checking input values? → command = plan
 Checking computed values? → command = apply
 Accessing set-type blocks? → command = apply
@@ -303,7 +303,7 @@ Need fast feedback? → command = plan (with mocks)
 Testing real behavior? → command = apply (without mocks)
 ```
 
-### With Mocking (1.7+)
+### With mocking (1.7+)
 
 ```hcl
 mock_provider "aws" {
@@ -327,13 +327,13 @@ mock_provider "aws" {
 
 - Newer feature (less mature than Terratest)
 - Limited ecosystem/examples
-- Mocking doesn't catch real-world AWS behavior
+- Mocking doesn't catch real world AWS behavior
 
 ---
 
-### Complete Test Examples (Following Best Practices)
+### Complete test examples (following best practices)
 
-#### Example 1: S3 Bucket Tests
+#### Example 1: S3 bucket tests
 
 ```hcl
 # tests/unit/s3_bucket.tftest.hcl
@@ -404,7 +404,7 @@ run "verify_generated_name" {
 }
 ```
 
-#### Example 2: Lifecycle Rules
+#### Example 2: lifecycle rules
 
 ```hcl
 # tests/unit/lifecycle.tftest.hcl
@@ -448,18 +448,20 @@ run "verify_lifecycle_transitions" {
 
 ---
 
-## Terratest (Go-based)
+## Terratest
+
+Terratest is a Go library, so it fits teams that already write Go.
 
 **Recommended for:** Teams with Go experience, robust integration testing
 
-### When to Use
+### When to use
 
 - Team has Go experience
 - Need robust integration testing
 - Testing multiple providers/complex infrastructure
 - Want battle-tested framework with large community
 
-### Basic Structure
+### Basic structure
 
 ```go
 package test
@@ -492,7 +494,7 @@ func TestS3Module(t *testing.T) {
 }
 ```
 
-### Cost Management
+### Cost management
 
 ```go
 // Use tags for automated cleanup
@@ -504,7 +506,7 @@ Vars: map[string]interface{}{
 }
 ```
 
-### Critical Patterns
+### Critical patterns
 
 1. **Always use `t.Parallel()`** - Enables parallel test execution
 2. **Always use `defer terraform.Destroy()`** - Ensures cleanup
@@ -512,13 +514,13 @@ Vars: map[string]interface{}{
 4. **Tag resources** - Enable cost tracking and automated cleanup
 5. **Use separate AWS accounts** - Isolate test infrastructure
 
-### Real-world Costs
+### Real world costs
 
 - Small module (S3, IAM): $0-5 per run
 - Medium module (VPC, EC2): $5-20 per run
 - Large module (RDS, ECS cluster): $20-100 per run
 
-### Optimization with Test Stages
+### Optimization with test stages
 
 ```go
 // Test stages for faster iteration
@@ -543,9 +545,9 @@ stage(t, "teardown", func() {
 
 ---
 
-## Best Practices Summary
+## Best practices summary
 
-### For All Frameworks
+### For all frameworks
 
 1. **Start with static analysis** - Always free, always fast
 2. **Use unique identifiers** - Prevent resource conflicts
@@ -553,16 +555,16 @@ stage(t, "teardown", func() {
 4. **Separate test accounts** - Isolate test infrastructure
 5. **Implement TTL** - Automatic resource cleanup
 
-### Framework Selection
+### Framework selection
 
-```
+```text
 Quick syntax check? → terraform validate + fmt
 Security scan? → trivy + checkov
 Terraform 1.6+, simple logic? → Native tests
 Pre-1.6, or complex integration? → Terratest
 ```
 
-### Cost Optimization
+### Cost optimization
 
 1. Use mocking for unit tests
 2. Implement resource TTL tags
@@ -572,4 +574,4 @@ Pre-1.6, or complex integration? → Terratest
 
 ---
 
-**Back to:** [Main Skill File](../SKILL.md)
+**Back to:** [Main Skill File](SKILL.md)

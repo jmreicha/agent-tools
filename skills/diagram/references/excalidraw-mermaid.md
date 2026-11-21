@@ -1,11 +1,12 @@
 # Excalidraw and Mermaid
 
-Both follow the same visual rules as draw.io: black strokes, no fills, terse labels, left-to-right flow,
+Both follow the same visual rules as draw.io: black strokes, no fills, terse labels, left to right flow,
 solid boundaries only, around real constructs.
 
 ## Excalidraw (only on request)
 
 Write `<name>.excalidraw` wherever a `.drawio` file would go.
+
 - **File:** `{"type":"excalidraw","version":2,"source":"https://excalidraw.com","elements":[...],"appState":{"viewBackgroundColor":"#ffffff","gridSize":20},"files":{}}`
 - **Every element:** `id, type, x, y, width, height, angle:0, opacity:100, seed, version:1, versionNonce, isDeleted:false, groupIds:[], frameId:null, link:null, locked:false, updated:1, boundElements`.
 - **Shapes:** `"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"roughness":1,"roundness":{"type":3}` at 160×80. A boundary uses the same solid stroke.
@@ -24,4 +25,4 @@ Write `<name>.excalidraw` wherever a `.drawio` file would go.
 ## Mermaid (simple diagrams in repo markdown)
 
 Use it for a flowchart or sequence diagram with about 8 nodes or fewer, no icons, no boundaries, and no emphasis. Anything more uses draw.io.
-Write `flowchart LR` (or `TB` for topology) inline in a ```` ```mermaid ```` block. GitHub renders it, and it diffs as text.
+Write `flowchart LR` (or `TB` for topology) inline in a ` ```mermaid ` block. GitHub renders it, and it diffs as text.

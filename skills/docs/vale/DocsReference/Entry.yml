@@ -1,0 +1,22 @@
+extends: script
+message: "Start the entry with (Required) or (Optional): `name` - (Required) Description."
+level: warning
+scope: raw
+script: |
+  text := import("text")
+  matches := []
+  off := 0
+  fence := ""
+  for line in text.split(scope, "\n") {
+    t := text.trim_space(line)
+    if fence == "" {
+      if text.re_match("^ {0,3}(`{3,}|~{3,})", line) {
+        fence = t[0:3]
+      } else if text.re_match("^\\s*[-*] `[^`]+` ", line) && !text.re_match("^\\s*[-*] `[^`]+` - \\((Required|Optional)", line) {
+        matches = append(matches, {begin: off, end: off + len(line)})
+      }
+    } else if text.has_prefix(t, fence) && text.trim_space(text.trim_left(t, fence[0:1])) == "" {
+      fence = ""
+    }
+    off += len(line) + 1
+  }

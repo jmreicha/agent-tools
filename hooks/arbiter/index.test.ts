@@ -134,9 +134,9 @@ test("deny answers without running the tool", async ($, on) => {
 
 test("ask runs the tool only on Allow", async ($, on) => {
   await boot($, on, { files: RULES, answer: "Allow" });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ result: "ran" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    result: "ran",
+  });
 });
 
 test("ask shows the exact command being decided", async ($, on) => {
@@ -148,24 +148,25 @@ test("ask shows the exact command being decided", async ($, on) => {
 
 test("ask refused denies", async ($, on) => {
   await boot($, on, { files: RULES, answer: "Refuse" });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ deny: "arbiter k8s/ask-delete" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    deny: "arbiter k8s/ask-delete",
+  });
 });
 
 test("ask with nobody to answer denies", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ deny: "arbiter k8s/ask-delete" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    deny: "arbiter k8s/ask-delete",
+  });
 });
 
 test("warn logs, runs, and tells Claude", async ($, on) => {
   const logs: string[] = [];
   await boot($, on, { files: RULES, logs });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl get pods" }),
-  ).toEqual({ result: "ran", context: ["arbiter k8s/warn-get"] });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl get pods" })).toEqual({
+    result: "ran",
+    context: ["arbiter k8s/warn-get"],
+  });
   expect(logs).toEqual(["arbiter k8s/warn-get"]);
 });
 
@@ -175,9 +176,7 @@ test("broken file is skipped and reported", async ($, on) => {
     toasts,
     files: { ...RULES, [`${USER}/broken.yaml`]: "rules:\n  - id: x/y\n" },
   });
-  expect(
-    (await $.tool.call({ tool: "Bash", command: "aws sso login" })).deny,
-  ).toBeDefined();
+  expect((await $.tool.call({ tool: "Bash", command: "aws sso login" })).deny).toBeDefined();
   expect(toasts.filter((t) => t.includes("skipped"))).toEqual([
     "arbiter: 1 rule file skipped. Run /arbiter for details.",
   ]);
@@ -188,42 +187,34 @@ test("project layer skipped when it is the user layer", async ($, on) => {
   await boot($, on, { files: RULES, root: HOME, toasts });
   expect(toasts).toEqual([]);
   const answer = await $.command.run({ command: "arbiter", args: "reload" });
-  expect(answer.text).toBe(
-    "rules: plugin 0, user 3, project 0; disabled 0; errors 0",
-  );
+  expect(answer.text).toBe("rules: plugin 0, user 3, project 0; disabled 0; errors 0");
 });
 
 test("/arbiter check", async ($, on) => {
   await boot($, on, { files: RULES });
   const want =
     'DENY  "aws sso login"\n  aws/no-sso-login  (user: ~/.claude/rules/arbiter/cloud.yaml)\n    description: Plaintext creds.\n    hint: Use aws-vault.';
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check aws sso login" }))
-      .text,
-  ).toBe(want);
-  expect(
-    (await $.command.run({ command: "arbiter", args: 'check "aws sso login"' }))
-      .text,
-  ).toBe(want);
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check 'aws sso login'" }))
-      .text,
-  ).toBe(want);
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check ls" })).text,
-  ).toBe('ALLOW  "ls"  no rule fired');
+  expect((await $.command.run({ command: "arbiter", args: "check aws sso login" })).text).toBe(
+    want,
+  );
+  expect((await $.command.run({ command: "arbiter", args: 'check "aws sso login"' })).text).toBe(
+    want,
+  );
+  expect((await $.command.run({ command: "arbiter", args: "check 'aws sso login'" })).text).toBe(
+    want,
+  );
+  expect((await $.command.run({ command: "arbiter", args: "check ls" })).text).toBe(
+    'ALLOW  "ls"  no rule fired',
+  );
 });
 
 test("/arbiter list and list <id>", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "list k8s" })).text,
-  ).toBe(
+  expect((await $.command.run({ command: "arbiter", args: "list k8s" })).text).toBe(
     "2 rules\nID              ACTION  LAYER  DESCRIPTION\nk8s/ask-delete  ask     user\nk8s/warn-get    warn    user",
   );
   expect(
-    (await $.command.run({ command: "arbiter", args: "list aws/no-sso-login" }))
-      .text,
+    (await $.command.run({ command: "arbiter", args: "list aws/no-sso-login" })).text,
   ).toContain("id: aws/no-sso-login");
 });
 
@@ -236,23 +227,21 @@ test("/arbiter test", async ($, on) => {
 
 test("/arbiter with unknown subcommand prints usage", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "bogus" })).text,
-  ).toMatch(/^unknown subcommand bogus\n\n3 rules loaded, 0 errors\n/);
+  expect((await $.command.run({ command: "arbiter", args: "bogus" })).text).toMatch(
+    /^unknown subcommand bogus\n\n3 rules loaded, 0 errors\n/,
+  );
 });
 
 test("loads .yml files and warns about subdirectories", async ($, on) => {
   await boot($, on, {
     files: {
-      [`${USER}/k8s.yml`]:
-        "rules:\n  - id: k8s/x\n    match: { cmd: kubectl }\n",
+      [`${USER}/k8s.yml`]: "rules:\n  - id: k8s/x\n    match: { cmd: kubectl }\n",
     },
     dirs: [`${USER}/aws`],
   });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check kubectl get" }))
-      .text,
-  ).toMatch(/^DENY .*\n  k8s\/x  \(user: ~\/\.claude\/rules\/arbiter\/k8s\.yml\)/);
+  expect((await $.command.run({ command: "arbiter", args: "check kubectl get" })).text).toMatch(
+    /^DENY .*\n  k8s\/x  \(user: ~\/\.claude\/rules\/arbiter\/k8s\.yml\)/,
+  );
   const ui = await $.ui.mount({
     plugin: "agent-tools",
     component: "Pane",
@@ -303,15 +292,9 @@ test("pane shows counts, errors, and verdicts", async ($, on) => {
     }),
   ).toBeDefined();
   expect(await ui.find({ type: "Text", text: /broken\.yaml/ })).toBeDefined();
-  expect((await ui.find({ type: "Text", text: "DENY" })).props.color).toBe(
-    "red",
-  );
-  expect(
-    await ui.find({ type: "Text", text: /aws\/no-sso-login  aws sso login$/ }),
-  ).toBeDefined();
-  expect(
-    (await ui.find({ type: "Text", text: /broken\.yaml/ })).props.color,
-  ).toBe("yellow");
+  expect((await ui.find({ type: "Text", text: "DENY" })).props.color).toBe("red");
+  expect(await ui.find({ type: "Text", text: /aws\/no-sso-login  aws sso login$/ })).toBeDefined();
+  expect((await ui.find({ type: "Text", text: /broken\.yaml/ })).props.color).toBe("yellow");
 });
 
 test("/arbiter test reports skipped rule files", async ($, on) => {
@@ -331,19 +314,18 @@ test("an unreadable layer directory is reported, other layers still load", async
     unlistable: USER,
     files: {
       ...RULES,
-      [`${PROJECT}/p.yaml`]:
-        "rules:\n  - id: p/x\n    match: { cmd: kubectl }\n",
+      [`${PROJECT}/p.yaml`]: "rules:\n  - id: p/x\n    match: { cmd: kubectl }\n",
     },
   });
-  expect(
-    (await $.tool.call({ tool: "Bash", command: "kubectl get pods" })).deny,
-  ).toBe("arbiter p/x");
+  expect((await $.tool.call({ tool: "Bash", command: "kubectl get pods" })).deny).toBe(
+    "arbiter p/x",
+  );
   expect(toasts.filter((t) => t.includes("skipped"))).toEqual([
     "arbiter: 1 rule file skipped. Run /arbiter for details.",
   ]);
-  expect(
-    (await $.command.run({ command: "arbiter", args: "reload" })).text,
-  ).toBe("rules: plugin 0, user 0, project 1; disabled 0; errors 1");
+  expect((await $.command.run({ command: "arbiter", args: "reload" })).text).toBe(
+    "rules: plugin 0, user 0, project 1; disabled 0; errors 1",
+  );
 });
 
 test("/arbiter init explains where rules live without creating files", async ($, on) => {
@@ -360,25 +342,19 @@ test("/arbiter init explains where rules live without creating files", async ($,
   expect(text).toMatch(
     /\nGuide: \S+\/hooks\/arbiter\/README\.md\nExamples: \S+\/hooks\/arbiter\/examples\/rules\.yaml$/,
   );
-  expect(
-    (await $.command.run({ command: "arbiter", args: "bogus" })).text,
-  ).toContain("/arbiter init");
+  expect((await $.command.run({ command: "arbiter", args: "bogus" })).text).toContain(
+    "/arbiter init",
+  );
 });
 
 test("/arbiter with no args shows help with status", async ($, on) => {
   await boot($, on, { files: RULES });
   const text = (await $.command.run({ command: "arbiter", args: "" })).text;
   expect(text).toMatch(/^3 rules loaded, 0 errors\n\n/);
-  expect(text).toContain(
-    "  /arbiter pane                    open the live verdict pane",
-  );
-  expect(text).toContain(
-    "  /arbiter history [prune [days]]  rule hit counts, or remove old logs",
-  );
+  expect(text).toContain("  /arbiter pane                    open the live verdict pane");
+  expect(text).toContain("  /arbiter history [prune [days]]  rule hit counts, or remove old logs");
   expect(text).toContain("  /arbiter help                    show this help");
-  expect((await $.command.run({ command: "arbiter", args: "help" })).text).toBe(
-    text,
-  );
+  expect((await $.command.run({ command: "arbiter", args: "help" })).text).toBe(text);
 });
 
 test("/arbiter pane opens the pane", async ($, on) => {
@@ -393,9 +369,7 @@ test("/arbiter list shows descriptions and disabled rules", async ($, on) => {
       "/work/.claude/rules/arbiter/p.yaml": "disable: [aws/no-sso-login]\n",
     },
   });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "list aws" })).text,
-  ).toBe(
+  expect((await $.command.run({ command: "arbiter", args: "list aws" })).text).toBe(
     "1 rule\nID                ACTION  LAYER  DESCRIPTION\naws/no-sso-login  deny    user   [disabled by project] Plaintext creds.",
   );
 });
@@ -404,20 +378,14 @@ test("/arbiter list is sorted by id across layers", async ($, on) => {
   await boot($, on, {
     files: {
       ...RULES,
-      "/work/.claude/rules/arbiter/p.yaml":
-        "rules:\n  - id: a/project\n    match: { cmd: x }\n",
+      "/work/.claude/rules/arbiter/p.yaml": "rules:\n  - id: a/project\n    match: { cmd: x }\n",
     },
   });
   const ids = (await $.command.run({ command: "arbiter", args: "list" })).text
     .split("\n")
     .slice(2)
     .map((l: string) => l.split(" ")[0]);
-  expect(ids).toEqual([
-    "a/project",
-    "aws/no-sso-login",
-    "k8s/ask-delete",
-    "k8s/warn-get",
-  ]);
+  expect(ids).toEqual(["a/project", "aws/no-sso-login", "k8s/ask-delete", "k8s/warn-get"]);
 });
 
 test("/arbiter test sorts failures by id and skipped files by path", async ($, on) => {
@@ -431,9 +399,7 @@ test("/arbiter test sorts failures by id and skipped files by path", async ($, o
       "/a/.claude/rules/arbiter/broken.yaml": "rules: [",
     },
   });
-  const lines = (
-    await $.command.run({ command: "arbiter", args: "test" })
-  ).text.split("\n");
+  const lines = (await $.command.run({ command: "arbiter", args: "test" })).text.split("\n");
   expect(lines.slice(1, 3).map((l: string) => l.split(":")[0])).toEqual([
     "SKIPPED /a/.claude/rules/arbiter/broken.yaml",
     `SKIPPED ${USER}/broken.yaml`,
@@ -475,9 +441,7 @@ test("pane lists errors sorted by path", async ($, on) => {
 
 test("/arbiter check without a command shows its usage", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check" })).text,
-  ).toBe(
+  expect((await $.command.run({ command: "arbiter", args: "check" })).text).toBe(
     'usage: /arbiter check "<command>"\n  Dry-run a Bash command against the rules; nothing runs.\n  example: /arbiter check "aws s3 ls --profile prod"',
   );
 });
@@ -499,9 +463,7 @@ test("colorize leaves other commands' rows alone", async ($, on) => {
   }));
   await boot($, on, { files: RULES });
   const ui = await $.ui.mount(ROW("agent-tools: DENY", "other"));
-  expect(
-    await ui.find({ type: "Text", text: "drawn by Claude Code" }),
-  ).toBeDefined();
+  expect(await ui.find({ type: "Text", text: "drawn by Claude Code" })).toBeDefined();
 });
 
 test("colorize check output", async ($, on) => {
@@ -509,23 +471,13 @@ test("colorize check output", async ($, on) => {
   const text =
     'agent-tools: DENY  "aws sso login"\n  aws/no-sso-login  (user: ~/.claude/rules/arbiter/cloud.yaml)\n    description: Plaintext creds.\n    hint: Use aws-vault.';
   const ui = await $.ui.mount(ROW(text));
-  expect(
-    (await ui.find({ type: "Text", text: "agent-tools: " })).props.dimColor,
-  ).toBe(true);
+  expect((await ui.find({ type: "Text", text: "agent-tools: " })).props.dimColor).toBe(true);
   const deny = await ui.find({ type: "Text", text: "DENY" });
   expect(deny.props).toMatchObject({ color: "red", bold: true });
-  expect(
-    (await ui.find({ type: "Text", text: "  aws/no-sso-login" })).props.bold,
-  ).toBe(true);
-  expect(
-    (await ui.find({ type: "Text", text: /^\s+\(user: / })).props.dimColor,
-  ).toBe(true);
-  expect(
-    (await ui.find({ type: "Text", text: "description:" })).props.dimColor,
-  ).toBe(true);
-  expect(
-    await ui.find({ type: "Text", text: " Plaintext creds." }),
-  ).toBeDefined();
+  expect((await ui.find({ type: "Text", text: "  aws/no-sso-login" })).props.bold).toBe(true);
+  expect((await ui.find({ type: "Text", text: /^\s+\(user: / })).props.dimColor).toBe(true);
+  expect((await ui.find({ type: "Text", text: "description:" })).props.dimColor).toBe(true);
+  expect(await ui.find({ type: "Text", text: " Plaintext creds." })).toBeDefined();
 });
 
 test("colorize verdict words", async ($, on) => {
@@ -536,9 +488,7 @@ test("colorize verdict words", async ($, on) => {
     ["ALLOW", "green"],
   ]) {
     const ui = await $.ui.mount(ROW(`agent-tools: ${word}  "x"`));
-    expect((await ui.find({ type: "Text", text: word })).props.color).toBe(
-      color,
-    );
+    expect((await ui.find({ type: "Text", text: word })).props.color).toBe(color);
     await ui.unmount();
   }
 });
@@ -546,26 +496,20 @@ test("colorize verdict words", async ($, on) => {
 test("colorize test output and error handling in yellow", async ($, on) => {
   await boot($, on, { files: RULES });
   let ui = await $.ui.mount(ROW("agent-tools: 3/3 rule tests passed"));
-  expect(
-    (await ui.find({ type: "Text", text: "3/3 rule tests passed" })).props
-      .color,
-  ).toBe("green");
+  expect((await ui.find({ type: "Text", text: "3/3 rule tests passed" })).props.color).toBe(
+    "green",
+  );
   await ui.unmount();
   ui = await $.ui.mount(
     ROW(
       'agent-tools: 1/2 rule tests passed; 1 rule file skipped\nSKIPPED /x.yaml: bad\nFAIL a/b: "y" expected deny, got allow',
     ),
   );
-  expect(
-    (await ui.find({ type: "Text", text: /^1\/2 rule tests passed/ })).props
-      .color,
-  ).toBe("yellow");
-  expect((await ui.find({ type: "Text", text: /^SKIPPED/ })).props.color).toBe(
+  expect((await ui.find({ type: "Text", text: /^1\/2 rule tests passed/ })).props.color).toBe(
     "yellow",
   );
-  expect((await ui.find({ type: "Text", text: /^FAIL/ })).props.color).toBe(
-    "red",
-  );
+  expect((await ui.find({ type: "Text", text: /^SKIPPED/ })).props.color).toBe("yellow");
+  expect((await ui.find({ type: "Text", text: /^FAIL/ })).props.color).toBe("red");
   await ui.unmount();
   for (const line of [
     "unknown subcommand nope",
@@ -573,9 +517,7 @@ test("colorize test output and error handling in yellow", async ($, on) => {
     "no rules match",
   ]) {
     ui = await $.ui.mount(ROW(`agent-tools: ${line}`));
-    expect((await ui.find({ type: "Text", text: line })).props.color).toBe(
-      "yellow",
-    );
+    expect((await ui.find({ type: "Text", text: line })).props.color).toBe("yellow");
     await ui.unmount();
   }
 });
@@ -588,15 +530,10 @@ test("colorize list header and action cells", async ($, on) => {
     ),
   );
   expect(
-    (await ui.find({ type: "Text", text: "ID     ACTION  LAYER  DESCRIPTION" }))
-      .props.bold,
+    (await ui.find({ type: "Text", text: "ID     ACTION  LAYER  DESCRIPTION" })).props.bold,
   ).toBe(true);
-  expect((await ui.find({ type: "Text", text: "deny    " })).props.color).toBe(
-    "red",
-  );
-  expect((await ui.find({ type: "Text", text: "ask     " })).props.color).toBe(
-    "yellow",
-  );
+  expect((await ui.find({ type: "Text", text: "deny    " })).props.color).toBe("red");
+  expect((await ui.find({ type: "Text", text: "ask     " })).props.color).toBe("yellow");
 });
 
 test("a failure after the tool ran keeps the tool's own outcome", async ($, on) => {
@@ -611,7 +548,11 @@ test("a failure after the tool ran keeps the tool's own outcome", async ($, on) 
 });
 
 const HIST = `${HOME}/.claude/arbiter/history`;
-const lines = (text: string) => text.trim().split("\n").map((l) => JSON.parse(l));
+const lines = (text: string) =>
+  text
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
 
 test("history records deny, ask, and warn hits with a redacted target", async ($, on) => {
   const files: Record<string, string> = { ...RULES };
@@ -697,14 +638,16 @@ test("/arbiter history aggregates per rule across sessions", async ($, on) => {
     JSON.stringify({ ts, session: "x", action, rules: ids.map((id) => ({ id, action })), outcome });
   const files: Record<string, string> = {
     ...RULES,
-    [`${HIST}/a.jsonl`]: [
-      hit("2026-10-01T10:00:00Z", "deny", ["aws/no-sso-login"]),
-      hit("2026-10-02T10:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
-    ].join("\n") + "\n",
-    [`${HIST}/b.jsonl`]: [
-      hit("2026-10-03T10:00:00Z", "ask", ["k8s/ask-delete"], "refused"),
-      hit("2026-10-03T11:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
-    ].join("\n") + "\n",
+    [`${HIST}/a.jsonl`]:
+      [
+        hit("2026-10-01T10:00:00Z", "deny", ["aws/no-sso-login"]),
+        hit("2026-10-02T10:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
+      ].join("\n") + "\n",
+    [`${HIST}/b.jsonl`]:
+      [
+        hit("2026-10-03T10:00:00Z", "ask", ["k8s/ask-delete"], "refused"),
+        hit("2026-10-03T11:00:00Z", "ask", ["k8s/ask-delete"], "allowed"),
+      ].join("\n") + "\n",
     [`${HIST}/old.jsonl`]: hit("2026-01-01T10:00:00Z", "deny", ["k8s/warn-get"]) + "\n",
   };
   await boot($, on, { files, mtimes: { [`${HIST}/old.jsonl`]: Date.now() - 91 * 864e5 } });
@@ -750,11 +693,8 @@ test("/arbiter history prune takes days and validates them", async ($, on) => {
   };
   const mtimes = { [`${HIST}/a.jsonl`]: Date.now() - 10 * 864e5 };
   await boot($, on, { files, mtimes, ran });
-  const run = async (args: string) =>
-    (await $.command.run({ command: "arbiter", args })).text;
-  expect(await run("history prune 7")).toBe(
-    "pruned 1 history file from ~/.claude/arbiter/history",
-  );
+  const run = async (args: string) => (await $.command.run({ command: "arbiter", args })).text;
+  expect(await run("history prune 7")).toBe("pruned 1 history file from ~/.claude/arbiter/history");
   expect(await run("history prune 0")).toBe(
     "usage: /arbiter history prune [days]\n  Remove history files older than days (default 90).",
   );
@@ -775,8 +715,7 @@ rules:
 `,
     },
   });
-  const run = async (args: string) =>
-    (await $.command.run({ command: "arbiter", args })).text;
+  const run = async (args: string) => (await $.command.run({ command: "arbiter", args })).text;
   expect(await run("list")).toBe(
     "1 rule\nID     ACTION  LAYER  DESCRIPTION\na/off  deny    user   [enabled: false] Off for now.",
   );
@@ -855,7 +794,8 @@ test("an ask on the original still rewrites first, then asks", async ($, on) => 
   const commands: string[] = [];
   const files = {
     ...REWRITES,
-    [`${USER}/ask.yaml`]: "rules:\n  - id: aws/ask-rm\n    match: { cmd: aws, args: [s3, rm] }\n    action: ask\n",
+    [`${USER}/ask.yaml`]:
+      "rules:\n  - id: aws/ask-rm\n    match: { cmd: aws, args: [s3, rm] }\n    action: ask\n",
   };
   await boot($, on, { files, commands, answer: "Allow" });
   await $.tool.call({ tool: "Bash", command: "aws s3 rm s3://b/k" });
@@ -865,9 +805,9 @@ test("an ask on the original still rewrites first, then asks", async ($, on) => 
 test("the rewritten command is checked again", async ($, on) => {
   const commands: string[] = [];
   await boot($, on, { files: { ...REWRITES }, commands, answer: "Refuse" });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "aws s3 ls --profile prod" }),
-  ).toEqual({ deny: "arbiter aws/prefer-lytxread" });
+  expect(await $.tool.call({ tool: "Bash", command: "aws s3 ls --profile prod" })).toEqual({
+    deny: "arbiter aws/prefer-lytxread",
+  });
   expect(commands).toEqual([]);
 });
 
@@ -883,8 +823,7 @@ test("a rewrite that fails or loops denies with the reason", async ($, on) => {
 
 test("/arbiter check shows the rewrite", async ($, on) => {
   await boot($, on, { files: { ...REWRITES } });
-  const run = async (args: string) =>
-    (await $.command.run({ command: "arbiter", args })).text;
+  const run = async (args: string) => (await $.command.run({ command: "arbiter", args })).text;
   expect(await run('check "aws s3 ls --profile prod"')).toBe(
     `REWRITE  "aws s3 ls --profile prod" -> "aws-vault exec prod -- aws s3 ls"\n  aws/requires-vault  (user: ~/.claude/rules/arbiter/aws.yaml)`,
   );
@@ -925,9 +864,7 @@ test("a repeat rule warns on the nth matching call and tells Claude", async ($, 
   expect(await run()).toEqual({ result: "ran" });
   expect(await run()).toEqual({
     result: "ran",
-    context: [
-      "arbiter test/no-blind-rerun: Narrow it. (3 matching calls in the last 10)",
-    ],
+    context: ["arbiter test/no-blind-rerun: Narrow it. (3 matching calls in the last 10)"],
   });
   expect((await $.tool.call({ tool: "Bash", command: "pytest -k other" })).context).toBeUndefined();
 });

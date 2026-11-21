@@ -19,26 +19,14 @@ rules:
           "git push origin +main",
           "git push origin +HEAD:main",
         ]
-      allow:
-        [
-          "git push",
-          "git push --force-with-lease",
-          'git commit -m "no --force here"',
-        ]
+      allow: ["git push", "git push --force-with-lease", 'git commit -m "no --force here"']
 
   - id: general/no-rm-rf-root
     match: { cmd: rm, args: ['/^(\/|~|\$HOME|\$\{HOME\})\/?\*?$/'] }
     description: This deletes the root or home directory.
     hint: Name the specific path to delete.
     tests:
-      deny:
-        [
-          "rm -rf /",
-          "sudo rm -rf ~",
-          "rm -rf $HOME/",
-          "rm -rf /*",
-          "rm -rf ${HOME}",
-        ]
+      deny: ["rm -rf /", "sudo rm -rf ~", "rm -rf $HOME/", "rm -rf /*", "rm -rf ${HOME}"]
       allow: ["rm -rf ./build", "rm -rf /tmp/x", "rm -rf ~/scratch"]
 
   - id: general/ask-reset-hard

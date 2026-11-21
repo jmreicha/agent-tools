@@ -1,0 +1,33 @@
+extends: script
+message: "Give each entry bold **Cause** and **Fix** labels."
+level: warning
+scope: raw
+script: |
+  text := import("text")
+  matches := []
+  off := 0
+  fence := ""
+  cur := {}
+  body := ""
+  check := func() {
+    if !is_undefined(cur.begin) && !(text.re_match("\\*\\*Cause:?\\*\\*", body) && text.re_match("\\*\\*Fix:?\\*\\*", body)) {
+      matches = append(matches, cur)
+    }
+  }
+  for line in text.split(scope, "\n") {
+    t := text.trim_space(line)
+    if fence == "" && text.re_match("^## ", line) {
+      check()
+      cur = {begin: off, end: off + len(line)}
+      body = ""
+    } else {
+      body += line + "\n"
+      if fence == "" && text.re_match("^ {0,3}(`{3,}|~{3,})", line) {
+        fence = t[0:3]
+      } else if fence != "" && text.has_prefix(t, fence) && text.trim_space(text.trim_left(t, fence[0:1])) == "" {
+        fence = ""
+      }
+    }
+    off += len(line) + 1
+  }
+  check()

@@ -55,10 +55,16 @@ def extract_intro(body):
     return intro or None
 
 
+def rebase_links(text, folder):
+    """Point relative links at the skill folder, since README.md lives at the repo root."""
+    return re.sub(r"\]\((?![a-z]+:|#|/)([^)]+)\)", rf"](skills/{folder}/\1)", text)
+
+
 def extract_section(body, heading):
     """Return content of a specific ## section, or None."""
     pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, body, re.DOTALL)
+    # Headings may be in sentence or title case.
+    match = re.search(pattern, body, re.DOTALL | re.IGNORECASE)
     return match.group(1).strip() if match else None
 
 
@@ -74,6 +80,8 @@ def collect_skills():
             description = "_no description_"
         intro = extract_intro(body) if body else None
         when_to_use = extract_section(body, "When to Use This Skill") if body else None
+        intro = intro and rebase_links(intro, folder)
+        when_to_use = when_to_use and rebase_links(when_to_use, folder)
         skills.append((folder, name, description, intro, when_to_use))
     return skills
 
@@ -102,7 +110,7 @@ def build_table(skills):
 def build_details(skills):
     sections = []
     for folder, name, description, intro, when_to_use in skills:
-        lines = [f"### {name}", "", f"**Invocation:** `/agent-tools:{folder}`", ""]
+        lines = [f"### `{name}`", "", f"**Invocation:** `/agent-tools:{folder}`", ""]
         if intro:
             lines += [intro, ""]
         if when_to_use:

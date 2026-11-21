@@ -1,0 +1,93 @@
+# Page types
+
+Use the outline for the mode you picked in [the main skill](../SKILL.md). Items marked (Vale) are checked by the `Docs` style. Check the rest yourself.
+
+Adapted from the [Kubernetes page content types](https://kubernetes.io/docs/contribute/style/page-content-types/), the [Cloudflare content types](https://developers.cloudflare.com/style-guide/documentation-content-strategy/content-types/), and the [Nimbus recipes](https://nimbus-docs.com/) (MIT).
+
+## How-to
+
+Title it with the task as a verb phrase: "Rotate a signing key". No "How to" prefix and no gerund.
+
+```markdown
+# <Verb the thing>
+
+<1-2 sentences: when and why you'd do this.>
+
+## Prerequisites
+
+- <Access, existing setup, decisions made, versions.>
+
+## <Steps or phase name>
+
+1. <One action per step. Say where, then what.>
+
+## Verify
+
+<A command and the output to expect. Say what to do if the output differs.>
+
+## <Irreversible closing step, if any>
+
+## Optional: <thing>
+
+## Next steps
+
+- <2-4 links: the next task, the concept behind it, the reference.>
+```
+
+- Keep the happy path unbroken. Put platform variants side by side. For alternative methods, document the recommended one and link the rest.
+- Put a warning before each destructive step. A page full of warnings has the wrong happy path.
+- Run Verify before any step that is expensive to undo, such as a delete or a cutover.
+- Keep each phase to 10 steps or fewer. (Vale)
+- Include a Verify section, and end with Next steps rather than the last step. (Vale)
+- Leave out Prerequisites only when there are truly none.
+
+## Tutorial
+
+Use the how-to outline, with two changes:
+
+- Add an Objectives list after the intro: what the reader builds and learns.
+- Add a Cleanup section before Next steps that removes what the tutorial created.
+
+A tutorial must not fail. Pin versions, show the output of every step, and give explanation one clause and a link.
+
+## Explanation
+
+```markdown
+# <Noun phrase naming the concept>
+
+<One paragraph that defines it in checkable terms, such as "at least once" or "not ordered".>
+
+## <One idea per section>
+
+## Next steps
+```
+
+- Cover one bounded topic. Include design decisions, history, constraints, and alternatives. Recommendations and opinions belong here.
+- No procedures. Code that shows the idea is fine. Code the reader follows along with belongs in a how-to.
+- Say what the concept is not, as flat bullets.
+- Use a comparison table when there is a real either-or.
+
+## Troubleshooting
+
+Keep entries inline on the relevant page until there are about 5, then move them to a `Troubleshooting <area>` page.
+
+```markdown
+## <Exact error message, or the symptom in the reader's words>
+
+**Cause:** <Why it happens.>
+
+**Fix:** <A command or exact setting, not "check your configuration".>
+
+**Verify:** <How to confirm it's fixed.>
+```
+
+- Give each entry bold Cause and Fix labels. (Vale)
+- Quote the error verbatim in a code block, with real values.
+- Order entries by how often they happen. Put anything that loses data first.
+- Make each entry stand alone, because readers land on one entry from search.
+
+## Runbook
+
+Use the how-to outline. Match detail to how often it runs: give rare procedures every step and assume no prior knowledge. Add `lastVerified: <date>` to the frontmatter, and update it when someone runs every step of the procedure.
+
+For reference pages, see [reference.md](reference.md).

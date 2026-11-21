@@ -18,21 +18,11 @@ const raw = (s: string) => [
 ];
 
 test("splits on control operators", () => {
-  expect(cmds("a && b || c; d | e & f\ng |& h")).toEqual([
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-  ]);
+  expect(cmds("a && b || c; d | e & f\ng |& h")).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
 });
 
 test("fills every field", () => {
-  const s =
-    "AWS_PROFILE=prod /usr/bin/aws --region us-east-1 s3 ls --recursive=true";
+  const s = "AWS_PROFILE=prod /usr/bin/aws --region us-east-1 s3 ls --recursive=true";
   expect(parse(s)).toEqual([
     {
       raw: s,
@@ -62,17 +52,15 @@ test("fills every field", () => {
 
 test("quotes are data", () => {
   expect(cmds(`echo "aws s3 ls; kubectl" 'a && b'`)).toEqual(["echo"]);
-  expect(parse(`echo "a b" 'c d' e\\ f`)[0].args).toEqual([
-    "a b",
-    "c d",
-    "e f",
-  ]);
+  expect(parse(`echo "a b" 'c d' e\\ f`)[0].args).toEqual(["a b", "c d", "e f"]);
 });
 
 test("substitutions are parsed and come first", () => {
-  expect(
-    cmds("echo $(aws sts get-caller-identity) `kubectl get pods`"),
-  ).toEqual(["aws", "kubectl", "echo"]);
+  expect(cmds("echo $(aws sts get-caller-identity) `kubectl get pods`")).toEqual([
+    "aws",
+    "kubectl",
+    "echo",
+  ]);
   expect(cmds('echo "$(aws s3 ls)"')).toEqual(["aws", "echo"]);
   expect(cmds("diff <(aws s3 ls) x")).toEqual(["aws", "diff"]);
   expect(cmds("echo $((1 + 2)) ${HOME}")).toEqual(["echo"]);
@@ -107,9 +95,11 @@ test("bare -- ends flags and is dropped", () => {
 });
 
 test("aws-vault exec is unwrapped", () => {
-  const out = parse("aws-vault exec lytxread -- aws s3 ls").map(
-    ({ cmd, args, wrappers }) => ({ cmd, args, wrappers }),
-  );
+  const out = parse("aws-vault exec lytxread -- aws s3 ls").map(({ cmd, args, wrappers }) => ({
+    cmd,
+    args,
+    wrappers,
+  }));
   expect(out).toEqual([
     { cmd: "aws-vault", args: ["exec", "lytxread"], wrappers: [] },
     { cmd: "aws", args: ["s3", "ls"], wrappers: ["aws-vault"] },
@@ -123,10 +113,7 @@ test("aws-vault exec is unwrapped", () => {
 
 test("wrappers nest and are inherited through bash -c", () => {
   const subs = parse(`sudo -u root aws-vault exec p -- bash -c 'aws s3 ls'`);
-  expect(subs.find((s) => s.cmd === "aws")!.wrappers).toEqual([
-    "sudo",
-    "aws-vault",
-  ]);
+  expect(subs.find((s) => s.cmd === "aws")!.wrappers).toEqual(["sudo", "aws-vault"]);
 });
 
 test("other wrappers", () => {
@@ -153,9 +140,12 @@ test("other wrappers", () => {
 });
 
 test("subshells and reserved words", () => {
-  expect(
-    cmds("(cd x && aws s3 ls); if kubectl get ns; then echo ok; fi"),
-  ).toEqual(["cd", "aws", "kubectl", "echo"]);
+  expect(cmds("(cd x && aws s3 ls); if kubectl get ns; then echo ok; fi")).toEqual([
+    "cd",
+    "aws",
+    "kubectl",
+    "echo",
+  ]);
 });
 
 test("empty input and empty segments", () => {
@@ -166,21 +156,13 @@ test("empty input and empty segments", () => {
 });
 
 test("unterminated input falls back to one raw sub-command", () => {
-  for (const s of [
-    `echo 'x`,
-    'echo "x',
-    "echo $(ls",
-    "echo `ls",
-    "cat <<EOF\nbody",
-    "cat <<EOF",
-  ]) {
+  for (const s of [`echo 'x`, 'echo "x', "echo $(ls", "echo `ls", "cat <<EOF\nbody", "cat <<EOF"]) {
     expect(parse(s)).toEqual(raw(s));
   }
 });
 
 test("more wrappers: nohup, doas, exec, watch, command, builtin", () => {
-  const wrapped = (s: string) =>
-    parse(s).find((c) => c.cmd === "aws")?.wrappers;
+  const wrapped = (s: string) => parse(s).find((c) => c.cmd === "aws")?.wrappers;
   expect(wrapped("nohup aws s3 ls")).toEqual(["nohup"]);
   expect(wrapped("doas -u root aws s3 ls")).toEqual(["doas"]);
   expect(wrapped("exec -a name aws s3 ls")).toEqual(["exec"]);
@@ -272,7 +254,9 @@ test("spans locate words in the input, absent for derived text", () => {
 });
 
 test("uv run is a wrapper", () => {
-  expect(parse("uv run --with rich -p 3.12 pytest -k x").map((c) => [c.cmd, c.args, c.wrappers])).toEqual([
+  expect(
+    parse("uv run --with rich -p 3.12 pytest -k x").map((c) => [c.cmd, c.args, c.wrappers]),
+  ).toEqual([
     ["uv", ["run", "rich", "3.12"], []],
     ["pytest", ["x"], ["uv"]],
   ]);

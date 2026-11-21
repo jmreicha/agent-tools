@@ -1,4 +1,4 @@
-# Security & Compliance
+# Security & compliance
 
 > **Part of:** [terraform-skill](./SKILL.md)
 > **Purpose:** Security best practices and compliance patterns for Terraform/OpenTofu
@@ -7,7 +7,7 @@ This document provides security hardening guidance and compliance automation str
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Security Scanning Tools](#security-scanning-tools)
 2. [Common Security Issues](#common-security-issues)
@@ -17,9 +17,9 @@ This document provides security hardening guidance and compliance automation str
 
 ---
 
-## Security Scanning Tools
+## Security scanning tools
 
-### Essential Security Checks
+### Essential security checks
 
 ```bash
 # Static security scanning
@@ -30,7 +30,7 @@ checkov -d .
 terraform-compliance -f compliance/ -p tfplan.json
 ```
 
-### Trivy Integration
+### Trivy integration
 
 **Install:**
 
@@ -52,7 +52,7 @@ curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/inst
 
 **Example Output:**
 
-```
+```text
 Result #1 HIGH Security group rule allows egress to multiple public internet addresses
 ────────────────────────────────────────────────────────────────────────────────
   security.tf:15-20
@@ -67,7 +67,7 @@ Result #1 HIGH Security group rule allows egress to multiple public internet add
    19 | }
 ```
 
-### Checkov Integration
+### Checkov integration
 
 ```bash
 # Run Checkov
@@ -82,9 +82,9 @@ checkov -d . -o json > checkov-report.json
 
 ---
 
-## Common Security Issues
+## Common security issues
 
-### ❌ DON'T: Store Secrets in Variables
+### Don't: store secrets in variables
 
 ```hcl
 # BAD: Secret in plaintext
@@ -94,7 +94,7 @@ variable "database_password" {
 }
 ```
 
-### ✅ DO: Use Secrets Manager
+### Do: use Secrets Manager
 
 ```hcl
 # Good: Reference secrets from AWS Secrets Manager
@@ -107,7 +107,7 @@ resource "aws_db_instance" "this" {
 }
 ```
 
-### ❌ DON'T: Use Default VPC
+### Don't: use default VPC
 
 ```hcl
 # BAD: Default VPC has public subnets
@@ -117,7 +117,7 @@ resource "aws_instance" "app" {
 }
 ```
 
-### ✅ DO: Create Dedicated VPCs
+### Do: create dedicated VPCs
 
 ```hcl
 # Good: Custom VPC with private subnets
@@ -133,7 +133,7 @@ resource "aws_subnet" "private" {
 }
 ```
 
-### ❌ DON'T: Skip Encryption
+### Don't: skip encryption
 
 ```hcl
 # BAD: Unencrypted S3 bucket
@@ -143,7 +143,7 @@ resource "aws_s3_bucket" "data" {
 }
 ```
 
-### ✅ DO: Enable Encryption at Rest
+### Do: enable encryption at rest
 
 ```hcl
 # Good: Enable encryption
@@ -162,7 +162,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
 }
 ```
 
-### ❌ DON'T: Open Security Groups to Internet
+### Don't: open security groups to internet
 
 ```hcl
 # BAD: Security group open to internet
@@ -176,7 +176,7 @@ resource "aws_security_group_rule" "allow_all" {
 }
 ```
 
-### ✅ DO: Use Least-Privilege Security Groups
+### Do: use least privilege security groups
 
 ```hcl
 # Good: Restrict to specific ports and sources
@@ -192,7 +192,7 @@ resource "aws_security_group_rule" "app_https" {
 
 ---
 
-## Compliance Testing
+## Compliance testing
 
 ### terraform-compliance
 
@@ -231,7 +231,7 @@ terraform show -json tfplan > tfplan.json
 terraform-compliance -f compliance/ -p tfplan.json
 ```
 
-### Open Policy Agent (OPA)
+### Open policy agent (OPA)
 
 ```rego
 # policy/s3_encryption.rego
@@ -248,9 +248,9 @@ deny[msg] {
 
 ---
 
-## Secrets Management
+## Secrets management
 
-### AWS Secrets Manager Pattern
+### AWS Secrets Manager pattern
 
 ```hcl
 # Create secret
@@ -283,7 +283,7 @@ resource "aws_db_instance" "this" {
 }
 ```
 
-### Environment Variables
+### Environment variables
 
 ```bash
 # Never commit these
@@ -294,7 +294,7 @@ export AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 **In .gitignore:**
 
-```
+```text
 *.tfvars
 .env
 secrets/
@@ -302,9 +302,9 @@ secrets/
 
 ---
 
-## State File Security
+## State file security
 
-### Encrypt State at Rest
+### Encrypt state at rest
 
 ```hcl
 # backend.tf
@@ -319,7 +319,7 @@ terraform {
 }
 ```
 
-### Secure State Bucket
+### Secure state bucket
 
 ```hcl
 resource "aws_s3_bucket" "terraform_state" {
@@ -357,7 +357,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 }
 ```
 
-### Restrict State Access
+### Restrict state access
 
 ```json
 {
@@ -369,10 +369,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
         "AWS": "arn:aws:iam::123456789012:role/TerraformRole"
       },
       "Action": ["s3:ListBucket", "s3:GetObject", "s3:PutObject"],
-      "Resource": [
-        "arn:aws:s3:::my-terraform-state",
-        "arn:aws:s3:::my-terraform-state/*"
-      ]
+      "Resource": ["arn:aws:s3:::my-terraform-state", "arn:aws:s3:::my-terraform-state/*"]
     }
   ]
 }
@@ -380,9 +377,9 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 
 ---
 
-## IAM Best Practices
+## IAM best practices
 
-### ✅ DO: Use Least Privilege
+### Do: use least privilege
 
 ```hcl
 # Good: Specific permissions only
@@ -405,7 +402,7 @@ resource "aws_iam_policy" "app_policy" {
 }
 ```
 
-### ❌ DON'T: Use Wildcard Permissions
+### Don't: use wildcard permissions
 
 ```hcl
 # BAD: Overly broad permissions
@@ -424,9 +421,9 @@ resource "aws_iam_policy" "bad_policy" {
 
 ---
 
-## Compliance Checklists
+## Compliance checklists
 
-### SOC 2 Compliance
+### SOC 2 compliance
 
 - [ ] Encryption at rest for all data stores
 - [ ] Encryption in transit (TLS/SSL)
@@ -435,7 +432,7 @@ resource "aws_iam_policy" "bad_policy" {
 - [ ] MFA required for privileged access
 - [ ] Regular security scanning in CI/CD
 
-### HIPAA Compliance
+### HIPAA compliance
 
 - [ ] PHI encrypted at rest and in transit
 - [ ] Access logs enabled
@@ -443,7 +440,7 @@ resource "aws_iam_policy" "bad_policy" {
 - [ ] Regular backup and retention policies
 - [ ] Audit trail for all infrastructure changes
 
-### PCI-DSS Compliance
+### PCI-DSS compliance
 
 - [ ] Network segmentation (separate VPCs)
 - [ ] No default passwords
@@ -463,4 +460,4 @@ resource "aws_iam_policy" "bad_policy" {
 
 ---
 
-**Back to:** [Main Skill File](../SKILL.md)
+**Back to:** [Main Skill File](SKILL.md)

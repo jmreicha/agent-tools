@@ -1,12 +1,5 @@
 import { expect, test } from "claude-code/testing";
-import {
-  callKey,
-  evaluate,
-  matchedRepeat,
-  rewrite,
-  runRuleTests,
-  type Call,
-} from "./engine.ts";
+import { callKey, evaluate, matchedRepeat, rewrite, runRuleTests, type Call } from "./engine.ts";
 import { parseRuleFile, type Rule } from "./rules.ts";
 
 const HOME = "/home/u";
@@ -15,8 +8,7 @@ const rules = (yaml: string): Rule[] => {
   if (f.errors.length) throw new Error(JSON.stringify(f.errors));
   return f.rules;
 };
-const bash = (command: string, rs: Rule[]) =>
-  evaluate("Bash", { command }, rs, HOME);
+const bash = (command: string, rs: Rule[]) => evaluate("Bash", { command }, rs, HOME);
 
 const VAULT = rules(`
 rules:
@@ -53,44 +45,29 @@ test("no match allows", () => {
 test("deny lists every fired deny rule sorted by id", () => {
   const v = bash("aws sso login", VAULT);
   expect(v.action).toBe("deny");
-  expect(v.fired.map((r) => r.id)).toEqual([
-    "aws/no-sso-login",
-    "aws/requires-vault",
-  ]);
+  expect(v.fired.map((r) => r.id)).toEqual(["aws/no-sso-login", "aws/requires-vault"]);
   expect(v.message).toBe(
     "arbiter aws/no-sso-login: Never.\narbiter aws/requires-vault: AWS goes through aws-vault. Use aws-vault exec lytxread -- aws.",
   );
 });
 
 test("unless excuses the same sub-command", () => {
-  expect(bash("aws-vault exec lytxread -- aws s3 ls", VAULT).action).toBe(
-    "allow",
-  );
-  expect(
-    bash("aws-vault exec lytxread -- true && aws s3 ls", VAULT).action,
-  ).toBe("deny");
+  expect(bash("aws-vault exec lytxread -- aws s3 ls", VAULT).action).toBe("allow");
+  expect(bash("aws-vault exec lytxread -- true && aws s3 ls", VAULT).action).toBe("deny");
 });
 
 test("quoted mention does not fire", () => {
-  expect(
-    bash(`echo "aws s3 ls" && grep 'kubectl delete' notes.md`, VAULT).action,
-  ).toBe("allow");
+  expect(bash(`echo "aws s3 ls" && grep 'kubectl delete' notes.md`, VAULT).action).toBe("allow");
 });
 
 test("text inside heredoc does not fire", () => {
-  expect(
-    bash(
-      `git commit -m "$(cat <<'EOF'\nnever run aws sso login\nEOF\n)"`,
-      VAULT,
-    ).action,
-  ).toBe("allow");
+  expect(bash(`git commit -m "$(cat <<'EOF'\nnever run aws sso login\nEOF\n)"`, VAULT).action).toBe(
+    "allow",
+  );
 });
 
 test("strictest action wins and fired lists all", () => {
-  const v = bash(
-    "kubectl --context p delete pod x && kubectl --context p get pods",
-    VAULT,
-  );
+  const v = bash("kubectl --context p delete pod x && kubectl --context p get pods", VAULT);
   expect(v.action).toBe("ask");
   expect(v.fired.map((r) => r.id)).toEqual(["k8s/ask-delete", "k8s/warn-get"]);
   expect(v.message).toBe("arbiter k8s/ask-delete");
@@ -98,29 +75,20 @@ test("strictest action wins and fired lists all", () => {
 });
 
 test("args match in order across flag values", () => {
-  expect(bash("kubectl --context prod delete pod web", VAULT).action).toBe(
-    "ask",
-  );
+  expect(bash("kubectl --context prod delete pod web", VAULT).action).toBe("ask");
   expect(bash("kubectl logs deploy/delete-worker", VAULT).action).toBe("allow");
 });
 
 test("path rules use file_path and expand ~", () => {
-  expect(
-    evaluate("Edit", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action,
-  ).toBe("deny");
-  expect(
-    evaluate("Read", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action,
-  ).toBe("allow");
-  expect(
-    evaluate("Edit", { file_path: "/home/u/.kube/config2" }, VAULT, HOME)
-      .action,
-  ).toBe("allow");
+  expect(evaluate("Edit", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action).toBe("deny");
+  expect(evaluate("Read", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action).toBe("allow");
+  expect(evaluate("Edit", { file_path: "/home/u/.kube/config2" }, VAULT, HOME).action).toBe(
+    "allow",
+  );
 });
 
 test("command matchers never fire for non-Bash tools; tool regex works", () => {
-  expect(evaluate("Write", { command: "aws s3 ls" }, VAULT, HOME).action).toBe(
-    "allow",
-  );
+  expect(evaluate("Write", { command: "aws s3 ls" }, VAULT, HOME).action).toBe("allow");
   expect(evaluate("mcp__prod__query", {}, VAULT, HOME).action).toBe("allow");
 });
 
@@ -188,7 +156,7 @@ test("rewrite refuses what it cannot splice safely", () => {
     error: "the command is too complex to rewrite safely",
   });
   const none = rules(
-    "rules:\n  - id: a/x\n    match: { cmd: x }\n    action: rewrite\n    to: { prefix: \"w {-p}\" }\n",
+    'rules:\n  - id: a/x\n    match: { cmd: x }\n    action: rewrite\n    to: { prefix: "w {-p}" }\n',
   );
   expect(rewrite("x", bash("x", none), HOME)).toEqual({
     error: "a/x: nothing fills {-p}",
@@ -255,9 +223,7 @@ rules:
       deny: ["kubectl get pods", "kubectl --context p get pods"]
       allow: ["kubectl --context p get pods"]
 `);
-  expect(
-    runRuleTests(r, HOME).map((t) => [t.input, t.expected, t.actual, t.pass]),
-  ).toEqual([
+  expect(runRuleTests(r, HOME).map((t) => [t.input, t.expected, t.actual, t.pass])).toEqual([
     ["kubectl get pods", "deny", "deny", true],
     ["kubectl --context p get pods", "deny", "allow", false],
     ["kubectl --context p get pods", "allow", "allow", true],
@@ -269,12 +235,7 @@ test("runRuleTests uses Edit and expands ~ for path rules, ignoring tool", () =>
     'rules:\n  - id: t/p\n    tool: /^Write$/\n    match: { path: "~/.kube/config" }\n    tests:\n      deny: ["~/.kube/config"]\n      allow: ["~/other"]\n',
   );
   expect(runRuleTests(r, HOME).every((t) => t.pass)).toBe(true);
-  expect(
-    runRuleTests(
-      rules("rules:\n  - id: t/n\n    match: { cmd: x }\n")[0],
-      HOME,
-    ),
-  ).toEqual([]);
+  expect(runRuleTests(rules("rules:\n  - id: t/n\n    match: { cmd: x }\n")[0], HOME)).toEqual([]);
 });
 
 const PIPES = rules(`
@@ -391,8 +352,7 @@ test("repeat rules fire on the nth matching call in the window", () => {
     key: callKey("Bash", { command }),
     matched: matchedRepeat("Bash", { command }, REPEAT, HOME),
   });
-  const at = (past: Call[]) =>
-    evaluate("Bash", { command: "pytest" }, [REPEAT[0]], HOME, past);
+  const at = (past: Call[]) => evaluate("Bash", { command: "pytest" }, [REPEAT[0]], HOME, past);
   expect(at([]).action).toBe("allow");
   expect(at([call("pytest")]).action).toBe("allow");
   expect(at([call("pytest"), call("pytest")])).toEqual({
@@ -423,9 +383,7 @@ test("matchedRepeat and callKey", () => {
 test("runRuleTests runs repeat sequences", () => {
   const results = REPEAT.flatMap((r) => runRuleTests(r, HOME));
   expect(results.filter((t) => !t.pass)).toEqual([]);
-  expect(results.map((t) => t.input)).toContain(
-    "pytest -> { tool: Edit } -> pytest -> pytest",
-  );
+  expect(results.map((t) => t.input)).toContain("pytest -> { tool: Edit } -> pytest -> pytest");
   const wrong = { ...REPEAT[0], tests: { allow: [["pytest", "pytest", "pytest"]] } };
   expect(runRuleTests(wrong, HOME)).toMatchObject([
     { expected: "allow", actual: "warn", pass: false },

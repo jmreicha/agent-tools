@@ -1,36 +1,40 @@
-# arbiter Implementation Plan
+# `arbiter` implementation plan
+
+<!-- vale off -->
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+<!-- vale on -->
+
 **Goal:** Ship arbiter, a Claude Code mod in the `agent-tools` plugin that enforces YAML rules at every tool call.
 
-**Architecture:** Three pure TypeScript modules (`shell.ts` parses Bash, `rules.ts` loads and merges YAML rule files, `engine.ts` decides verdicts) plus one hooks module (`index.ts`) that is the only code touching the mods API `$`. YAML parsing uses a vendored single-file js-yaml build.
+**Architecture:** Three pure TypeScript modules (`shell.ts` parses Bash, `rules.ts` loads and merges YAML rule files, `engine.ts` decides verdicts) plus one hooks module (`index.ts`) that is the only code touching the mods API `$`. YAML parsing uses a vendored single file js-yaml build.
 
 **Tech Stack:** TypeScript ES modules loaded directly by Claude Code ≥ 2.1.287 (no build step), `claude-code/testing` test kit via `claude plugin test`, js-yaml 4.1.0 (vendored), yass for specs.
 
-**Spec:** `hooks/arbiter/*.yass.yaml` (normative; start at `root.yass.yaml`, browse with `yass list` / `yass query <target>` from `hooks/arbiter/`). Overview: `docs/arbiter/design.md`. Decisions: `docs/arbiter/decisions.md`.
+**Spec:** `hooks/arbiter/*.yass.yaml` (normative, start at `root.yass.yaml`, browse with `yass list` / `yass query <target>` from `hooks/arbiter/`). Overview: `docs/arbiter/design.md`. Decisions: `docs/arbiter/decisions.md`.
 
-## Global Constraints
+## Global constraints
 
 - Claude Code ≥ v2.1.287 (developed against 2.1.289).
 - Hooks module: `hooks/arbiter/index.ts`, listed in `hooks/hooks.json` as `"modules": ["./arbiter/index.ts"]`.
 - `shell.ts`, `rules.ts`, `engine.ts` are pure: no `$`, no I/O, no clock. Only `index.ts` touches `$`.
-- Imports: relative paths inside the plugin only; the one bare import allowed is `claude-code`. No npm runtime dependencies; js-yaml is vendored at `hooks/arbiter/vendor/js-yaml.mjs`.
-- Mods static-analysis rules: write every API call in full (`$.fs.read(...)`), never alias or destructure `$`; pass `$` only to functions declared at top level of `index.ts`; event names in `on()` are string literals.
+- Imports: relative paths inside the plugin only. The one bare import allowed is `claude-code`. No npm runtime dependencies. js-yaml is vendored at `hooks/arbiter/vendor/js-yaml.mjs`.
+- Mods static-analysis rules: write every API call in full (`$.fs.read(...)`). Don't alias or destructure `$`. Pass `$` only to functions declared at top level of `index.ts`. Event names in `on()` are string literals.
 - Tests: files ending `.test.ts`, run from the repo root with `claude plugin test`. Each file has at least one `test()`.
 - Rule file layers, lowest to highest: `<plugin>/rules/*.yaml`, `~/.claude/rules/arbiter/*.yaml`, `<project>/.claude/rules/arbiter/*.yaml`.
 - Deny message line form: `arbiter <id>: <reason> <hint>` (missing parts omitted).
-- Verdict precedence: deny > ask > warn > allow; `rewrite` behaves as `deny`.
+- Verdict precedence: deny > ask > warn > allow. `rewrite` behaves as `deny`.
 - After changing any `*.yass.yaml`: `cd hooks/arbiter && yass validate && yass lint`.
 - Commits: conventional commits (`feat:`, `test:`, `docs:`), ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
-## Review Focus
+## Review focus
 
-1. **Commit messages and heredocs** — `git commit -m "$(cat <<'EOF' … aws sso login … EOF)"` must not be denied. Pinned in Task 2 (`heredoc body is data`) and Task 5 (`text inside heredoc does not fire`).
-2. **Quoted text mentioning a command** — `echo "aws s3 ls"` or `grep 'kubectl delete' notes.md` must be allowed. Pinned in Task 2 (`quotes are data`) and Task 5 (`quoted mention does not fire`).
-3. **Session started in `$HOME`** — project root equals home, so the user layer would load twice and every rule would hit "duplicate id". Pinned in Task 6 (`project layer skipped when it is the user layer`).
-4. **One broken rule file** — a typo must skip only that file and surface in the toast and pane, never disable the rest. Pinned in Task 6 (`broken file is skipped and reported`).
-5. **Non-interactive runs** — in `claude -p` an `ask` rule has no one to ask and must deny, not hang or allow. Pinned in Task 6 (`ask with nobody to answer denies`).
+1. **Commit messages and heredocs**: `git commit -m "$(cat <<'EOF' … aws sso login … EOF)"` must not be denied. Pinned in Task 2 (`heredoc body is data`) and Task 5 (`text inside heredoc does not fire`).
+2. **Quoted text mentioning a command**: `echo "aws s3 ls"` or `grep 'kubectl delete' notes.md` must be allowed. Pinned in Task 2 (`quotes are data`) and Task 5 (`quoted mention does not fire`).
+3. **Session started in `$HOME`**: project root equals home, so the user layer would load twice and every rule would hit "duplicate id". Pinned in Task 6 (`project layer skipped when it is the user layer`).
+4. **One broken rule file**: a typo must skip only that file and surface in the toast and pane, without disabling the rest. Pinned in Task 6 (`broken file is skipped and reported`).
+5. **Noninteractive runs**: in `claude -p` an `ask` rule has no one to ask and must deny, not hang or allow. Pinned in Task 6 (`ask with nobody to answer denies`).
 
 ---
 
@@ -46,8 +50,7 @@
 **Interfaces:**
 
 - Consumes: nothing.
-- Produces: a loadable mod; confirmed import specifier style (`./x.ts`); confirmed `claude-code` type name for `$`; confirmed whether test files can import `node:fs`.
-
+- Produces: a loadable mod. Confirmed import specifier style (`./x.ts`). Confirmed `claude-code` type name for `$`. Confirmed whether test files can import `node:fs`.
 - [ ] **Step 1: Vendor js-yaml**
 
 ```bash
@@ -98,9 +101,7 @@ test("vendored yaml parses", () => {
 });
 
 test("test files can read the repo", () => {
-  expect(readFileSync("hooks/hooks.json", "utf8")).toContain(
-    "arbiter/index.ts",
-  );
+  expect(readFileSync("hooks/hooks.json", "utf8")).toContain("arbiter/index.ts");
 });
 
 test("mod command answers", async ($, on) => {
@@ -123,13 +124,12 @@ claude plugin validate .
 claude plugin test
 ```
 
-Expected: validate prints `hooks: session.start, command.run{command=arbiter}` and `✔ Validation passed`; 3 tests pass.
+Expected: validate prints `hooks: session.start, command.run{command=arbiter}` and `✔ Validation passed`. 3 tests pass.
 
 Record the outcome of each assumption in the commit message body:
 
 - If `test files can read the repo` fails because `node:fs` is unavailable or cwd differs: delete that test and use the **fallback** in Task 7 Step 3.
-- If validate rejects the vendored file, stop and report the exact error; do not hand-edit js-yaml.
-
+- If validate rejects the vendored file, stop and report the exact error. Do not hand edit js-yaml.
 - [ ] **Step 6: Confirm import style and the `$` type name**
 
 ```bash
@@ -161,6 +161,7 @@ Implements `shell@parse` and `shell@Wrappers` (`yass query shell@parse`).
 **Interfaces:**
 
 - Consumes: nothing.
+
 - Produces:
 
   ```ts
@@ -182,26 +183,14 @@ import { expect, test } from "claude-code/testing";
 import { parse } from "./shell.ts";
 
 const cmds = (s: string) => parse(s).map((c) => c.cmd);
-const raw = (s: string) => [
-  { raw: s, cmd: "", args: [], flags: [], env: {}, wrappers: [] },
-];
+const raw = (s: string) => [{ raw: s, cmd: "", args: [], flags: [], env: {}, wrappers: [] }];
 
 test("splits on control operators", () => {
-  expect(cmds("a && b || c; d | e & f\ng |& h")).toEqual([
-    "a",
-    "b",
-    "c",
-    "d",
-    "e",
-    "f",
-    "g",
-    "h",
-  ]);
+  expect(cmds("a && b || c; d | e & f\ng |& h")).toEqual(["a", "b", "c", "d", "e", "f", "g", "h"]);
 });
 
 test("fills every field", () => {
-  const s =
-    "AWS_PROFILE=prod /usr/bin/aws --region us-east-1 s3 ls --recursive=true";
+  const s = "AWS_PROFILE=prod /usr/bin/aws --region us-east-1 s3 ls --recursive=true";
   expect(parse(s)).toEqual([
     {
       raw: s,
@@ -216,17 +205,15 @@ test("fills every field", () => {
 
 test("quotes are data", () => {
   expect(cmds(`echo "aws s3 ls; kubectl" 'a && b'`)).toEqual(["echo"]);
-  expect(parse(`echo "a b" 'c d' e\\ f`)[0].args).toEqual([
-    "a b",
-    "c d",
-    "e f",
-  ]);
+  expect(parse(`echo "a b" 'c d' e\\ f`)[0].args).toEqual(["a b", "c d", "e f"]);
 });
 
 test("substitutions are parsed and come first", () => {
-  expect(
-    cmds("echo $(aws sts get-caller-identity) `kubectl get pods`"),
-  ).toEqual(["aws", "kubectl", "echo"]);
+  expect(cmds("echo $(aws sts get-caller-identity) `kubectl get pods`")).toEqual([
+    "aws",
+    "kubectl",
+    "echo",
+  ]);
   expect(cmds('echo "$(aws s3 ls)"')).toEqual(["aws", "echo"]);
   expect(cmds("diff <(aws s3 ls) x")).toEqual(["aws", "diff"]);
   expect(cmds("echo $((1 + 2)) ${HOME}")).toEqual(["echo"]);
@@ -261,9 +248,11 @@ test("bare -- ends flags and is dropped", () => {
 });
 
 test("aws-vault exec is unwrapped", () => {
-  const out = parse("aws-vault exec lytxread -- aws s3 ls").map(
-    ({ cmd, args, wrappers }) => ({ cmd, args, wrappers }),
-  );
+  const out = parse("aws-vault exec lytxread -- aws s3 ls").map(({ cmd, args, wrappers }) => ({
+    cmd,
+    args,
+    wrappers,
+  }));
   expect(out).toEqual([
     { cmd: "aws-vault", args: ["exec", "lytxread"], wrappers: [] },
     { cmd: "aws", args: ["s3", "ls"], wrappers: ["aws-vault"] },
@@ -277,10 +266,7 @@ test("aws-vault exec is unwrapped", () => {
 
 test("wrappers nest and are inherited through bash -c", () => {
   const subs = parse(`sudo -u root aws-vault exec p -- bash -c 'aws s3 ls'`);
-  expect(subs.find((s) => s.cmd === "aws")!.wrappers).toEqual([
-    "sudo",
-    "aws-vault",
-  ]);
+  expect(subs.find((s) => s.cmd === "aws")!.wrappers).toEqual(["sudo", "aws-vault"]);
 });
 
 test("other wrappers", () => {
@@ -307,9 +293,12 @@ test("other wrappers", () => {
 });
 
 test("subshells and reserved words", () => {
-  expect(
-    cmds("(cd x && aws s3 ls); if kubectl get ns; then echo ok; fi"),
-  ).toEqual(["cd", "aws", "kubectl", "echo"]);
+  expect(cmds("(cd x && aws s3 ls); if kubectl get ns; then echo ok; fi")).toEqual([
+    "cd",
+    "aws",
+    "kubectl",
+    "echo",
+  ]);
 });
 
 test("empty input and empty segments", () => {
@@ -320,14 +309,7 @@ test("empty input and empty segments", () => {
 });
 
 test("unterminated input falls back to one raw sub-command", () => {
-  for (const s of [
-    `echo 'x`,
-    'echo "x',
-    "echo $(ls",
-    "echo `ls",
-    "cat <<EOF\nbody",
-    "cat <<EOF",
-  ]) {
+  for (const s of [`echo 'x`, 'echo "x', "echo $(ls", "echo `ls", "cat <<EOF\nbody", "cat <<EOF"]) {
     expect(parse(s)).toEqual(raw(s));
   }
 });
@@ -391,10 +373,7 @@ const WRAPPERS: Record<string, Unwrap> = {
   time: flagsThen(["-f", "-o"]),
   nice: flagsThen(["-n"]),
   timeout: (rest) =>
-    Math.min(
-      flagsThen(["-s", "-k", "--signal", "--kill-after"])(rest)! + 1,
-      rest.length,
-    ),
+    Math.min(flagsThen(["-s", "-k", "--signal", "--kill-after"])(rest)! + 1, rest.length),
   xargs: flagsThen(["-I", "-n", "-P", "-L", "-d", "-E", "-s", "-a"]),
   "aws-vault": (rest) => {
     if (rest[0] !== "exec") return null;
@@ -415,9 +394,7 @@ export function parse(command: string): SubCommand[] {
   try {
     return new Lexer(command).list(false, []);
   } catch {
-    return [
-      { raw: command, cmd: "", args: [], flags: [], env: {}, wrappers: [] },
-    ];
+    return [{ raw: command, cmd: "", args: [], flags: [], env: {}, wrappers: [] }];
   }
 }
 
@@ -438,8 +415,7 @@ class Lexer {
       out.push(...build(words, this.s.slice(start, this.i).trim(), wrappers));
       if (this.i >= this.s.length) {
         if (inSub || depth > 0) throw new ShellError("unterminated (");
-        if (this.heredocs.length)
-          throw new ShellError("heredoc has no terminator");
+        if (this.heredocs.length) throw new ShellError("heredoc has no terminator");
         return out;
       }
       const c = this.s[this.i++];
@@ -468,26 +444,16 @@ class Lexer {
     for (;;) {
       this.blanks();
       const c = this.s[this.i];
-      if (
-        c === undefined ||
-        c === "\n" ||
-        c === ";" ||
-        c === "|" ||
-        c === "(" ||
-        c === ")"
-      )
-        return;
+      if (c === undefined || c === "\n" || c === ";" || c === "|" || c === "(" || c === ")") return;
       if (c === "&") {
         if (this.s[this.i + 1] !== ">") return;
         this.redirect(out, wrappers);
       } else if (c === "<" || c === ">") this.redirect(out, wrappers);
-      else if (c === "#")
-        while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
+      else if (c === "#") while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
       else {
         const w = this.word(out, wrappers);
         const next = this.s[this.i];
-        if (/^\d+$/.test(w) && (next === "<" || next === ">"))
-          this.redirect(out, wrappers);
+        if (/^\d+$/.test(w) && (next === "<" || next === ">")) this.redirect(out, wrappers);
         else words.push(w);
       }
     }
@@ -533,8 +499,7 @@ class Lexer {
     const start = this.i;
     if (this.s[this.i] === "`") {
       let j = this.i + 1;
-      while (j < this.s.length && this.s[j] !== "`")
-        j += this.s[j] === "\\" ? 2 : 1;
+      while (j < this.s.length && this.s[j] !== "`") j += this.s[j] === "\\" ? 2 : 1;
       if (j >= this.s.length) throw new ShellError("unterminated backtick");
       out.push(...new Lexer(this.s.slice(this.i + 1, j)).list(false, wrappers));
       this.i = j + 1;
@@ -574,15 +539,13 @@ class Lexer {
     this.blanks();
     const target = this.word(out, wrappers);
     if (target === "") throw new ShellError(`missing target after ${op}`);
-    if (op === "<<" || op === "<<-")
-      this.heredocs.push({ delim: target, strip: op === "<<-" });
+    if (op === "<<" || op === "<<-") this.heredocs.push({ delim: target, strip: op === "<<-" });
   }
 
   private readHeredocs() {
     for (const h of this.heredocs.splice(0)) {
       for (;;) {
-        if (this.i >= this.s.length)
-          throw new ShellError(`heredoc ${h.delim} has no terminator`);
+        if (this.i >= this.s.length) throw new ShellError(`heredoc ${h.delim} has no terminator`);
         let j = this.s.indexOf("\n", this.i);
         if (j < 0) j = this.s.length;
         const line = this.s.slice(this.i, j);
@@ -613,9 +576,7 @@ function build(words: string[], raw: string, wrappers: string[]): SubCommand[] {
     ];
   const sub = make(raw, cmd, rest, env, wrappers);
   const script = SHELLS.has(cmd) ? cScript(rest) : null;
-  return script === null
-    ? [sub]
-    : [sub, ...new Lexer(script).list(false, wrappers)];
+  return script === null ? [sub] : [sub, ...new Lexer(script).list(false, wrappers)];
 }
 
 function make(
@@ -630,8 +591,7 @@ function make(
   let positional = false;
   for (const w of words) {
     if (!positional && w === "--") positional = true;
-    else if (!positional && w.length > 1 && w.startsWith("-"))
-      flags.push(w.split("=")[0]);
+    else if (!positional && w.length > 1 && w.startsWith("-")) flags.push(w.split("=")[0]);
     else args.push(w);
   }
   return { raw, cmd, args, flags, env, wrappers };
@@ -671,6 +631,7 @@ Implements `rules@parseRuleFile` and `rules@RuleFormat`.
 **Interfaces:**
 
 - Consumes: `load`, `YAMLException` from `./vendor/js-yaml.mjs`.
+
 - Produces:
 
   ```ts
@@ -713,11 +674,7 @@ Implements `rules@parseRuleFile` and `rules@RuleFormat`.
     disable: string[];
     errors: Problem[];
   };
-  export function parseRuleFile(
-    text: string,
-    path: string,
-    layer: Layer,
-  ): ParsedFile;
+  export function parseRuleFile(text: string, path: string, layer: Layer): ParsedFile;
   ```
 
 - [ ] **Step 1: Write the failing tests `hooks/arbiter/rules.test.ts`**
@@ -803,13 +760,11 @@ test("more schema checks", () => {
   expect(messages("rules:\n  - id: a/b\n    match: {}\n")).toContain(
     "match must be a non-empty mapping",
   );
+  expect(messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    to: y\n")).toContain(
+    "to must be a string and needs action: rewrite",
+  );
   expect(
-    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    to: y\n"),
-  ).toContain("to must be a string and needs action: rewrite");
-  expect(
-    messages(
-      "rules:\n  - id: a/b\n    match: { cmd: x }\n    tests: { block: [x] }\n",
-    ),
+    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    tests: { block: [x] }\n"),
   ).toContain("tests: unknown outcome block");
   expect(messages("other: 1\n")).toContain("unknown top-level key other");
   expect(messages("- just a list\n")).toContain(
@@ -883,26 +838,8 @@ export type RuleSet = {
   warnings: Problem[];
 };
 
-const RULE_KEYS = [
-  "id",
-  "tool",
-  "match",
-  "unless",
-  "action",
-  "to",
-  "reason",
-  "hint",
-  "tests",
-];
-const MATCHER_KEYS = [
-  "cmd",
-  "args",
-  "flags",
-  "wrapped_by",
-  "env",
-  "regex",
-  "path",
-];
+const RULE_KEYS = ["id", "tool", "match", "unless", "action", "to", "reason", "hint", "tests"];
+const MATCHER_KEYS = ["cmd", "args", "flags", "wrapped_by", "env", "regex", "path"];
 const ACTIONS = ["deny", "ask", "warn", "rewrite"];
 const OUTCOMES = ["deny", "ask", "warn", "allow"];
 const ID = /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9._-]+)*$/;
@@ -911,8 +848,7 @@ const REGEX = /^\/(.*)\/([imsu]*)$/s;
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === "string";
-const isStrs = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.every(isStr);
+const isStrs = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 const strOrStrs = (v: unknown): v is string | string[] => isStr(v) || isStrs(v);
 
 function badRegex(p: string): string | null {
@@ -943,11 +879,9 @@ function checkMatcher(m: unknown, where: string, out: string[]) {
   if ("args" in m) {
     if (Array.isArray(m.args) && m.args.every(strOrStrs))
       patterns.push(...(m.args.flat() as string[]));
-    else
-      out.push(`${where}.args must be a list of strings or lists of strings`);
+    else out.push(`${where}.args must be a list of strings or lists of strings`);
   }
-  if ("flags" in m && !isStrs(m.flags))
-    out.push(`${where}.flags must be a list of strings`);
+  if ("flags" in m && !isStrs(m.flags)) out.push(`${where}.flags must be a list of strings`);
   if ("wrapped_by" in m && !strOrStrs(m.wrapped_by))
     out.push(`${where}.wrapped_by must be a string or list of strings`);
   if ("env" in m) {
@@ -974,12 +908,10 @@ function checkRule(r: unknown, i: number, out: string[]) {
     out.push(`rules[${i}] must be a mapping`);
     return;
   }
-  for (const k of Object.keys(r))
-    if (!RULE_KEYS.includes(k)) out.push(`unknown key ${k}`);
+  for (const k of Object.keys(r)) if (!RULE_KEYS.includes(k)) out.push(`unknown key ${k}`);
   if (!isStr(r.id) || !ID.test(r.id)) out.push(`id must match ${ID.source}`);
   if ("tool" in r) {
-    if (!strOrStrs(r.tool))
-      out.push("tool must be a string or list of strings");
+    if (!strOrStrs(r.tool)) out.push("tool must be a string or list of strings");
     else
       for (const t of [r.tool].flat()) {
         const bad = badRegex(t);
@@ -1017,16 +949,11 @@ function lineOf(text: string, id: string, nth: number): number | undefined {
   const re = new RegExp(`\\bid:\\s*["']?${esc}["']?\\s*(#.*)?$`);
   let seen = 0;
   const lines = text.split("\n");
-  for (let i = 0; i < lines.length; i++)
-    if (re.test(lines[i]) && ++seen === nth) return i + 1;
+  for (let i = 0; i < lines.length; i++) if (re.test(lines[i]) && ++seen === nth) return i + 1;
   return undefined;
 }
 
-export function parseRuleFile(
-  text: string,
-  path: string,
-  layer: Layer,
-): ParsedFile {
+export function parseRuleFile(text: string, path: string, layer: Layer): ParsedFile {
   const fail = (errors: Problem[]): ParsedFile => ({
     path,
     layer,
@@ -1048,8 +975,7 @@ export function parseRuleFile(
       ]);
     return fail([{ path, message: String(e) }]);
   }
-  if (doc === undefined || doc === null)
-    return { path, layer, rules: [], disable: [], errors: [] };
+  if (doc === undefined || doc === null) return { path, layer, rules: [], disable: [], errors: [] };
   if (!isObj(doc))
     return fail([
       {
@@ -1080,22 +1006,20 @@ export function parseRuleFile(
   });
   if (errors.length) return fail(errors);
 
-  const rules = (raw as Record<string, unknown>[]).map(
-    (r): Rule => ({
-      id: r.id as string,
-      tool: (r.tool as string | string[] | undefined) ?? "Bash",
-      match: [r.match].flat() as Matcher[],
-      unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
-      action: (r.action as Action | undefined) ?? "deny",
-      to: r.to as string | undefined,
-      reason: r.reason as string | undefined,
-      hint: r.hint as string | undefined,
-      tests: (r.tests as Rule["tests"] | undefined) ?? {},
-      layer,
-      path,
-      source: r,
-    }),
-  );
+  const rules = (raw as Record<string, unknown>[]).map((r): Rule => ({
+    id: r.id as string,
+    tool: (r.tool as string | string[] | undefined) ?? "Bash",
+    match: [r.match].flat() as Matcher[],
+    unless: r.unless === undefined ? [] : ([r.unless].flat() as Matcher[]),
+    action: (r.action as Action | undefined) ?? "deny",
+    to: r.to as string | undefined,
+    reason: r.reason as string | undefined,
+    hint: r.hint as string | undefined,
+    tests: (r.tests as Rule["tests"] | undefined) ?? {},
+    layer,
+    path,
+    source: r,
+  }));
   return {
     path,
     layer,
@@ -1133,29 +1057,20 @@ Implements `rules@loadLayers`.
 
 - Consumes: `ParsedFile`, `Rule`, `Layer`, `RuleSet` from Task 3.
 - Produces: `export function loadLayers(files: ParsedFile[]): RuleSet`
-
 - [ ] **Step 1: Append failing tests to `hooks/arbiter/rules.test.ts`**
 
 ```ts
 import { loadLayers } from "./rules.ts";
 
-const file = (
-  path: string,
-  layer: "plugin" | "user" | "project",
-  body: string,
-) => parseRuleFile(body, path, layer);
-const rule = (id: string, cmd = "x") =>
-  `  - id: ${id}\n    match: { cmd: ${cmd} }\n`;
+const file = (path: string, layer: "plugin" | "user" | "project", body: string) =>
+  parseRuleFile(body, path, layer);
+const rule = (id: string, cmd = "x") => `  - id: ${id}\n    match: { cmd: ${cmd} }\n`;
 
 test("higher layer replaces same id; order is plugin, user, project", () => {
   const set = loadLayers([
     file("/p/b.yaml", "project", `rules:\n${rule("a/one", "proj")}`),
     file("/u/a.yaml", "user", `rules:\n${rule("a/two")}`),
-    file(
-      "/g/a.yaml",
-      "plugin",
-      `rules:\n${rule("a/one", "plug")}${rule("a/three")}`,
-    ),
+    file("/g/a.yaml", "plugin", `rules:\n${rule("a/one", "plug")}${rule("a/three")}`),
   ]);
   expect(set.rules.map((r) => [r.id, r.layer])).toEqual([
     ["a/one", "project"],
@@ -1168,11 +1083,7 @@ test("higher layer replaces same id; order is plugin, user, project", () => {
 test("disable removes lower-layer rules only", () => {
   const set = loadLayers([
     file("/g/a.yaml", "plugin", `rules:\n${rule("g/x")}`),
-    file(
-      "/u/a.yaml",
-      "user",
-      `disable: [g/x, u/own, nope/missing]\nrules:\n${rule("u/own")}`,
-    ),
+    file("/u/a.yaml", "user", `disable: [g/x, u/own, nope/missing]\nrules:\n${rule("u/own")}`),
   ]);
   expect(set.rules.map((r) => r.id)).toEqual(["u/own"]);
   expect(set.disabled.map((d) => [d.rule.id, d.by])).toEqual([["g/x", "user"]]);
@@ -1193,9 +1104,7 @@ test("same id in two files of one layer keeps the first file", () => {
     file("/u/b.yaml", "user", `rules:\n${rule("u/dup")}${rule("u/other")}`),
     file("/u/a.yaml", "user", `rules:\n${rule("u/dup")}`),
   ]);
-  expect(set.rules.map((r) => [r.id, r.path])).toEqual([
-    ["u/dup", "/u/a.yaml"],
-  ]);
+  expect(set.rules.map((r) => [r.id, r.path])).toEqual([["u/dup", "/u/a.yaml"]]);
   expect(set.errors[0].message).toContain("/u/a.yaml");
   expect(set.errors[0].path).toBe("/u/b.yaml");
 });
@@ -1287,7 +1196,8 @@ Implements `engine@evaluate` and `engine@runRuleTests`.
 
 **Interfaces:**
 
-- Consumes: `parse`, `SubCommand` (Task 2); `Rule`, `Matcher`, `Outcome`, `parseRuleFile` (Task 3).
+- Consumes: `parse`, `SubCommand` (Task 2). `Rule`, `Matcher`, `Outcome`, `parseRuleFile` (Task 3).
+
 - Produces:
 
   ```ts
@@ -1322,8 +1232,7 @@ const rules = (yaml: string): Rule[] => {
   if (f.errors.length) throw new Error(JSON.stringify(f.errors));
   return f.rules;
 };
-const bash = (command: string, rs: Rule[]) =>
-  evaluate("Bash", { command }, rs, HOME);
+const bash = (command: string, rs: Rule[]) => evaluate("Bash", { command }, rs, HOME);
 
 const VAULT = rules(`
 rules:
@@ -1366,34 +1275,22 @@ test("deny lists every fired deny rule in rule order", () => {
 });
 
 test("unless excuses the same sub-command", () => {
-  expect(bash("aws-vault exec lytxread -- aws s3 ls", VAULT).action).toBe(
-    "allow",
-  );
-  expect(
-    bash("aws-vault exec lytxread -- true && aws s3 ls", VAULT).action,
-  ).toBe("deny");
+  expect(bash("aws-vault exec lytxread -- aws s3 ls", VAULT).action).toBe("allow");
+  expect(bash("aws-vault exec lytxread -- true && aws s3 ls", VAULT).action).toBe("deny");
 });
 
 test("quoted mention does not fire", () => {
-  expect(
-    bash(`echo "aws s3 ls" && grep 'kubectl delete' notes.md`, VAULT).action,
-  ).toBe("allow");
+  expect(bash(`echo "aws s3 ls" && grep 'kubectl delete' notes.md`, VAULT).action).toBe("allow");
 });
 
 test("text inside heredoc does not fire", () => {
-  expect(
-    bash(
-      `git commit -m "$(cat <<'EOF'\nnever run aws sso login\nEOF\n)"`,
-      VAULT,
-    ).action,
-  ).toBe("allow");
+  expect(bash(`git commit -m "$(cat <<'EOF'\nnever run aws sso login\nEOF\n)"`, VAULT).action).toBe(
+    "allow",
+  );
 });
 
 test("strictest action wins and fired lists all", () => {
-  const v = bash(
-    "kubectl --context p delete pod x && kubectl --context p get pods",
-    VAULT,
-  );
+  const v = bash("kubectl --context p delete pod x && kubectl --context p get pods", VAULT);
   expect(v.action).toBe("ask");
   expect(v.fired.map((r) => r.id)).toEqual(["k8s/ask-delete", "k8s/warn-get"]);
   expect(v.message).toBe("arbiter k8s/ask-delete");
@@ -1401,29 +1298,20 @@ test("strictest action wins and fired lists all", () => {
 });
 
 test("args match in order across flag values", () => {
-  expect(bash("kubectl --context prod delete pod web", VAULT).action).toBe(
-    "ask",
-  );
+  expect(bash("kubectl --context prod delete pod web", VAULT).action).toBe("ask");
   expect(bash("kubectl logs deploy/delete-worker", VAULT).action).toBe("allow");
 });
 
 test("path rules use file_path and expand ~", () => {
-  expect(
-    evaluate("Edit", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action,
-  ).toBe("deny");
-  expect(
-    evaluate("Read", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action,
-  ).toBe("allow");
-  expect(
-    evaluate("Edit", { file_path: "/home/u/.kube/config2" }, VAULT, HOME)
-      .action,
-  ).toBe("allow");
+  expect(evaluate("Edit", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action).toBe("deny");
+  expect(evaluate("Read", { file_path: "/home/u/.kube/config" }, VAULT, HOME).action).toBe("allow");
+  expect(evaluate("Edit", { file_path: "/home/u/.kube/config2" }, VAULT, HOME).action).toBe(
+    "allow",
+  );
 });
 
 test("command matchers never fire for non-Bash tools; tool regex works", () => {
-  expect(evaluate("Write", { command: "aws s3 ls" }, VAULT, HOME).action).toBe(
-    "allow",
-  );
+  expect(evaluate("Write", { command: "aws s3 ls" }, VAULT, HOME).action).toBe("allow");
   expect(evaluate("mcp__prod__query", {}, VAULT, HOME).action).toBe("allow");
 });
 
@@ -1472,9 +1360,7 @@ rules:
       deny: ["kubectl get pods", "kubectl --context p get pods"]
       allow: ["kubectl --context p get pods"]
 `);
-  expect(
-    runRuleTests(r, HOME).map((t) => [t.input, t.expected, t.actual, t.pass]),
-  ).toEqual([
+  expect(runRuleTests(r, HOME).map((t) => [t.input, t.expected, t.actual, t.pass])).toEqual([
     ["kubectl get pods", "deny", "deny", true],
     ["kubectl --context p get pods", "deny", "allow", false],
     ["kubectl --context p get pods", "allow", "allow", true],
@@ -1486,12 +1372,7 @@ test("runRuleTests uses Edit and expands ~ for path rules, ignoring tool", () =>
     'rules:\n  - id: t/p\n    tool: /^Write$/\n    match: { path: "~/.kube/config" }\n    tests:\n      deny: ["~/.kube/config"]\n      allow: ["~/other"]\n',
   );
   expect(runRuleTests(r, HOME).every((t) => t.pass)).toBe(true);
-  expect(
-    runRuleTests(
-      rules("rules:\n  - id: t/n\n    match: { cmd: x }\n")[0],
-      HOME,
-    ),
-  ).toEqual([]);
+  expect(runRuleTests(rules("rules:\n  - id: t/n\n    match: { cmd: x }\n")[0], HOME)).toEqual([]);
 });
 ```
 
@@ -1541,13 +1422,11 @@ function pattern(p: string): RegExp {
 }
 
 const list = <T>(v: T | T[]): T[] => (Array.isArray(v) ? v : [v]);
-const like = (p: string | string[], v: string) =>
-  list(p).some((x) => pattern(x).test(v));
+const like = (p: string | string[], v: string) => list(p).some((x) => pattern(x).test(v));
 const toolIs = (t: string | string[], tool: string) =>
   list(t).some((p) => (REGEX.test(p) ? pattern(p).test(tool) : p === tool));
 
-export const expandHome = (p: string, home: string) =>
-  p.replace(/^~(?=\/|$)/, home);
+export const expandHome = (p: string, home: string) => p.replace(/^~(?=\/|$)/, home);
 
 // Each wanted element matches a later positional than the previous one.
 function inOrder(want: (string | string[])[], have: string[]): boolean {
@@ -1562,12 +1441,8 @@ function inOrder(want: (string | string[])[], have: string[]): boolean {
 function matchSub(m: Matcher, s: SubCommand): boolean {
   if (m.cmd !== undefined && !like(m.cmd, s.cmd)) return false;
   if (m.args !== undefined && !inOrder(m.args, s.args)) return false;
-  if (m.flags !== undefined && !m.flags.every((f) => s.flags.includes(f)))
-    return false;
-  if (
-    m.wrapped_by !== undefined &&
-    !list(m.wrapped_by).some((w) => s.wrappers.includes(w))
-  )
+  if (m.flags !== undefined && !m.flags.every((f) => s.flags.includes(f))) return false;
+  if (m.wrapped_by !== undefined && !list(m.wrapped_by).some((w) => s.wrappers.includes(w)))
     return false;
   if (
     m.env !== undefined &&
@@ -1578,19 +1453,12 @@ function matchSub(m: Matcher, s: SubCommand): boolean {
   return true;
 }
 
-function fires(
-  r: Rule,
-  subs: SubCommand[],
-  file: string | undefined,
-  home: string,
-): boolean {
+function fires(r: Rule, subs: SubCommand[], file: string | undefined, home: string): boolean {
   const onSub = (ms: Matcher[], s: SubCommand) =>
     ms.some((m) => m.path === undefined && matchSub(m, s));
   const onFile = (ms: Matcher[], f: string) =>
     ms.some(
-      (m) =>
-        m.path !== undefined &&
-        list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
+      (m) => m.path !== undefined && list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
     );
   if (subs.some((s) => onSub(r.match, s) && !onSub(r.unless, s))) return true;
   return file !== undefined && onFile(r.match, file) && !onFile(r.unless, file);
@@ -1607,40 +1475,24 @@ export function evaluate(
   rules: Rule[],
   home: string,
 ): Verdict {
-  const subs =
-    tool === "Bash" && typeof input.command === "string"
-      ? parse(input.command)
-      : [];
-  const file =
-    typeof input.file_path === "string" ? input.file_path : undefined;
-  const fired = rules.filter(
-    (r) => toolIs(r.tool, tool) && fires(r, subs, file, home),
-  );
+  const subs = tool === "Bash" && typeof input.command === "string" ? parse(input.command) : [];
+  const file = typeof input.file_path === "string" ? input.file_path : undefined;
+  const fired = rules.filter((r) => toolIs(r.tool, tool) && fires(r, subs, file, home));
   for (const action of ["deny", "ask", "warn"] as const) {
-    const hits = fired.filter(
-      (r) => (r.action === "rewrite" ? "deny" : r.action) === action,
-    );
-    if (hits.length)
-      return { action, fired, message: hits.map(line).join("\n") };
+    const hits = fired.filter((r) => (r.action === "rewrite" ? "deny" : r.action) === action);
+    if (hits.length) return { action, fired, message: hits.map(line).join("\n") };
   }
   return { action: "allow", fired: [], message: "" };
 }
 
 export function runRuleTests(rule: Rule, home: string): TestResult[] {
-  const usesPath = [...rule.match, ...rule.unless].some(
-    (m) => m.path !== undefined,
-  );
+  const usesPath = [...rule.match, ...rule.unless].some((m) => m.path !== undefined);
   const tool = usesPath ? "Edit" : "Bash";
   const solo = [{ ...rule, tool }];
   const out: TestResult[] = [];
-  for (const [expected, inputs] of Object.entries(rule.tests) as [
-    Outcome,
-    string[],
-  ][]) {
+  for (const [expected, inputs] of Object.entries(rule.tests) as [Outcome, string[]][]) {
     for (const input of inputs) {
-      const arg = usesPath
-        ? { file_path: expandHome(input, home) }
-        : { command: input };
+      const arg = usesPath ? { file_path: expandHome(input, home) } : { command: input };
       const actual = evaluate(tool, arg, solo, home).action;
       out.push({
         id: rule.id,
@@ -1681,9 +1533,8 @@ Implements `index@load`, `index@guard`, `index@command`, `index@pane`.
 
 **Interfaces:**
 
-- Consumes: `parseRuleFile`, `loadLayers`, `ParsedFile`, `RuleSet`, `Layer`, `Problem` (Tasks 3–4); `evaluate`, `runRuleTests`, `Verdict` (Task 5); `dump` from the vendored js-yaml.
-- Produces: the mod's behavior; no exports besides `register`.
-
+- Consumes: `parseRuleFile`, `loadLayers`, `ParsedFile`, `RuleSet`, `Layer`, `Problem` (Tasks 3-4). `evaluate`, `runRuleTests`, `Verdict` (Task 5). `dump` from the vendored js-yaml.
+- Produces: the mod's behavior. No exports besides `register`.
 - [ ] **Step 1: Write the failing tests `hooks/arbiter/index.test.ts`**
 
 ```ts
@@ -1776,31 +1627,31 @@ test("deny answers without running the tool", async ($, on) => {
 
 test("ask runs the tool only on Allow", async ($, on) => {
   await boot($, on, { files: RULES, answer: "Allow" });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ result: "ran" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    result: "ran",
+  });
 });
 
 test("ask refused denies", async ($, on) => {
   await boot($, on, { files: RULES, answer: "Refuse" });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ deny: "arbiter k8s/ask-delete" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    deny: "arbiter k8s/ask-delete",
+  });
 });
 
 test("ask with nobody to answer denies", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" }),
-  ).toEqual({ deny: "arbiter k8s/ask-delete" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl delete pod x" })).toEqual({
+    deny: "arbiter k8s/ask-delete",
+  });
 });
 
 test("warn logs and runs", async ($, on) => {
   const logs: string[] = [];
   await boot($, on, { files: RULES, logs });
-  expect(
-    await $.tool.call({ tool: "Bash", command: "kubectl get pods" }),
-  ).toEqual({ result: "ran" });
+  expect(await $.tool.call({ tool: "Bash", command: "kubectl get pods" })).toEqual({
+    result: "ran",
+  });
   expect(logs).toEqual(["arbiter k8s/warn-get"]);
 });
 
@@ -1810,12 +1661,8 @@ test("broken file is skipped and reported", async ($, on) => {
     toasts,
     files: { ...RULES, [`${USER}/broken.yaml`]: "rules:\n  - id: x/y\n" },
   });
-  expect(
-    (await $.tool.call({ tool: "Bash", command: "aws sso login" })).deny,
-  ).toBeDefined();
-  expect(toasts).toEqual([
-    "arbiter: 1 rule file skipped. Run /arbiter for details.",
-  ]);
+  expect((await $.tool.call({ tool: "Bash", command: "aws sso login" })).deny).toBeDefined();
+  expect(toasts).toEqual(["arbiter: 1 rule file skipped. Run /arbiter for details."]);
 });
 
 test("project layer skipped when it is the user layer", async ($, on) => {
@@ -1823,9 +1670,7 @@ test("project layer skipped when it is the user layer", async ($, on) => {
   await boot($, on, { files: RULES, root: HOME, toasts });
   expect(toasts).toEqual([]);
   const answer = await $.command.run({ command: "arbiter", args: "reload" });
-  expect(answer.text).toBe(
-    "rules: plugin 0, user 3, project 0; disabled 0; errors 0",
-  );
+  expect(answer.text).toBe("rules: plugin 0, user 3, project 0; disabled 0; errors 0");
 });
 
 test("/arbiter check", async ($, on) => {
@@ -1837,19 +1682,18 @@ test("/arbiter check", async ($, on) => {
   expect(answer.text).toBe(
     `DENY\n  aws/no-sso-login  (user: ${USER}/cloud.yaml)\n    reason: Plaintext creds.\n    hint: Use aws-vault.`,
   );
-  expect(
-    (await $.command.run({ command: "arbiter", args: "check ls" })).text,
-  ).toBe("ALLOW  no rule fired");
+  expect((await $.command.run({ command: "arbiter", args: "check ls" })).text).toBe(
+    "ALLOW  no rule fired",
+  );
 });
 
 test("/arbiter list and list <id>", async ($, on) => {
   await boot($, on, { files: RULES });
+  expect((await $.command.run({ command: "arbiter", args: "list k8s" })).text).toBe(
+    "k8s/ask-delete  ask  user\nk8s/warn-get  warn  user",
+  );
   expect(
-    (await $.command.run({ command: "arbiter", args: "list k8s" })).text,
-  ).toBe("k8s/ask-delete  ask  user\nk8s/warn-get  warn  user");
-  expect(
-    (await $.command.run({ command: "arbiter", args: "list aws/no-sso-login" }))
-      .text,
+    (await $.command.run({ command: "arbiter", args: "list aws/no-sso-login" })).text,
   ).toContain("id: aws/no-sso-login");
 });
 
@@ -1862,9 +1706,9 @@ test("/arbiter test", async ($, on) => {
 
 test("/arbiter with unknown subcommand prints usage", async ($, on) => {
   await boot($, on, { files: RULES });
-  expect(
-    (await $.command.run({ command: "arbiter", args: "bogus" })).text,
-  ).toContain("/arbiter check <command>");
+  expect((await $.command.run({ command: "arbiter", args: "bogus" })).text).toContain(
+    "/arbiter check <command>",
+  );
 });
 
 test("pane shows counts, errors, and verdicts", async ($, on) => {
@@ -2021,8 +1865,7 @@ function list(filter: string): string {
   const rows = [
     ...rules.rules.map((r) => `${r.id}  ${r.action}  ${r.layer}`),
     ...rules.disabled.map(
-      (d) =>
-        `${d.rule.id}  ${d.rule.action}  ${d.rule.layer}  (disabled by ${d.by})`,
+      (d) => `${d.rule.id}  ${d.rule.action}  ${d.rule.layer}  (disabled by ${d.by})`,
     ),
   ].filter((row) => row.split("  ")[0].includes(filter));
   return rows.length ? rows.join("\n") : "no rules match";
@@ -2035,8 +1878,7 @@ function testAll(): string {
   return [
     head,
     ...failed.map(
-      (t) =>
-        `FAIL ${t.id}: ${JSON.stringify(t.input)} expected ${t.expected}, got ${t.actual}`,
+      (t) => `FAIL ${t.id}: ${JSON.stringify(t.input)} expected ${t.expected}, got ${t.actual}`,
     ),
   ].join("\n");
 }
@@ -2082,12 +1924,8 @@ async function pane($: EngineInterface, e: any) {
   const { Box, Text } = $.ui.resolve(e);
   const n = (l: Layer) => rules.rules.filter((r) => r.layer === l).length;
   const problems = [
-    ...rules.errors.map((p) =>
-      Text({ color: "red", wrap: "wrap", children: [describe(p)] }),
-    ),
-    ...rules.warnings.map((p) =>
-      Text({ color: "yellow", wrap: "wrap", children: [describe(p)] }),
-    ),
+    ...rules.errors.map((p) => Text({ color: "red", wrap: "wrap", children: [describe(p)] })),
+    ...rules.warnings.map((p) => Text({ color: "yellow", wrap: "wrap", children: [describe(p)] })),
   ];
   const hits = recent.length
     ? recent.map((h) =>
@@ -2127,17 +1965,13 @@ export function register(on) {
     return next(e);
   });
 
-  on("tool.call", async ($, e, next) => guard($, e, next)).catch(
-    async ($, e, next) => ({
-      deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
-    }),
-  );
+  on("tool.call", async ($, e, next) => guard($, e, next)).catch(async ($, e, next) => ({
+    deny: `arbiter failed (${next.error.kind}): ${next.error.message}`,
+  }));
 
   on("command.run", { command: "arbiter" }, async ($, e) => command($, e));
 
-  on("ui.render", { component: "Pane", requestId: "arbiter" }, async ($, e) =>
-    pane($, e),
-  );
+  on("ui.render", { component: "Pane", requestId: "arbiter" }, async ($, e) => pane($, e));
 }
 ```
 
@@ -2149,7 +1983,7 @@ claude plugin validate .
 claude plugin test
 ```
 
-Expected: validate lists `hooks: session.start, tool.call, command.run{command=arbiter}, ui.render{component=Pane,requestId=arbiter}` and passes; all tests pass. If the AskUserQuestion stub shape is wrong (`ask runs the tool only on Allow` fails), read the `the engine reported:` block and adjust the stub to what `$.ui.ask` sends, per `.claude-plugin/types/claude-code/index.d.ts`.
+Expected: validate lists `hooks: session.start, tool.call, command.run{command=arbiter}, ui.render{component=Pane,requestId=arbiter}` and passes. All tests pass. If the AskUserQuestion stub shape is wrong (`ask runs the tool only on Allow` fails), read the `the engine reported:` block and adjust the stub to what `$.ui.ask` sends, per `.claude-plugin/types/claude-code/index.d.ts`.
 
 - [ ] **Step 5: Manual fail-closed check**
 
@@ -2183,7 +2017,6 @@ Implements the shipped layer and the "every rule's inline tests run in CI" requi
 
 - Consumes: `parseRuleFile` (Task 3), `runRuleTests` (Task 5).
 - Produces: plugin-layer rules `general/no-force-push`, `general/no-rm-rf-root`, `general/ask-reset-hard`.
-
 - [ ] **Step 1: Write `rules/general.yaml`**
 
 ```yaml
@@ -2197,32 +2030,15 @@ rules:
     reason: Force-pushing rewrites shared history.
     hint: Use `git push --force-with-lease` instead.
     tests:
-      deny:
-        [
-          "git push --force",
-          "git push -f origin main",
-          "git push origin main --force",
-        ]
-      allow:
-        [
-          "git push",
-          "git push --force-with-lease",
-          'git commit -m "no --force here"',
-        ]
+      deny: ["git push --force", "git push -f origin main", "git push origin main --force"]
+      allow: ["git push", "git push --force-with-lease", 'git commit -m "no --force here"']
 
   - id: general/no-rm-rf-root
     match: { cmd: rm, args: ['/^(\/|~|\$HOME|\$\{HOME\})\/?\*?$/'] }
     reason: This deletes the root or home directory.
     hint: Name the specific path to delete.
     tests:
-      deny:
-        [
-          "rm -rf /",
-          "sudo rm -rf ~",
-          "rm -rf $HOME/",
-          "rm -rf /*",
-          "rm -rf ${HOME}",
-        ]
+      deny: ["rm -rf /", "sudo rm -rf ~", "rm -rf $HOME/", "rm -rf /*", "rm -rf ${HOME}"]
       allow: ["rm -rf ./build", "rm -rf /tmp/x", "rm -rf ~/scratch"]
 
   - id: general/ask-reset-hard
@@ -2256,9 +2072,7 @@ for (const path of FILES) {
   test(`rule file ${path} is valid and its inline tests pass`, () => {
     const parsed = parseRuleFile(readFileSync(path, "utf8"), path, "plugin");
     expect(parsed.errors).toEqual([]);
-    const failed = parsed.rules
-      .flatMap((r) => runRuleTests(r, "/home/u"))
-      .filter((t) => !t.pass);
+    const failed = parsed.rules.flatMap((r) => runRuleTests(r, "/home/u")).filter((t) => !t.pass);
     expect(failed).toEqual([]);
   });
 }
@@ -2280,7 +2094,7 @@ grep -q "^agent-tools: \([0-9]*\)/\1 rule tests passed$" <<<"$out"
 - [ ] **Step 3: Run**
 
 Run: `claude plugin test` (or `script/arbiter-test`)
-Expected: PASS for `rules/general.yaml` and `docs/arbiter/examples/claude-md.yaml`. If an example-file test fails, decide from `shell.yass.yaml`/`engine.yass.yaml` whether the rule or the code is wrong; fix the rule YAML if the spec agrees with the code.
+Expected: PASS for `rules/general.yaml` and `docs/arbiter/examples/claude-md.yaml`. If an example-file test fails, decide from `shell.yass.yaml`/`engine.yass.yaml` whether the rule or the code is wrong. Fix the rule YAML if the spec agrees with the code.
 
 - [ ] **Step 4: Commit**
 
@@ -2291,20 +2105,19 @@ git commit -m "feat(arbiter): ship general rule pack and test all packs"
 
 ---
 
-### Task 8: Docs and end-to-end check
+### Task 8: Docs and e2e check
 
 **Files:**
 
 - Modify: `README.md` (add an arbiter section after the skills section, outside the generated markers)
 - Modify: `docs/arbiter/design.md` (shipped pack, pipeline limitation)
 - Modify: `docs/arbiter/decisions.md` (append one decision)
-- Modify: `.github/workflows/*` only if a CI workflow runs tests; otherwise skip.
+- Modify: `.github/workflows/*` only if a CI workflow runs tests. Otherwise skip.
 
 **Interfaces:**
 
 - Consumes: everything above.
-- Produces: user-facing docs.
-
+- Produces: user facing docs.
 - [ ] **Step 1: Add to `README.md`**
 
 ````markdown
@@ -2350,7 +2163,7 @@ In the rule-schema example, change `disable: [general/no-curl-pipe-sh]` to `disa
 - [ ] **Step 3: Append to `docs/arbiter/decisions.md`**
 
 ```markdown
----
+***
 
 ## Rules see one simple command at a time
 
@@ -2365,7 +2178,7 @@ field) waits for a real rule that needs it. `general/no-curl-pipe-sh` was droppe
 **Consequences.** Rules about what a command's output is fed into can't be written yet.
 ```
 
-- [ ] **Step 4: End-to-end check in a real session**
+- [ ] **Step 4: e2e check in a real session**
 
 ```bash
 mkdir -p ~/.claude/rules/arbiter
@@ -2381,7 +2194,7 @@ In the session, run and confirm:
 - Ask Claude: "run `aws sso login`". Claude gets the deny text and does not run it.
 - `/arbiter` opens the pane showing that verdict.
 
-Only copy the example file if the user wants those rules active now; otherwise remove it afterwards.
+Only copy the example file if the user wants those rules active now. Otherwise remove it afterwards.
 
 - [ ] **Step 5: Run all checks and commit**
 

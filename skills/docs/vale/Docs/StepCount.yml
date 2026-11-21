@@ -1,0 +1,28 @@
+extends: script
+message: "Keep a numbered list to 10 steps. Split it into phases with ### headings."
+level: warning
+scope: raw
+script: |
+  text := import("text")
+  matches := []
+  off := 0
+  fence := ""
+  n := 0
+  for line in text.split(scope, "\n") {
+    t := text.trim_space(line)
+    if fence == "" {
+      if text.re_match("^ {0,3}(`{3,}|~{3,})", line) {
+        fence = t[0:3]
+      } else if text.re_match("^\\d+[.)] ", line) {
+        n += 1
+        if n == 11 {
+          matches = append(matches, {begin: off, end: off + len(line)})
+        }
+      } else if text.re_match("^(#|[^\\s])", line) {
+        n = 0
+      }
+    } else if text.has_prefix(t, fence) && text.trim_space(text.trim_left(t, fence[0:1])) == "" {
+      fence = ""
+    }
+    off += len(line) + 1
+  }

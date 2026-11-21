@@ -1,6 +1,6 @@
 ---
 name: goal
-description: Use at the start of a task to set a measurable goal and done-criteria, then keep the work aimed at it. Triggers on "/goal", "set a goal", or "what does done look like".
+description: Use when starting a task, to set a measurable goal and done-criteria, then keep the work aimed at it. Triggers on "/goal", "set a goal", or "what does done look like".
 ---
 
 # Goal

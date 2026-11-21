@@ -1,34 +1,32 @@
 ---
 name: terraform-skill
 description: Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework), reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
-version: 1.0.0
+version: 1.1.0
 tags: [infrastructure, terraform, iac, testing]
 ---
 
-# Terraform Skill for Claude
+# Terraform
 
-Comprehensive Terraform and OpenTofu guidance covering testing, modules, and production patterns. Based on terraform-best-practices.com and enterprise experience.
+Write, test, and review Terraform and OpenTofu code that holds up in production. The rules come from [terraform-best-practices.com](https://www.terraform-best-practices.com/) and from running Terraform at work, so each one has a reason behind it.
 
-## When to Use This Skill
-
-**Activate this skill when:**
+## When to use this skill
 
 - Creating new Terraform or OpenTofu configurations or modules
 - Setting up testing infrastructure for IaC code
 - Deciding between testing approaches (validate, plan, frameworks)
-- Structuring multi-environment deployments
+- Structuring multi environment deployments
 - Reviewing or refactoring existing Terraform/OpenTofu projects
 - Choosing between module patterns or state management approaches
 
-**Don't use this skill for:**
+Don't use this skill for:
 
-- Basic Terraform/OpenTofu syntax questions (Claude knows this)
-- Provider-specific API reference (link to docs instead)
+- Basic Terraform or OpenTofu syntax. You already know it.
+- Provider API reference. Link the provider docs instead.
 - Cloud platform questions unrelated to Terraform/OpenTofu
 
-## Core Principles
+## Core principles
 
-### 1. Code Structure Philosophy
+### 1. Code structure
 
 **Module Hierarchy:**
 
@@ -42,7 +40,7 @@ Comprehensive Terraform and OpenTofu guidance covering testing, modules, and pro
 
 **Directory Structure:**
 
-```
+```text
 modules/            # Reusable modules
 ├── networking/
 ├── compute/
@@ -57,7 +55,7 @@ modules/            # Reusable modules
 
 **For detailed module architecture, see:** [Code Patterns: Module Types & Hierarchy](./code-patterns.md)
 
-### 2. Naming Conventions
+### 2. Naming conventions
 
 **Resources:**
 
@@ -79,14 +77,14 @@ resource "aws_s3_bucket" "bucket" { }
 
 Use `"this"` when your module creates only one resource of that type:
 
-DO:
+Do:
 
 ```hcl
 resource "aws_vpc" "this" {}           # Module creates one VPC
 resource "aws_security_group" "this" {}  # Module creates one SG
 ```
 
-DON'T use "this" for multiple resources:
+Don't use "this" for multiple resources:
 
 ```hcl
 resource "aws_subnet" "this" {}  # If creating multiple subnets
@@ -110,21 +108,21 @@ var.database_instance_class # Not just "instance_class"
 - `versions.tf` - Provider versions
 - `data.tf` - Data sources (optional)
 
-## Testing Strategy Framework
+## Testing strategy framework
 
-### Decision Matrix: Which Testing Approach?
+### Decision matrix: which testing approach?
 
 | Your Situation                   | Recommended Approach  | Tools                                    | Cost     |
 | -------------------------------- | --------------------- | ---------------------------------------- | -------- |
 | **Quick syntax check**           | Static analysis       | `terraform validate`, `fmt`              | Free     |
 | **Pre-commit validation**        | Static + lint         | `validate`, `tflint`, `trivy`, `checkov` | Free     |
-| **Terraform 1.6+, simple logic** | Native test framework | Built-in `terraform test`                | Free-Low |
+| **Terraform 1.6+, simple logic** | Native test framework | Built in `terraform test`                | Free-Low |
 | **Security/compliance focus**    | Policy as code        | OPA, Sentinel                            | Free     |
 | **Cost-sensitive workflow**      | Mock providers (1.7+) | Native tests + mocking                   | Free     |
 
-### Testing Pyramid for Infrastructure
+### Testing pyramid for infrastructure
 
-```
+```text
         /\
        /  \          End-to-End Tests (Expensive)
       /____\         - Full environment deployment
@@ -138,13 +136,13 @@ var.database_instance_class # Not just "instance_class"
                      - Security scanning
 ```
 
-### Native Test Best Practices (1.6+)
+### Native test rules (1.6+)
 
 **Before generating test code:**
 
 1. **Validate schemas with Terraform MCP:**
 
-   ```
+   ```text
    Search provider docs → Get resource schema → Identify block types
    ```
 
@@ -152,7 +150,7 @@ var.database_instance_class # Not just "instance_class"
    - `command = plan` - Fast, for input validation
    - `command = apply` - Required for computed values and set-type blocks
 
-3. **Handle set-type blocks correctly:**
+3. **Test set-type blocks without indexing:**
    - Cannot index with `[0]`
    - Use `for` expressions to iterate
    - Or use `command = apply` to materialize
@@ -165,12 +163,12 @@ var.database_instance_class # Not just "instance_class"
 
 **For detailed testing guides, see:**
 
-- **[Testing Frameworks Guide](references/testing-frameworks.md)** - Deep dive into static analysis, native tests
-- **[Quick Reference](references/quick-reference.md#testing-approach-selection)** - Decision flowchart and command cheat sheet
+- **[Testing Frameworks Guide](testing-frameworks.md)** - Deep dive into static analysis, native tests
+- **[Quick Reference](quick-reference.md#testing-approach-selection)** - Decision flowchart and command cheat sheet
 
-## Code Structure Standards
+## Code structure standards
 
-### Resource Block Ordering
+### Resource block ordering
 
 **Strict ordering for consistency:**
 
@@ -178,8 +176,8 @@ var.database_instance_class # Not just "instance_class"
 2. Required attributes
 3. Optional attributes
 4. `tags` as last real argument
-5. `depends_on` after tags (if needed)
-6. `lifecycle` at the very end (if needed)
+5. `depends_on` after tags, when there's a hidden dependency
+6. `lifecycle` last, when you override create or destroy behavior
 
 ```hcl
 # GOOD - Correct ordering
@@ -201,9 +199,9 @@ resource "aws_nat_gateway" "this" {
 }
 ```
 
-### Variable Block Ordering
+### Variable block ordering
 
-1. `description` (ALWAYS required)
+1. `description` (required)
 2. `type`
 3. `default`
 4. `validation`
@@ -224,11 +222,11 @@ variable "environment" {
 }
 ```
 
-**For complete structure guidelines, see:** [Code Patterns: Block Ordering & Structure](references/code-patterns.md#block-ordering--structure)
+**For complete structure guidelines, see:** [Code Patterns: Block Ordering & Structure](code-patterns.md#block-ordering--structure)
 
-## Count vs For_Each: When to Use Each
+## `count` or `for_each`
 
-### Quick Decision Guide
+### Quick decision guide
 
 | Scenario                            | Use                         | Why                                 |
 | ----------------------------------- | --------------------------- | ----------------------------------- |
@@ -238,7 +236,7 @@ variable "environment" {
 | Reference by key                    | `for_each = map`            | Named access to resources           |
 | Multiple named resources            | `for_each`                  | Better maintainability              |
 
-### Common Patterns
+### Common patterns
 
 **Boolean conditions:**
 
@@ -270,11 +268,11 @@ resource "aws_subnet" "private" {
 }
 ```
 
-**For migration guides and detailed examples, see:** [Code Patterns: Count vs For_Each](references/code-patterns.md#count-vs-for_each-deep-dive)
+**For migration guides and detailed examples, see:** [Code Patterns: Count vs For_Each](code-patterns.md#count-vs-for_each-deep-dive)
 
-## Locals for Dependency Management
+## Locals for dependency management
 
-**Use locals to ensure correct resource deletion order:**
+**Use locals to force the correct resource deletion order:**
 
 ```hcl
 # Problem: Subnets might be deleted after CIDR blocks, causing errors
@@ -310,16 +308,16 @@ resource "aws_subnet" "public" {
 **Why this matters:**
 
 - Prevents deletion errors when destroying infrastructure
-- Ensures correct dependency order without explicit `depends_on`
+- Sets the dependency order without an explicit `depends_on`
 - Particularly useful for VPC configurations with secondary CIDR blocks
 
-**For detailed examples, see:** [Code Patterns: Locals for Dependency Management](references/code-patterns.md#locals-for-dependency-management)
+**For detailed examples, see:** [Code Patterns: Locals for Dependency Management](code-patterns.md#locals-for-dependency-management)
 
-## Module Development
+## Module development
 
-### Standard Module Structure
+### Standard module structure
 
-```
+```text
 my-module/
 ├── README.md           # Usage documentation (with example usage included)
 ├── main.tf             # Primary resources
@@ -330,13 +328,13 @@ my-module/
     └── unit.tftest.hcl
 ```
 
-### Best Practices Summary
+### Variable and output rules
 
 **Variables:**
 
 - Always include `description`
 - Use explicit `type` constraints
-- Provide sensible `default` values where appropriate
+- Give optional variables a `default`, and leave required inputs without one
 - Add `validation` blocks for complex constraints
 - Use `sensitive = true` for secrets
 
@@ -349,26 +347,26 @@ my-module/
 
 **For detailed module patterns, see:**
 
-- **[Module Patterns Guide](references/module-patterns.md)** - Variable best practices, output design, DO vs DON'T patterns
-- **[Quick Reference](references/quick-reference.md#common-patterns)** - Resource naming, variable naming, file organization
+- **[Module Patterns Guide](module-patterns.md)** - Variable conventions, output design, do and don't patterns
+- **[Quick Reference](quick-reference.md#common-patterns)** - Resource naming, variable naming, file organization
 
-## Security & Compliance
+## Security & compliance
 
-### Essential Security Checks
+### Essential security checks
 
 ```bash
 # Static security scanning
 trivy config .
 ```
 
-### Common Issues to Avoid
+### Common issues to avoid
 
 **Do:**
 
 - Use AWS Secrets Manager / Parameter Store
 - Create dedicated VPCs
 - Enable encryption at rest
-- Use least-privilege security groups
+- Use least privilege security groups
 
 **Don't:**
 
@@ -379,11 +377,11 @@ trivy config .
 
 **For detailed security guidance, see:**
 
-- **[Security & Compliance Guide](references/security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
+- **[Security & Compliance Guide](security-compliance.md)** - Trivy/Checkov integration, secrets management, state file security, compliance testing
 
-## Version Management
+## Version management
 
-### Version Constraint Syntax
+### Version constraint syntax
 
 ```hcl
 version = "5.0.0"      # Exact (avoid - inflexible)
@@ -391,7 +389,7 @@ version = "~> 5.0"     # Recommended: 5.0.x only
 version = ">= 5.0"     # Minimum (risky - breaking changes)
 ```
 
-### Strategy by Component
+### Strategy by component
 
 | Component          | Strategy            | Example                       |
 | ------------------ | ------------------- | ----------------------------- |
@@ -400,7 +398,7 @@ version = ">= 5.0"     # Minimum (risky - breaking changes)
 | **Modules (prod)** | Pin exact version   | `version = "5.1.2"`           |
 | **Modules (dev)**  | Allow patch updates | `version = "~> 5.1"`          |
 
-### Update Workflow
+### Update workflow
 
 ```bash
 # Lock versions initially
@@ -413,11 +411,11 @@ terraform init -upgrade     # Updates providers
 terraform plan
 ```
 
-**For detailed version management, see:** [Code Patterns: Version Management](references/code-patterns.md#version-management)
+**For detailed version management, see:** [Code Patterns: Version Management](code-patterns.md#version-management)
 
-## Modern Terraform Features (1.0+)
+## Modern Terraform features (1.0+)
 
-### Feature Availability by Version
+### Feature availability by version
 
 | Feature                    | Version | Use Case                                     |
 | -------------------------- | ------- | -------------------------------------------- |
@@ -425,13 +423,13 @@ terraform plan
 | `nullable = false`         | 1.1+    | Prevent null values in variables             |
 | `moved` blocks             | 1.1+    | Refactor without destroy/recreate            |
 | `optional()` with defaults | 1.3+    | Optional object attributes                   |
-| Native testing             | 1.6+    | Built-in test framework                      |
-| Mock providers             | 1.7+    | Cost-free unit testing                       |
-| Provider functions         | 1.8+    | Provider-specific data transformation        |
+| Native testing             | 1.6+    | Built in test framework                      |
+| Mock providers             | 1.7+    | Cost free unit testing                       |
+| Provider functions         | 1.8+    | Provider specific data transformation        |
 | Cross-variable validation  | 1.9+    | Validate relationships between variables     |
 | Write-only arguments       | 1.11+   | Secrets never stored in state                |
 
-### Quick Examples
+### Quick examples
 
 ```hcl
 # try() - Safe fallbacks (0.13+)
@@ -458,9 +456,9 @@ variable "backup_days" {
 }
 ```
 
-**For complete patterns and examples, see:** [Code Patterns: Modern Terraform Features](references/code-patterns.md#modern-terraform-features-10)
+**For complete patterns and examples, see:** [Code Patterns: Modern Terraform Features](code-patterns.md#modern-terraform-features-10)
 
-## Version-Specific Guidance
+## Version specific guidance
 
 ### Terraform 1.0-1.5
 
@@ -478,19 +476,15 @@ variable "backup_days" {
 - Reduce cost by mocking external dependencies
 - Use real integration tests for final validation
 
-### Terraform vs OpenTofu
+### Terraform or OpenTofu
 
-Both are fully supported by this skill. For licensing, governance, and feature comparison, see [Quick Reference: Terraform vs OpenTofu](references/quick-reference.md#terraform-vs-opentofu-comparison).
+Both are fully supported by this skill. For licensing, governance, and feature comparison, see [Quick Reference: Terraform vs OpenTofu](quick-reference.md#terraform-or-opentofu-comparison).
 
-## Detailed Guides
+## Detailed guides
 
-This skill uses **progressive disclosure** - essential information is in this main file, detailed guides are available when needed:
+This file covers what you need most of the time. Open a guide when the task goes deeper:
 
-📚 **Reference Files:**
-
-- **[Testing Frameworks](./testing-frameworks.md)** - In-depth guide to static analysis, native tests
-- **[Module Patterns](./module-patterns.md)** - Module structure, variable/output best practices, DO vs DON'T patterns
+- **[Testing Frameworks](./testing-frameworks.md)** - In depth guide to static analysis, native tests
+- **[Module Patterns](./module-patterns.md)** - Module structure, variable and output conventions, do and don't patterns
 - **[Security & Compliance](./security-compliance.md)** - Trivy/Checkov integration, secrets management, compliance testing
 - **[Quick Reference](./quick-reference.md)** - Command cheat sheets, decision flowcharts, troubleshooting guide
-
-**How to use:** When you need detailed information on a topic, reference the appropriate guide. Claude will load it on demand to provide comprehensive guidance.

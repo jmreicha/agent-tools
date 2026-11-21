@@ -1,0 +1,11 @@
+# The author's own short forms, from blog word counts. Only e2e in a testing context.
+extends: substitution
+message: "Use '%s' instead of '%s'."
+level: warning
+ignorecase: true
+swap:
+  repository: repo
+  repositories: repos
+  applications?(?! load balancer| gateway)(?=s?\b): app
+  virtual machines?: VM
+  end[- ]to[- ]end (test|tests|testing|check|checks): e2e $1

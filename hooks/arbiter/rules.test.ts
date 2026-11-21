@@ -78,13 +78,11 @@ test("more schema checks", () => {
   expect(messages("rules:\n  - id: a/b\n    match: {}\n")).toContain(
     "match must be a non-empty mapping",
   );
+  expect(messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    to: y\n")).toContain(
+    "to needs action: rewrite",
+  );
   expect(
-    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    to: y\n"),
-  ).toContain("to needs action: rewrite");
-  expect(
-    messages(
-      "rules:\n  - id: a/b\n    match: { cmd: x }\n    tests: { block: [x] }\n",
-    ),
+    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    tests: { block: [x] }\n"),
   ).toContain("tests: unknown outcome block");
   expect(messages("other: 1\n")).toContain("unknown top-level key other");
   expect(messages("- just a list\n")).toContain(
@@ -126,23 +124,15 @@ rules:
 
 import { loadLayers } from "./rules.ts";
 
-const file = (
-  path: string,
-  layer: "plugin" | "user" | "project",
-  body: string,
-) => parseRuleFile(body, path, layer);
-const rule = (id: string, cmd = "x") =>
-  `  - id: ${id}\n    match: { cmd: ${cmd} }\n`;
+const file = (path: string, layer: "plugin" | "user" | "project", body: string) =>
+  parseRuleFile(body, path, layer);
+const rule = (id: string, cmd = "x") => `  - id: ${id}\n    match: { cmd: ${cmd} }\n`;
 
 test("higher layer replaces same id; order is plugin, user, project", () => {
   const set = loadLayers([
     file("/p/b.yaml", "project", `rules:\n${rule("a/one", "proj")}`),
     file("/u/a.yaml", "user", `rules:\n${rule("a/two")}`),
-    file(
-      "/g/a.yaml",
-      "plugin",
-      `rules:\n${rule("a/one", "plug")}${rule("a/three")}`,
-    ),
+    file("/g/a.yaml", "plugin", `rules:\n${rule("a/one", "plug")}${rule("a/three")}`),
   ]);
   expect(set.rules.map((r) => [r.id, r.layer])).toEqual([
     ["a/one", "project"],
@@ -155,11 +145,7 @@ test("higher layer replaces same id; order is plugin, user, project", () => {
 test("disable removes lower-layer rules only", () => {
   const set = loadLayers([
     file("/g/a.yaml", "plugin", `rules:\n${rule("g/x")}`),
-    file(
-      "/u/a.yaml",
-      "user",
-      `disable: [g/x, u/own, nope/missing]\nrules:\n${rule("u/own")}`,
-    ),
+    file("/u/a.yaml", "user", `disable: [g/x, u/own, nope/missing]\nrules:\n${rule("u/own")}`),
   ]);
   expect(set.rules.map((r) => r.id)).toEqual(["u/own"]);
   expect(set.disabled.map((d) => [d.rule.id, d.by])).toEqual([["g/x", "user"]]);
@@ -180,17 +166,15 @@ test("same id in two files of one layer keeps the first file", () => {
     file("/u/b.yaml", "user", `rules:\n${rule("u/dup")}${rule("u/other")}`),
     file("/u/a.yaml", "user", `rules:\n${rule("u/dup")}`),
   ]);
-  expect(set.rules.map((r) => [r.id, r.path])).toEqual([
-    ["u/dup", "/u/a.yaml"],
-  ]);
+  expect(set.rules.map((r) => [r.id, r.path])).toEqual([["u/dup", "/u/a.yaml"]]);
   expect(set.errors[0].message).toContain("/u/a.yaml");
   expect(set.errors[0].path).toBe("/u/b.yaml");
 });
 
 test("old reason key points to description", () => {
-  expect(
-    messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    reason: why\n"),
-  ).toContain("unknown key reason (renamed to description)");
+  expect(messages("rules:\n  - id: a/b\n    match: { cmd: x }\n    reason: why\n")).toContain(
+    "unknown key reason (renamed to description)",
+  );
 });
 
 test("enabled defaults to true and must be a boolean", () => {
@@ -221,9 +205,9 @@ test("piped_to takes a command matcher only", () => {
   expect(
     messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: { path: x } }\n`),
   ).toEqual(["match.piped_to: path is not allowed in piped_to"]);
-  expect(
-    messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: sh }\n`),
-  ).toEqual(["match.piped_to must be a non-empty mapping"]);
+  expect(messages(`rules:\n  - id: a/x\n    match: { cmd: curl, piped_to: sh }\n`)).toEqual([
+    "match.piped_to must be a non-empty mapping",
+  ]);
 });
 
 test("match may be left out only when tool cannot be Bash", () => {

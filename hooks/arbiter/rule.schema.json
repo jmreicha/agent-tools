@@ -49,10 +49,7 @@
         },
         "wrapped_by": {
           "description": "Runs inside any of these wrappers (sudo, env, aws-vault, op, ...).",
-          "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } }
-          ]
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
         },
         "env": {
           "description": "Inline NAME=value assignments; values are patterns.",

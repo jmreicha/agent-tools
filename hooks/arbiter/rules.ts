@@ -81,16 +81,7 @@ const RULE_KEYS = [
   "enabled",
   "tests",
 ];
-const MATCHER_KEYS = [
-  "cmd",
-  "args",
-  "flags",
-  "wrapped_by",
-  "env",
-  "regex",
-  "path",
-  "piped_to",
-];
+const MATCHER_KEYS = ["cmd", "args", "flags", "wrapped_by", "env", "regex", "path", "piped_to"];
 const ACTIONS = ["deny", "ask", "warn", "rewrite"];
 const OUTCOMES = ["deny", "ask", "rewrite", "warn", "allow"];
 const TO_KEYS = ["prefix", "cmd", "flags", "env"];
@@ -103,8 +94,7 @@ const REGEX = /^\/(.*)\/([imsu]*)$/s;
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === "string";
-const isStrs = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.every(isStr);
+const isStrs = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 const strOrStrs = (v: unknown): v is string | string[] => isStr(v) || isStrs(v);
 
 function badRegex(p: string): string | null {
@@ -145,11 +135,9 @@ function checkMatcher(m: unknown, where: string, out: string[]) {
   if ("args" in m) {
     if (Array.isArray(m.args) && m.args.every(strOrStrs))
       patterns.push(...(m.args.flat() as string[]));
-    else
-      out.push(`${where}.args must be a list of strings or lists of strings`);
+    else out.push(`${where}.args must be a list of strings or lists of strings`);
   }
-  if ("flags" in m && !isStrs(m.flags))
-    out.push(`${where}.flags must be a list of strings`);
+  if ("flags" in m && !isStrs(m.flags)) out.push(`${where}.flags must be a list of strings`);
   if ("wrapped_by" in m && !strOrStrs(m.wrapped_by))
     out.push(`${where}.wrapped_by must be a string or list of strings`);
   if ("env" in m) {
@@ -183,15 +171,10 @@ function checkRule(r: unknown, i: number, out: string[]) {
   }
   for (const k of Object.keys(r))
     if (!RULE_KEYS.includes(k))
-      out.push(
-        k === "reason"
-          ? "unknown key reason (renamed to description)"
-          : `unknown key ${k}`,
-      );
+      out.push(k === "reason" ? "unknown key reason (renamed to description)" : `unknown key ${k}`);
   if (!isStr(r.id) || !ID.test(r.id)) out.push(`id must match ${ID.source}`);
   if ("tool" in r) {
-    if (!strOrStrs(r.tool))
-      out.push("tool must be a string or list of strings");
+    if (!strOrStrs(r.tool)) out.push("tool must be a string or list of strings");
     else
       for (const t of [r.tool].flat()) {
         const bad = badRegex(t);
@@ -220,8 +203,7 @@ function checkRule(r: unknown, i: number, out: string[]) {
   if ("repeat" in r) checkRepeat(r.repeat, r.action, out);
   for (const k of ["description", "hint"] as const)
     if (k in r && !isStr(r[k])) out.push(`${k} must be a string`);
-  if ("enabled" in r && typeof r.enabled !== "boolean")
-    out.push("enabled must be true or false");
+  if ("enabled" in r && typeof r.enabled !== "boolean") out.push("enabled must be true or false");
   if ("tests" in r) {
     if (!isObj(r.tests)) out.push("tests must be a mapping");
     else
@@ -241,11 +223,9 @@ function checkRule(r: unknown, i: number, out: string[]) {
 }
 
 const isStep = (v: unknown): boolean =>
-  isStr(v) ||
-  (isObj(v) && Object.keys(v).length === 1 && isStr(v.tool));
+  isStr(v) || (isObj(v) && Object.keys(v).length === 1 && isStr(v.tool));
 const isSeqs = (v: unknown): boolean =>
-  Array.isArray(v) &&
-  v.every((q) => Array.isArray(q) && q.length > 0 && q.every(isStep));
+  Array.isArray(v) && v.every((q) => Array.isArray(q) && q.length > 0 && q.every(isStep));
 const isInt = (v: unknown): v is number => Number.isInteger(v);
 
 function checkRepeat(rep: unknown, action: unknown, out: string[]) {
@@ -254,27 +234,21 @@ function checkRepeat(rep: unknown, action: unknown, out: string[]) {
     out.push("repeat must be a mapping of count, within, reset_on, same");
     return;
   }
-  if (!isInt(rep.count) || rep.count < 2)
-    out.push("repeat.count must be an integer of 2 or more");
+  if (!isInt(rep.count) || rep.count < 2) out.push("repeat.count must be an integer of 2 or more");
   const count = isInt(rep.count) ? rep.count : 2;
-  if (
-    "within" in rep &&
-    (!isInt(rep.within) || rep.within < count || rep.within > MAX_WITHIN)
-  )
+  if ("within" in rep && (!isInt(rep.within) || rep.within < count || rep.within > MAX_WITHIN))
     out.push(`repeat.within must be an integer from count to ${MAX_WITHIN}`);
   else if (!("within" in rep) && count > DEFAULT_WITHIN)
     out.push(`repeat.within is required when count is over ${DEFAULT_WITHIN}`);
   if ("reset_on" in rep) {
-    if (!strOrStrs(rep.reset_on))
-      out.push("repeat.reset_on must be a string or list of strings");
+    if (!strOrStrs(rep.reset_on)) out.push("repeat.reset_on must be a string or list of strings");
     else
       for (const t of [rep.reset_on].flat()) {
         const bad = badRegex(t);
         if (bad) out.push(`repeat.reset_on: ${bad}`);
       }
   }
-  if ("same" in rep && typeof rep.same !== "boolean")
-    out.push("repeat.same must be true or false");
+  if ("same" in rep && typeof rep.same !== "boolean") out.push("repeat.same must be true or false");
 }
 
 function checkRewrite(to: unknown, action: unknown, out: string[]) {
@@ -285,7 +259,10 @@ function checkRewrite(to: unknown, action: unknown, out: string[]) {
   }
   for (const k of ["prefix", "cmd"] as const)
     if (k in to && !isStr(to[k])) out.push(`to.${k} must be a string`);
-  if ("flags" in to && (!isObj(to.flags) || !Object.values(to.flags).every((v) => v === null || isStr(v))))
+  if (
+    "flags" in to &&
+    (!isObj(to.flags) || !Object.values(to.flags).every((v) => v === null || isStr(v)))
+  )
     out.push("to.flags must map flags to a flag or null");
   if ("env" in to && (!isObj(to.env) || !Object.values(to.env).every((v) => v === null)))
     out.push("to.env must map names to null");
@@ -297,16 +274,11 @@ function lineOf(text: string, id: string, nth: number): number | undefined {
   const re = new RegExp(`\\bid:\\s*["']?${esc}["']?\\s*(#.*)?$`);
   let seen = 0;
   const lines = text.split("\n");
-  for (let i = 0; i < lines.length; i++)
-    if (re.test(lines[i]) && ++seen === nth) return i + 1;
+  for (let i = 0; i < lines.length; i++) if (re.test(lines[i]) && ++seen === nth) return i + 1;
   return undefined;
 }
 
-export function parseRuleFile(
-  text: string,
-  path: string,
-  layer: Layer,
-): ParsedFile {
+export function parseRuleFile(text: string, path: string, layer: Layer): ParsedFile {
   const fail = (errors: Problem[]): ParsedFile => ({
     path,
     layer,
@@ -328,8 +300,7 @@ export function parseRuleFile(
       ]);
     return fail([{ path, message: String(e) }]);
   }
-  if (doc === undefined || doc === null)
-    return { path, layer, rules: [], disable: [], errors: [] };
+  if (doc === undefined || doc === null) return { path, layer, rules: [], disable: [], errors: [] };
   if (!isObj(doc))
     return fail([
       {

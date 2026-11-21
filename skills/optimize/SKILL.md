@@ -14,4 +14,4 @@ Improve performance with evidence, not guesses.
 1. Measure a baseline with the command that reproduces it.
 2. Profile to find the bottleneck.
 3. Change one thing.
-4. Measure again and report the before-and-after number.
+4. Measure again and report the before and after number.

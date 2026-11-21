@@ -2,3 +2,8 @@
 .claude/
 tsconfig.json
 __pycache__/
+
+# Vale packages are synced, the Docs style links to the skill
+.vale/styles/*
+!.vale/styles/Docs
+!.vale/styles/config

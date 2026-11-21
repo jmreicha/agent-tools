@@ -1,0 +1,34 @@
+extends: script
+message: "Fix the how-to shape."
+level: warning
+scope: raw
+script: |
+  text := import("text")
+  matches := []
+  off := 0
+  fence := ""
+  verify := false
+  last := {}
+  for line in text.split(scope, "\n") {
+    t := text.trim_space(line)
+    if fence == "" {
+      if text.re_match("^ {0,3}(`{3,}|~{3,})", line) {
+        fence = t[0:3]
+      } else if text.re_match("^## ", line) {
+        last = {begin: off, end: off + len(line), text: line}
+        if text.re_match("(?i)verif|confirm|test it|check (it|that)", line) {
+          verify = true
+        }
+      }
+    } else if text.has_prefix(t, fence) && text.trim_space(text.trim_left(t, fence[0:1])) == "" {
+      fence = ""
+    }
+    off += len(line) + 1
+  }
+  first := text.split(scope, "\n")[0]
+  if !verify {
+    matches = append(matches, {begin: 0, end: len(first), message: "Add a Verify section that shows how the reader confirms it worked."})
+  }
+  if is_undefined(last.text) || !text.re_match("(?i)^## (next steps|what's next|see also)", last.text) {
+    matches = append(matches, {begin: is_undefined(last.begin) ? 0 : last.begin, end: is_undefined(last.end) ? len(first) : last.end, message: "End with a Next steps section, not the last step."})
+  }

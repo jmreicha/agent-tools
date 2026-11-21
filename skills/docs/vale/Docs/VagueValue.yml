@@ -1,0 +1,10 @@
+extends: existence
+message: "'%s' isn't a value. Give the literal number, default, or range."
+level: warning
+ignorecase: true
+tokens:
+  - a reasonable (?:number|value|amount|size|time|limit)
+  - an appropriate (?:number|value|amount|size|time|limit)
+  - a (?:few|couple of) (?:seconds|minutes|hours)
+  - large enough
+  - small enough

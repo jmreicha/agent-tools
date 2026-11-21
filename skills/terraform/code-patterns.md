@@ -1,13 +1,13 @@
-# Code Patterns & Structure
+# Code patterns & structure
 
 > **Part of:** [terraform-skill](./SKILL.md)
 > **Purpose:** Comprehensive patterns for Terraform/OpenTofu code structure and modern features
 
-This document provides detailed code patterns, structure guidelines, and modern Terraform features. For high-level principles, see the [main skill file](../SKILL.md).
+This document provides detailed code patterns, structure guidelines, and modern Terraform features. For high level principles, see the [main skill file](SKILL.md).
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Block Ordering & Structure](#block-ordering--structure)
 2. [Count vs For_Each Deep Dive](#count-vs-for_each-deep-dive)
@@ -18,9 +18,9 @@ This document provides detailed code patterns, structure guidelines, and modern 
 
 ---
 
-## Block Ordering & Structure
+## Block ordering & structure
 
-### Resource Block Structure
+### Resource block structure
 
 **Strict argument ordering:**
 
@@ -28,7 +28,7 @@ This document provides detailed code patterns, structure guidelines, and modern 
 2. Other arguments (alphabetical or logical grouping)
 3. `tags` as last real argument
 4. `depends_on` after tags (if needed)
-5. `lifecycle` at the very end (if needed)
+5. `lifecycle` last, when you override create or destroy behavior
 
 ```hcl
 # ✅ GOOD - Correct ordering
@@ -68,7 +68,7 @@ resource "aws_nat_gateway" "this" {
 }
 ```
 
-### Variable Definition Structure
+### Variable definition structure
 
 **Variable block ordering:**
 
@@ -94,7 +94,7 @@ variable "environment" {
 }
 ```
 
-### Variable Type Preferences
+### Variable type preferences
 
 - Prefer **simple types** (`string`, `number`, `list()`, `map()`) over `object()` unless strict validation needed
 - Use `optional()` for optional object attributes (Terraform 1.3+)
@@ -141,7 +141,7 @@ variable "mixed_config" {
 }
 ```
 
-### Output Structure
+### Output structure
 
 **Pattern:** `{name}_{type}_{attribute}`
 
@@ -169,7 +169,7 @@ output "subnet_id" {  # Should be plural "subnet_ids"
 
 ---
 
-## Count vs For_Each Deep Dive
+## Count vs for_each deep dive
 
 ### When to use count
 
@@ -263,7 +263,7 @@ resource "aws_instance" "app" {
 }
 ```
 
-### Count to For_Each Migration
+### Count to for_each migration
 
 **When to migrate:** When you need stable resource addressing or items might be added/removed from middle of list.
 
@@ -338,9 +338,9 @@ moved {
 
 ---
 
-## Modern Terraform Features (1.0+)
+## Modern Terraform features (1.0+)
 
-### try() Function (Terraform 0.13+)
+### `try()` function (Terraform 0.13+)
 
 **Use try() instead of element(concat()):**
 
@@ -366,9 +366,9 @@ output "security_group_id" {
 }
 ```
 
-### nullable = false (Terraform 1.1+)
+### `nullable = false` (Terraform 1.1+)
 
-**Set nullable = false for non-null variables:**
+**Set nullable = false for not null variables:**
 
 ```hcl
 # ✅ GOOD (Terraform 1.1+)
@@ -380,7 +380,7 @@ variable "vpc_cidr" {
 }
 ```
 
-### optional() with Defaults (Terraform 1.3+)
+### `optional()` with defaults (Terraform 1.3+)
 
 **Use optional() for object attributes:**
 
@@ -407,7 +407,7 @@ database_config = {
 }
 ```
 
-### Moved Blocks (Terraform 1.1+)
+### Moved blocks (Terraform 1.1+)
 
 **Rename resources without destroy/recreate:**
 
@@ -431,9 +431,9 @@ moved {
 }
 ```
 
-### Provider-Defined Functions (Terraform 1.8+)
+### Provider-defined functions (Terraform 1.8+)
 
-**Use provider-specific functions for data transformation:**
+**Use provider specific functions for data transformation:**
 
 ```hcl
 # AWS provider function example
@@ -448,7 +448,7 @@ locals {
 # Common providers adding functions: AWS, Azure, Google Cloud
 ```
 
-### Cross-Variable Validation (Terraform 1.9+)
+### Cross-variable validation (Terraform 1.9+)
 
 **Reference other variables in validation blocks:**
 
@@ -491,7 +491,7 @@ variable "backup_retention" {
 }
 ```
 
-### Write-Only Arguments (Terraform 1.11+)
+### Write-only arguments (Terraform 1.11+)
 
 **Always use write-only arguments or external secret management:**
 
@@ -531,9 +531,9 @@ resource "aws_db_instance" "this" {
 
 ---
 
-## Version Management
+## Version management
 
-### Version Constraint Syntax
+### Version constraint syntax
 
 ```hcl
 # Exact version (avoid unless necessary - inflexible)
@@ -555,7 +555,7 @@ version = ">= 5.0"  # Any version 5.0 or higher (risky - breaking changes)
 # No version specified = always use latest available
 ```
 
-### Versioning Strategy by Component
+### Versioning strategy by component
 
 **Terraform itself:**
 
@@ -601,7 +601,7 @@ module "vpc" {
 }
 ```
 
-### Update Strategy
+### Update strategy
 
 **Security patches:**
 
@@ -622,7 +622,7 @@ module "vpc" {
 - May require code changes
 - Update in phases: dev → stage → prod
 
-### Version Management Workflow
+### Version management workflow
 
 ```hcl
 # Step 1: Lock versions in versions.tf
@@ -649,7 +649,7 @@ terraform init -upgrade
 terraform plan
 ```
 
-### Example versions.tf Template
+### Example versions.tf template
 
 ```hcl
 terraform {
@@ -683,11 +683,11 @@ terraform {
 
 ---
 
-## Refactoring Patterns
+## Refactoring patterns
 
-### Terraform Version Upgrades
+### Terraform version upgrades
 
-#### 0.12/0.13 → 1.x Migration Checklist
+#### 0.12/0.13 → 1.x migration checklist
 
 **Replace legacy patterns with modern equivalents:**
 
@@ -730,11 +730,11 @@ variable "config" {
 }
 ```
 
-### Secrets Remediation
+### Secrets remediation
 
 **Pattern:** Move secrets out of Terraform state into external secret management.
 
-#### Before - Secrets in State
+#### Before - secrets in state
 
 ```hcl
 # ❌ BAD - Secret generated and stored in state
@@ -763,9 +763,9 @@ resource "aws_db_instance" "this" {
 }
 ```
 
-#### After - External Secret Management
+#### After - external secret management
 
-**Option 1: Write-only arguments (Terraform 1.11+)**
+##### Option 1: write-only arguments (Terraform 1.11+)
 
 ```hcl
 # ✅ GOOD - Fetch from AWS Secrets Manager
@@ -786,7 +786,7 @@ resource "aws_db_instance" "this" {
 }
 ```
 
-**Option 2: Separate secret creation (if Terraform 1.11+ not available)**
+##### Option 2: separate secret creation (if Terraform 1.11+ not available)
 
 ```hcl
 # ✅ GOOD - Reference pre-existing secret
@@ -816,7 +816,7 @@ data "aws_secretsmanager_secret_version" "db_password" {
 
 ---
 
-## Locals for Dependency Management
+## Locals for dependency management
 
 **Use locals to hint explicit resource deletion order:**
 
@@ -870,4 +870,4 @@ resource "aws_subnet" "public" {
 
 ---
 
-**Back to:** [Main Skill File](../SKILL.md)
+**Back to:** [Main Skill File](SKILL.md)

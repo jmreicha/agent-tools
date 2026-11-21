@@ -1,13 +1,13 @@
-# Module Development Patterns
+# Module development patterns
 
 > **Part of:** [terraform-skill](./SKILL.md)
 > **Purpose:** Best practices for Terraform/OpenTofu module development
 
-This document provides detailed guidance on creating reusable, maintainable Terraform modules. For high-level principles, see the [main skill file](../SKILL.md#core-principles).
+This document provides detailed guidance on creating reusable, maintainable Terraform modules. For high level principles, see the [main skill file](SKILL.md#core-principles).
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Module Hierarchy](#module-hierarchy)
 2. [Architecture Principles](#architecture-principles)
@@ -20,21 +20,21 @@ This document provides detailed guidance on creating reusable, maintainable Terr
 
 ---
 
-## Module Hierarchy
+## Module hierarchy
 
-### Module Type Classification
+### Module type classification
 
 Terraform modules can be organized into three distinct types, each serving a specific purpose:
 
 | Type                      | When to Use                                  | Scope                                                                | Example                                                    |
 | ------------------------- | -------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------- |
 | **Resource Module**       | Single logical group of connected resources  | Tightly coupled resources that always work together                  | VPC + subnets, Security group + rules, IAM role + policies |
-| **Infrastructure Module** | Collection of resource modules for a purpose | Multiple resource modules in one region/account                      | Complete networking stack, Application infrastructure      |
-| **Composition**           | Complete infrastructure                      | Spans multiple regions/accounts, orchestrates infrastructure modules | Multi-region deployment, Production environment            |
+| **Infrastructure Module** | Collection of resource modules for a purpose | Multiple resource modules in one region/account                      | Complete networking stack, app infrastructure              |
+| **Composition**           | Complete infrastructure                      | Spans multiple regions/accounts, orchestrates infrastructure modules | Multiregion deployment, Production environment             |
 
 **Hierarchy:** Resource → Resource Module → Infrastructure Module → Composition
 
-### Resource Module
+### Resource module
 
 **Characteristics:**
 
@@ -46,7 +46,7 @@ Terraform modules can be organized into three distinct types, each serving a spe
 
 **Examples:**
 
-```
+```text
 modules/
 ├── vpc/                    # Resource module
 │   ├── main.tf            # VPC + subnets + route tables
@@ -62,19 +62,19 @@ modules/
     └── outputs.tf
 ```
 
-### Infrastructure Module
+### Infrastructure module
 
 **Characteristics:**
 
 - Combines multiple resource modules
-- Purpose-specific (e.g., "web application infrastructure")
+- Purpose specific, for example "web app infrastructure"
 - May span multiple services
-- Region or account-specific
+- Region or account specific
 - Moderate reusability
 
 **Examples:**
 
-```
+```text
 modules/
 └── web-application/        # Infrastructure module
     ├── main.tf            # Orchestrates multiple resource modules
@@ -104,14 +104,14 @@ module "ecs" {
 **Characteristics:**
 
 - Highest level of abstraction
-- Complete environment or application
+- Complete environment or app
 - Combines infrastructure modules
-- Environment-specific (dev, staging, prod)
-- Not reusable (environment-specific values)
+- Environment specific (dev, staging, prod)
+- Not reusable (environment specific values)
 
 **Examples:**
 
-```
+```text
 environments/
 ├── prod/                   # Composition
 │   ├── main.tf            # Complete production environment
@@ -130,9 +130,9 @@ environments/
     └── variables.tf
 ```
 
-### Decision Tree: Which Module Type?
+### Decision tree: which module type?
 
-```
+```text
 Question 1: Is this environment-specific configuration?
 ├─ YES → Composition (environments/prod/, environments/staging/)
 └─ NO  → Continue
@@ -145,11 +145,11 @@ Question 3: Is it a focused group of related resources?
 └─ YES → Resource Module (modules/vpc/, modules/rds/)
 ```
 
-### File Organization Standards
+### File organization standards
 
 **Required files in all modules:**
 
-```
+```text
 main.tf        # Resource definitions, module calls, data sources
 variables.tf   # Input variable declarations
 outputs.tf     # Output value declarations
@@ -159,7 +159,7 @@ README.md      # Usage documentation
 
 **Conditional files:**
 
-```
+```text
 terraform.tfvars  # ONLY at composition level (NEVER in modules)
 locals.tf         # For complex local value calculations
 data.tf           # Optional: Data sources (if main.tf gets large)
@@ -175,9 +175,9 @@ backend.tf        # ONLY at composition level (remote state config)
 
 ---
 
-## Architecture Principles
+## Architecture principles
 
-### 1. Smaller Scopes = Better Performance + Reduced Blast Radius
+### 1. Smaller scopes = better performance + reduced blast radius
 
 **Benefits:**
 
@@ -204,7 +204,7 @@ environments/prod/
   iam/            # IAM roles, policies
 ```
 
-### 2. Always Use Remote State
+### 2. Always use remote state
 
 **Why:**
 
@@ -237,7 +237,7 @@ terraform {
 }
 ```
 
-### 3. Use terraform_remote_state as Glue
+### 3. Use terraform_remote_state as glue
 
 **Pattern:** Connect compositions via remote state data sources
 
@@ -287,7 +287,7 @@ module "ec2" {
 - Version outputs (don't break downstream consumers)
 - Consider using data sources instead for provider-managed resources
 
-### 4. Keep Resource Modules Simple
+### 4. Keep resource modules simple
 
 **Principles:**
 
@@ -330,7 +330,7 @@ resource "aws_instance" "web" {
 }
 ```
 
-### 5. Composition Layer: Environment-Specific Values Only
+### 5. Composition layer: Environment specific values only
 
 **Pattern:** Compositions provide concrete values, modules provide abstractions
 
@@ -372,11 +372,11 @@ module "rds" {
 
 ---
 
-## Module Structure
+## Module structure
 
-### Standard Layout
+### Standard layout
 
-```
+```text
 my-module/
 ├── README.md                # Usage documentation
 ├── LICENSE                  # MIT or Apache 2.0 (for public modules)
@@ -392,7 +392,7 @@ my-module/
     └── module_test.tftest.hcl  # Or .go
 ```
 
-### Why This Structure?
+### Why this structure?
 
 - **README.md** - First thing users see, should explain module purpose
 - **LICENSE** - Legal terms for public modules (MIT or Apache 2.0)
@@ -404,7 +404,7 @@ my-module/
 - **examples/** - Serve as both documentation and test fixtures
 - **tests/** - Automated testing
 
-### License Files
+### License files
 
 For public modules, always include a LICENSE file:
 
@@ -416,15 +416,15 @@ For public modules, always include a LICENSE file:
 **When to include:**
 
 - ✅ Public modules (GitHub, Terraform Registry)
-- ✅ Open-source projects
+- ✅ Open source projects
 - ❌ Private internal modules (optional)
-- ❌ Environment-specific configurations
+- ❌ Environment specific configurations
 
-### Terraform vs OpenTofu Preference
+### Terraform or OpenTofu preference
 
 **Before generating any module or configuration:**
 
-1. **Ask the user:** "Will this be for Terraform or OpenTofu? (Both are supported equally)"
+1. **Ask the user:** "Is this for Terraform or OpenTofu? (Both are supported equally)"
 
 2. **Use the preference throughout:**
    - Command examples: `terraform` vs `tofu`
@@ -468,9 +468,9 @@ For public modules, always include a LICENSE file:
 
 ---
 
-## Variable Best Practices
+## Variable best practices
 
-### Complete Example
+### Complete example
 
 ```hcl
 variable "instance_type" {
@@ -497,7 +497,7 @@ variable "enable_monitoring" {
 }
 ```
 
-### Key Principles
+### Key principles
 
 - ✅ **Always include `description`** - Helps users understand the variable
 - ✅ **Use explicit `type` constraints** - Catches errors early
@@ -505,7 +505,7 @@ variable "enable_monitoring" {
 - ✅ **Add `validation` blocks** - For complex constraints
 - ✅ **Use `sensitive = true`** - For secrets (Terraform 0.14+)
 
-### Variable Naming
+### Variable naming
 
 ```hcl
 # ✅ Good: Context-specific
@@ -521,9 +521,9 @@ var.value
 
 ---
 
-## Output Best Practices
+## Output best practices
 
-### Complete Example
+### Complete example
 
 ```hcl
 output "instance_id" {
@@ -552,7 +552,7 @@ output "connection_info" {
 }
 ```
 
-### Key Principles
+### Key principles
 
 - ✅ **Always include `description`** - Explain what the output is for
 - ✅ **Mark sensitive outputs** - Use `sensitive = true`
@@ -561,9 +561,9 @@ output "connection_info" {
 
 ---
 
-## Common Patterns
+## Common patterns
 
-### ✅ DO: Use `for_each` for Resources
+### Do: use `for_each` for resources
 
 ```hcl
 # Good: Maintain stable resource addresses
@@ -579,7 +579,7 @@ resource "aws_instance" "server" {
 
 **Why?** When you remove an item from the middle, `for_each` doesn't reshuffle other resources.
 
-### ❌ DON'T: Use `count` When Order Matters
+### Don't: use `count` when order matters
 
 ```hcl
 # Bad: Removing middle item reshuffles all subsequent resources
@@ -592,11 +592,11 @@ resource "aws_instance" "server" {
 }
 ```
 
-**Problem:** If you remove `var.server_names[1]`, Terraform will destroy and recreate all instances after it.
+**Problem:** If you remove `var.server_names[1]`, Terraform destroys and recreates every instance after it.
 
-### ✅ DO: Separate Root Module from Reusable Modules
+### Do: separate root module from reusable modules
 
-```
+```text
 # Root module (environment-specific)
 prod/
   main.tf          # Calls modules with prod-specific values
@@ -608,9 +608,9 @@ modules/webapp/
   variables.tf     # Configurable inputs
 ```
 
-**Why?** Root modules are environment-specific, reusable modules are generic.
+**Why?** Root modules are environment specific, reusable modules are generic.
 
-### ✅ DO: Use Locals for Computed Values
+### Do: use locals for computed values
 
 ```hcl
 locals {
@@ -631,7 +631,7 @@ resource "aws_instance" "app" {
 }
 ```
 
-### ✅ DO: Version Your Modules
+### Do: version your modules
 
 ```hcl
 # In consuming code
@@ -647,9 +647,9 @@ module "vpc" {
 
 ---
 
-## Anti-patterns to Avoid
+## Anti-patterns to avoid
 
-### ❌ DON'T: Hard-code Environment-Specific Values
+### Don't: hard code environment specific values
 
 ```hcl
 # Bad: Module is locked to production
@@ -670,7 +670,7 @@ resource "aws_instance" "app" {
 }
 ```
 
-### ❌ DON'T: Create God Modules
+### Don't: create god modules
 
 ```hcl
 # Bad: One module does everything
@@ -701,7 +701,7 @@ module "database" {
 }
 ```
 
-### ❌ DON'T: Use `count` or `for_each` in Root Modules for Different Environments
+### Don't: use `count` or `for_each` in root modules for different environments
 
 ```hcl
 # Bad: All environments in one root module
@@ -716,7 +716,7 @@ resource "aws_instance" "app" {
 
 **Fix:** Use separate root modules:
 
-```
+```text
 environments/
   dev/
     main.tf
@@ -726,7 +726,7 @@ environments/
     main.tf
 ```
 
-### ❌ DON'T: Use `terraform_remote_state` Everywhere
+### Don't: use `terraform_remote_state` everywhere
 
 ```hcl
 # Overused: Creates tight coupling
@@ -749,13 +749,13 @@ data "terraform_remote_state" "security" {
 
 ---
 
-## Module Naming Conventions
+## Module naming conventions
 
-### Public Modules
+### Public modules
 
 Follow the Terraform Registry convention:
 
-```
+```text
 terraform-<PROVIDER>-<NAME>
 
 Examples:
@@ -764,11 +764,11 @@ terraform-aws-eks
 terraform-google-network
 ```
 
-### Private Modules
+### Private modules
 
-Use organization-specific prefixes:
+Use organization specific prefixes:
 
-```
+```text
 <ORG>-terraform-<PROVIDER>-<NAME>
 
 Examples:
@@ -778,7 +778,7 @@ acme-terraform-aws-rds
 
 ---
 
-## Testing Your Modules
+## Testing your modules
 
 For testing guidance, see [testing-frameworks.md](testing-frameworks.md).
 
@@ -795,7 +795,7 @@ Quick checklist:
 - [ ] Create `LICENSE` file (MIT or Apache 2.0 for public modules)
 - [ ] Add attribution footer to README.md (see template below)
 
-### Pre-commit Hooks
+### Pre-commit hooks
 
 When creating new modules, always include pre-commit hooks for automated validation and documentation generation:
 
@@ -840,7 +840,7 @@ When generating new modules, also create:
 - `.gitignore` (from template below)
 - `README.md` with attribution footer (see template below)
 
-#### README.md Attribution Template
+#### `README.md` attribution template
 
 When generating module README.md files, include this attribution footer:
 
@@ -860,9 +860,11 @@ Additional resources:
 - ✅ All new modules created with terraform-skill guidance
 - ✅ Public modules (GitHub, Terraform Registry)
 - ✅ Private modules shared within organizations
-- ⚠️ Optional for one-off environment configurations
+- ⚠️ Optional for one off environment configurations
 
-**Rationale:** This is a derivative work as defined in the Apache 2.0 License Section 1. Attribution supports the open-source ecosystem and helps others discover these best practices.
+**Rationale:** <!-- vale AiTells.SectionCode = NO -->
+This is a derivative work as defined in the Apache 2.0 License Section 1.
+<!-- vale AiTells.SectionCode = YES --> Attribution supports the open source ecosystem and helps others discover these best practices.
 
 **README Structure with Attribution:**
 
@@ -894,7 +896,7 @@ Additional resources:
 [Attribution footer from template above]
 ```
 
-#### .gitignore Template
+#### `.gitignore` template
 
 **Standard .gitignore for Terraform/OpenTofu projects:**
 
@@ -952,9 +954,9 @@ secrets/
 
 ---
 
-## Testing Philosophy & Patterns
+## Testing philosophy & patterns
 
-### What to Test in Terraform Modules
+### What to test in Terraform modules
 
 **Core testing areas:**
 
@@ -971,7 +973,7 @@ secrets/
 - After significant refactoring
 - For modules with complex logic or conditionals
 
-### Testing Layers
+### Testing layers
 
 **1. Syntax validation:**
 
@@ -1010,7 +1012,7 @@ terraform plan
 terraform destroy -auto-approve
 ```
 
-### Input Validation Testing
+### Input validation testing
 
 Test that variables reject invalid values:
 
@@ -1031,7 +1033,7 @@ variable "environment" {
 # Expected: Error message about validation failure
 ```
 
-### Output Verification Testing
+### Output verification testing
 
 After apply, verify outputs contain expected values:
 
@@ -1045,7 +1047,7 @@ SUBNET_IDS=$(terraform output -json subnet_ids)
 echo $SUBNET_IDS | jq 'length'  # Should match expected subnet count
 ```
 
-### Idempotency Testing
+### Idempotency testing
 
 **Critical test** - ensures Terraform doesn't recreate resources unnecessarily:
 
@@ -1066,7 +1068,7 @@ terraform plan -detailed-exitcode
 - Safe to run in CI/CD pipelines
 - Indicates proper use of computed values
 
-### Destroy Testing
+### Destroy testing
 
 Verify all resources are properly cleaned up:
 
@@ -1082,7 +1084,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
 [ "$AFTER_COUNT" -eq 0 ] && echo "OK: All resources destroyed" || echo "ERROR: Resources remain"
 ```
 
-### Testing Anti-patterns
+### Testing anti-patterns
 
 **❌ Don't:**
 
@@ -1101,7 +1103,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
 - Use mocking for unit tests (Terraform 1.7+)
 - Run integration tests only on main branch or scheduled
 
-### Testing Strategy by Module Type
+### Testing strategy by module type
 
 **Resource modules:**
 
@@ -1120,11 +1122,11 @@ AFTER_COUNT=$(terraform state list | wc -l)
 **Compositions:**
 
 - Smoke tests (can it plan?)
-- Test with production-like values
+- Test with production like values
 - Verify remote state connectivity
 - Manual QA in lower environments first
 
-### Cost Control for Testing
+### Cost control for testing
 
 **Strategies:**
 
@@ -1162,7 +1164,7 @@ AFTER_COUNT=$(terraform state list | wc -l)
    instance_type = var.environment == "test" ? "t3.micro" : var.instance_type
    ```
 
-5. **Implement auto-cleanup**
+5. **Implement automatic cleanup**
    - Use AWS Lambda to delete resources with expired TTL tags
    - Run destroy in CI/CD after tests complete
    - Use terraform-compliance to enforce TTL tags
@@ -1171,4 +1173,4 @@ AFTER_COUNT=$(terraform state list | wc -l)
 
 ---
 
-**Back to:** [Main Skill File](../SKILL.md)
+**Back to:** [Main Skill File](SKILL.md)

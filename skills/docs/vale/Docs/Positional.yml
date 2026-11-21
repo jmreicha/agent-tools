@@ -1,0 +1,9 @@
+extends: existence
+message: "'%s' breaks when the section is read alone. Link to the section by name."
+level: warning
+ignorecase: true
+tokens:
+  - as (?:mentioned|described|shown|configured|noted) (?:above|below|earlier|previously)
+  - see (?:above|below)
+  - the above
+  - (?:the )?previous section

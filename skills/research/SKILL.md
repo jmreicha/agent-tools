@@ -1,75 +1,53 @@
 ---
 name: research
-description: Use before implementing new features to gather context from documentation, real-world code examples, and web resources. Provides structured findings to inform implementation decisions.
-version: 1.0.0
+description: Use when about to implement a new feature, to gather context from documentation, real world code examples, and web resources. Provides structured findings to inform implementation decisions.
+version: 1.1.0
 tags: [research, planning, mcp]
 ---
 
 # Research
 
-This skill provides systematic multi-source research for gathering context before implementing new functionality.
+Gather context from documentation, real code, and the web before you implement a feature, so the plan rests on how the library and other projects actually work.
 
-## Purpose
+## When to use this skill
 
-Research enables autonomous context gathering from multiple sources to inform implementation decisions. It provides structured findings from documentation, real-world code examples, and community knowledge to maximize implementation success and minimize false starts.
+- Planning or implementing a new feature. Use it by default.
+- Working with a library or framework you don't know well.
+- Weighing architectural approaches or design patterns.
+- Seeing how others solved a similar problem.
+- Choosing a technology.
 
-## When to Use This Skill
+## Process
 
-Use this skill when:
+Work through four phases in order:
 
-- Planning or immplementing new features (try to use whenever possible)
-- Working with unfamiliar libraries or frameworks
-- Evaluating architectural approaches or design patterns
-- Understanding how others solved similar problems
-- Making technology selection decisions
+1. Ask the user about requirements and sources.
+2. Query the official docs with the context7 MCP server.
+3. Find real code with the grep MCP server (`searchGitHub`).
+4. Optionally, fetch web pages with `webfetch`.
 
-## Research Process
+### 1. Ask the user
 
-### Overview
+Before you research, ask:
 
-The research process follows three phases with user interaction before beginning:
+- What are the requirements and constraints for this feature?
+- Do you prefer any libraries or approaches?
+- Which docs or sources should I read?
+- What matters most: performance, simplicity, or maintainability?
+- How well do you know this technology?
 
-1. **User Interaction** - Clarify requirements and gather documentation references
-2. **Documentation Research** - Query official documentation using context7
-3. **Code Examples** - Find real-world implementations using grep/searchGitHub
-4. **Web Research** - Optional supplemental research using webfetch
+Note any links, examples, and experience the user shares.
 
-### User Interaction
+### 2. Query the docs
 
-Before starting research, gather context from the user:
+Use the context7 MCP server:
 
-**Questions to ask:**
+1. Resolve the library ID for each package or framework.
+2. Query the docs for the APIs, configuration, and recommended patterns.
+3. Note version requirements and compatibility issues.
+4. Stay on the feature you're building.
 
-- What are the specific requirements and constraints for this feature?
-- Do you have any preferred libraries or approaches?
-- Are there specific documentation sources you'd like me to consult?
-- What are the key priorities (performance, simplicity, maintainability)?
-- What is your familiarity with this technology?
-
-**Documentation references:**
-
-- Request any relevant documentation links from the user
-- Note any specific examples or resources the user has found
-- Understand user's prior experience with similar implementations
-
-### Documentation Research
-
-Use the context7 MCP server to query official documentation.
-
-**Process:**
-
-1. Resolve library IDs for relevant packages and frameworks
-2. Query documentation for APIs, configuration, and best practices
-3. Note version-specific considerations and compatibility requirements
-4. Focus on the specific feature being implemented
-
-**Quick scan approach:**
-
-- Execute 1 targeted query focused on the specific feature
-- Prioritize official documentation for the exact library version in use
-- Capture key API patterns and configuration requirements
-
-**Example:**
+By default, run one query, aimed at the feature, against the docs for the library version the project uses.
 
 ```bash
 # Resolve library ID
@@ -79,37 +57,21 @@ mcp-cli context7/resolve-library-id '{"query": "OAuth2 authentication", "library
 mcp-cli context7/query-docs '{"libraryId": "/golang/oauth2", "query": "Google OAuth configuration and token handling"}'
 ```
 
-**Fallback:**
+### 3. Find real code
 
-If context7 is unavailable, document the failure and proceed with remaining phases.
+Use the grep MCP server's `searchGitHub`:
 
-**Example failure message:**
+1. Search for literal code that would appear in a file.
+2. Find common idioms and implementations that run in production.
+3. Note what they do on errors and edge cases, such as retries, timeouts, and empty results.
+4. Filter by language, repo, or path to narrow noisy results.
 
-"⚠️ MCP server 'context7' unavailable (connection refused on https://mcp.context7.com/mcp) - proceeding with code example research only"
+By default, run 1 or 2 searches: the main pattern, and its error handling. Prefer recent, maintained repos.
 
-### Code Examples
-
-Use the grep/searchGitHub MCP server to find real-world implementations.
-
-**Process:**
-
-1. Search for literal code patterns that would appear in files
-2. Find common idioms and production-ready implementations
-3. Identify error handling approaches and edge cases
-4. Filter by language, repository, or file path as needed
-
-**Quick scan approach:**
-
-- Execute 1-2 searches (main pattern + error handling)
-- Search for actual code, not keywords or prose
-- Focus on recent, maintained repositories
-
-**Search pattern guidelines:**
+Search for code, not prose:
 
 - Good: `oauth2.Config{`, `import "golang.org/x/oauth2"`, `TokenSource`
 - Bad: `oauth tutorial`, `best practices`, `how to authenticate`
-
-**Example:**
 
 ```bash
 # Find main implementation pattern
@@ -119,168 +81,111 @@ mcp-cli grep/searchGitHub '{"query": "oauth2.Config{", "language": ["Go"]}'
 mcp-cli grep/searchGitHub '{"query": "oauth2.TokenSource", "language": ["Go"]}'
 ```
 
-**Fallback:**
+### 4. Fetch web pages
 
-If grep is unavailable, document the failure and proceed with web research or best-effort implementation.
+Use `webfetch` for blog posts, tutorials, discussions, and other project docs. Fetch only when:
 
-**Example failure message:**
+- The user already knows what they're looking for, and has links.
+- The MCP sources are missing context you need.
+- An architectural decision needs community experience.
+- You need the tradeoffs between approaches.
 
-"⚠️ MCP server 'grep' unavailable (network timeout after 30s) - proceeding with best-effort implementation based on documentation only"
-
-### Web Research
-
-Use webfetch to gather supplemental context from blog posts, tutorials, discussions and other project documentation sources.
-
-**When to use:**
-
-- User already has an idea about what they're looking for
-- MCP sources lack critical context
-- Complex architectural decisions require community input
-- Need to understand trade-offs between different approaches
-
-**Quick scan approach:**
-
-- Ask user to provide input by providing links to sources
-- Execute 1-2 web fetch (only if MCP sources insufficient)
-- Focus on authoritative sources (official blogs, established documentation and tutorial sites)
-- Prioritize recent content within 1 year
-
-**Example:**
+Ask the user for links first. Fetch 1 or 2 pages, from official blogs and established docs, published in the last year.
 
 ```bash
 # Fetch architectural guidance
 webfetch https://cloud.google.com/docs/authentication
 ```
 
-**Fallback:**
+### When a source fails
 
-If webfetch fails, proceed with available research from previous phases.
+If an MCP server or `webfetch` fails, keep going with the other sources:
 
-### Fallback Handling
+1. Record the exact error.
+2. Continue with the sources that work.
+3. Tell the user what's missing.
+4. State the assumptions you made because of it.
 
-When MCP servers are unavailable:
+Use this message format:
 
-1. Document the specific failure with details
-2. Proceed with best-effort implementation using available sources
-3. Notify the end user explicitly about the limitation
-4. Make implementation assumptions explicit
+```text
+⚠️ MCP server '<server>' unavailable (<error, such as connection refused or timeout after 30s>) - proceeding with <alternative>
+```
 
-**Failure message format:**
+## Match depth to risk
 
-"⚠️ MCP server '[server]' unavailable ([specific error: connection refused, timeout, etc.]) - proceeding with [alternative approach]"
+| Scenario                | Depth      | Goal                                    | Queries                   |
+| ----------------------- | ---------- | --------------------------------------- | ------------------------- |
+| Well known pattern      | Minimal    | Confirm the recommended pattern         | 1 doc, 1 code             |
+| Standard feature        | Quick scan | Confirm the common approaches           | 1 doc, 1-2 code           |
+| New kind of feature     | Thorough   | Compare alternatives and tradeoffs      | 2-3 doc, 3-4 code         |
+| Critical infrastructure | Deep       | Understand failure modes and edge cases | Several from every source |
 
-## Research Scope Guidance
+Default to a quick scan of 2 to 3 minutes, aimed at the specific implementation questions. Most features don't need more, and a long search mostly turns up the same pattern again. Go deeper when the user doesn't know the technology, the feature is complex or new, the risk is high (security, data integrity, performance), or the codebase has no existing pattern to copy.
 
-Different scenarios require different research depths:
+## Report the findings
 
-| Scenario                    | Depth      | Strategy                                   | Queries                     |
-| --------------------------- | ---------- | ------------------------------------------ | --------------------------- |
-| **Well-known patterns**     | Minimal    | Quick validation of current best practices | 1 doc, 1 code               |
-| **Standard features**       | Quick scan | Verify common approaches and patterns      | 1 doc, 1-2 code             |
-| **Novel implementations**   | Thorough   | Explore alternatives and trade-offs        | 2-3 doc, 3-4 code           |
-| **Critical infrastructure** | Deep       | Understand failure modes and edge cases    | Multiple across all sources |
-
-**Quick scan (recommended default):**
-
-- Time budget: 2-3 minutes total
-- Focus on answering specific implementation questions
-- Prioritize recent, high-quality sources
-- Balance thoroughness with execution speed
-
-**Depth selection criteria:**
-
-- User familiarity with technology
-- Feature complexity and novelty
-- Risk level (security, data integrity, performance)
-- Availability of existing patterns in codebase
-
-## Output Format
-
-Produce structured findings using this template:
+Use this template:
 
 ```markdown
-## Research Summary: [Feature/Topic]
+## Research summary: <feature>
 
-### User Context
+### User context
 
-- [Key requirements from user discussion]
-- [Constraints or preferences mentioned]
-- [Relevant documentation links provided by user]
+- <Key requirements from the user>
+- <Constraints or preferences>
+- <Docs links the user gave>
 
-### Common Patterns
+### Common patterns
 
-- Pattern 1: [description + source]
-- Pattern 2: [description + source]
-- Pattern 3: [description + source]
+- <Pattern, with source>
 
-### Trade-offs & Considerations
+### Tradeoffs
 
-- **Approach A**: [pros/cons, use cases]
-- **Approach B**: [pros/cons, use cases]
-- **Key decisions**: [what needs to be decided and why]
+- Approach A: <pros, cons, when to use>
+- Approach B: <pros, cons, when to use>
+- Decisions needed: <what, and why>
 
-### Recommended Approach
+### Recommendation
 
-[Clear recommendation with rationale based on research and user requirements]
+<The approach, and why it fits the research and the requirements>
 
-### Implementation Notes
+### Implementation notes
 
-- Key insight 1 from research
-- Common pitfall to avoid
-- Important configuration detail
-- Testing/validation strategy
+- <A finding that changes the implementation>
+- <A pitfall to avoid>
+- <A configuration detail>
+- <How to test it>
 
 ### Sources
 
-- [Library docs - specific page]
-- [GitHub example - repo/file:line]
-- [Additional resource - blog/guide]
+- <Library docs page>
+- <GitHub example: repo/file:line>
+- <Blog post or guide>
 
-### MCP Status
+### MCP status
 
-✓ All sources available | ⚠️ [specific failure details]
+✓ All sources available | ⚠️ <failure details>
 ```
 
-**Output guidelines:**
+Keep it short. Give the reason for each recommendation and link every source. When the sources disagree or run out, say so, and label your guess as a guess: "My best guess is…".
 
-- Be concise and actionable
-- Provide clear rationale for recommendations
-- Include source links for further exploration
-- Document assumptions when data is limited
-- Make MCP status explicit
+## Rules
 
-## Best Practices
-
-### Do:
-
-- Ask user questions before starting research
-- Request specific documentation links from users
-- Search for literal code patterns, not keywords
-- Focus on production-ready, maintained examples
-- Consider version compatibility and recent changes
-- Document assumptions when data is limited
-- Provide source links for further exploration
-- Report MCP failures specifically with error details
-- Make clear recommendations with rationale
-
-### Don't:
-
-- Guess or assume user requirements
-- Skip user interaction during planning phase
-- Search for prose descriptions instead of code patterns
-- Rely solely on old or unmaintained examples
-- Make recommendations without rationale
-- Proceed with implementation before research (unless MCP unavailable)
-- Hide MCP availability issues from user
-- Use vague failure messages
+- Ask the user questions before you start, and ask for doc links.
+- Don't guess the requirements.
+- Search for literal code, not prose.
+- Prefer maintained, production examples, and check version compatibility.
+- Report each MCP failure with its error. Don't hide it.
+- Don't start implementing before the research is done, unless every source is down.
 
 ## Examples
 
-### Example: Adding OAuth Authentication
+### Adding OAuth authentication
 
-**User interaction:**
+Questions:
 
-```
+```text
 Q: "Which OAuth provider are you planning to use?"
 A: "Google OAuth, but open to suggestions"
 
@@ -291,30 +196,28 @@ Q: "What are the key constraints (compliance, user experience)?"
 A: "Need to be production-ready and secure"
 ```
 
-**Research execution:**
+Research:
 
-1. Resolve library ID for Go OAuth libraries → `golang.org/x/oauth2`
-2. Query context7: "Google OAuth configuration and token handling"
-3. Search GitHub: `oauth2.Config{` with language=["Go"]
-4. Search GitHub: `oauth2.TokenSource` with language=["Go"]
+1. Resolve the library ID for Go OAuth libraries: `golang.org/x/oauth2`.
+2. Query context7: "Google OAuth configuration and token handling".
+3. Search GitHub for `oauth2.Config{` with `language=["Go"]`.
+4. Search GitHub for `oauth2.TokenSource` with `language=["Go"]`.
 
-**Key findings:**
+Findings:
 
-- Most Go projects use `golang.org/x/oauth2` standard library
-- Common pattern: Middleware for token validation
-- Key consideration: Token refresh and expiration handling
-- Error handling: Check token validity before each request
-- Configuration: Store credentials in environment variables
+- Most Go projects use `golang.org/x/oauth2`.
+- The common pattern is middleware that validates the token.
+- The code has to refresh tokens before they expire.
+- Check the token before each request.
+- Store credentials in environment variables.
 
-**Recommendation:**
+Recommendation: use the `golang.org/x/oauth2/google` package with middleware that validates tokens. It's the most common pattern in production Go apps, and it refreshes tokens for you.
 
-Use `golang.org/x/oauth2/google` package with middleware-based token validation. This is the most widely adopted pattern in production Go applications and provides built-in token refresh handling.
+### Adding rate limiting
 
-### Example: Implementing Rate Limiting
+Questions:
 
-**User interaction:**
-
-```
+```text
 Q: "What type of rate limiting do you need (per-user, per-IP, global)?"
 A: "Per-user, based on API key"
 
@@ -325,30 +228,28 @@ Q: "Do you need distributed rate limiting across multiple servers?"
 A: "No, single server deployment"
 ```
 
-**Research execution:**
+Research:
 
-1. Resolve library ID for rate limiting → `golang.org/x/time/rate`
-2. Query context7: "rate limiting configuration" → ⚠️ connection timeout
-3. Search GitHub: `rate.NewLimiter` with language=["Go"]
-4. Search GitHub: `rate.Limiter.Allow` with language=["Go"]
+1. Resolve the library ID for rate limiting: `golang.org/x/time/rate`.
+2. Query context7 for "rate limiting configuration". The connection times out.
+3. Search GitHub for `rate.NewLimiter` with `language=["Go"]`.
+4. Search GitHub for `rate.Limiter.Allow` with `language=["Go"]`.
 
-**Key findings:**
+Findings:
 
-- ⚠️ MCP server 'context7' unavailable (connection timeout after 30s) - proceeding with grep searches only
-- Common library: `golang.org/x/time/rate` (standard library)
-- Pattern: Store limiters in map keyed by API key or user ID
-- Implementation: Middleware checks limiter before handler execution
-- Consideration: Single-server uses in-memory map, distributed needs Redis
+- `⚠️ MCP server 'context7' unavailable (connection timeout after 30s) - proceeding with grep searches only`
+- The common library is `golang.org/x/time/rate`.
+- Projects keep one limiter per API key or user ID in a map.
+- Middleware checks the limiter before the handler runs.
+- One server can use an in memory map. Several servers need Redis.
 
-**Recommendation:**
+Recommendation: use `golang.org/x/time/rate.NewLimiter(rate.Limit(100/60), 100)`, with a `sync.Map` that holds one limiter per user. It keeps rate limiting in memory, which fits a single server.
 
-Use `golang.org/x/time/rate.NewLimiter(rate.Limit(100/60), 100)` with sync.Map for storing per-user limiters. This provides efficient in-memory rate limiting suitable for single-server deployments.
+### Setting up a CI pipeline
 
-### Example: CI/CD Pipeline Configuration
+Questions:
 
-**User interaction:**
-
-```
+```text
 Q: "Which CI/CD platform are you using?"
 A: "GitHub Actions"
 
@@ -356,53 +257,30 @@ Q: "What should the pipeline do?"
 A: "Run tests, linting, and build on every push"
 ```
 
-**Research execution:**
+Research:
 
-1. Query context7: "GitHub Actions Go workflow configuration"
-2. Search GitHub: `runs-on: ubuntu-latest` with path=".github/workflows", language=["YAML"]
-3. Search GitHub: `go test ./...` with path=".github/workflows"
+1. Query context7: "GitHub Actions Go workflow configuration".
+2. Search GitHub for `runs-on: ubuntu-latest` with `path=".github/workflows"` and `language=["YAML"]`.
+3. Search GitHub for `go test ./...` with `path=".github/workflows"`.
 
-**Key findings:**
+Findings:
 
-- Common pattern: Matrix builds for multiple Go versions
-- Standard steps: Checkout, setup Go, cache dependencies, test, build
-- Best practice: Run linters before tests (fail fast)
-- Configuration: Use actions/cache for Go module caching
-- Consideration: Separate workflows for PR vs main branch
+- Projects use a matrix build across Go versions.
+- The usual steps are checkout, set up Go, cache dependencies, test, and build.
+- Linters run before tests, so the pipeline fails fast.
+- `actions/cache` caches Go modules.
+- PRs and the main branch often get separate workflows.
 
-**Recommendation:**
+Recommendation: use a GitHub Actions matrix for Go 1.21 and later. Run `golangci-lint` before the tests, and cache Go modules to speed up builds. Most open source Go projects do this.
 
-Use GitHub Actions with matrix strategy for Go 1.21+ testing. Run golangci-lint before tests to catch issues early. Cache Go modules to speed up builds. This pattern is standard across open-source Go projects.
+## Use it in planning
 
-## Integration with Planning
+1. Start with this skill.
+2. Ask the user about requirements.
+3. Ask for doc links.
+4. Research the docs, then code, then the web.
+5. Present the findings with a recommendation.
+6. Get the user's approval on the approach.
+7. Plan the implementation from the findings.
 
-When planning feature implementation:
-
-1. **Start with research skill** (try to use whenever possible)
-2. Ask user clarifying questions about requirements
-3. Request any specific documentation references from user
-4. Execute research phases (documentation → code examples → web)
-5. Present structured findings with clear recommendations
-6. Get user approval on recommended approach
-7. Proceed to implementation planning with research context
-
-Research findings should directly inform:
-
-- Library, pattern or framework selection decisions
-- Architecture and design patterns
-- Error handling and edge case strategies
-- Testing approaches and validation methods
-- Documentation structure and examples
-
-## Summary
-
-The research skill provides:
-
-- Systematic multi-source context gathering before implementation
-- User-driven requirements clarification and documentation input
-- Structured, actionable findings with source references
-- Clear rationale for implementation recommendations
-- Transparency about data availability and MCP status
-- Quick scan approach balancing thoroughness with speed
-
-Use this skill at the start of any feature planning to maximize implementation success and minimize false starts. The goal is to gather diverse perspectives and proven patterns to inform better implementation decisions.
+The findings should drive the choice of library, pattern, or framework, along with the architecture, error handling, edge cases, tests, and docs.

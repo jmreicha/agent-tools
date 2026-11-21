@@ -64,10 +64,7 @@ const WRAPPERS: Record<string, Unwrap> = {
   time: flagsThen(["-f", "-o"]),
   nice: flagsThen(["-n"]),
   timeout: (rest) =>
-    Math.min(
-      flagsThen(["-s", "-k", "--signal", "--kill-after"])(rest)! + 1,
-      rest.length,
-    ),
+    Math.min(flagsThen(["-s", "-k", "--signal", "--kill-after"])(rest)! + 1, rest.length),
   xargs: flagsThen(["-I", "-n", "-P", "-L", "-d", "-E", "-s", "-a"]),
   nohup: flagsThen([]),
   doas: flagsThen(["-u", "-C"]),
@@ -158,8 +155,7 @@ class Lexer {
         for (const h of x.herestrings) out.push(...new Lexer(h).list(false, wrappers));
       if (this.i >= this.s.length) {
         if (inSub || depth > 0) throw new ShellError("unterminated (");
-        if (this.heredocs.length)
-          throw new ShellError("heredoc has no terminator");
+        if (this.heredocs.length) throw new ShellError("heredoc has no terminator");
         return out;
       }
       const c = this.s[this.i++];
@@ -191,37 +187,21 @@ class Lexer {
     }
   }
 
-  private words(
-    words: string[],
-    at: At[],
-    out: SubCommand[],
-    wrappers: string[],
-    x: Extras,
-  ) {
+  private words(words: string[], at: At[], out: SubCommand[], wrappers: string[], x: Extras) {
     for (;;) {
       this.blanks();
       const c = this.s[this.i];
-      if (
-        c === undefined ||
-        c === "\n" ||
-        c === ";" ||
-        c === "|" ||
-        c === "(" ||
-        c === ")"
-      )
-        return;
+      if (c === undefined || c === "\n" || c === ";" || c === "|" || c === "(" || c === ")") return;
       if (c === "&") {
         if (this.s[this.i + 1] !== ">") return;
         this.redirect(out, wrappers, x);
       } else if (c === "<" || c === ">") this.redirect(out, wrappers, x);
-      else if (c === "#")
-        while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
+      else if (c === "#") while (this.i < this.s.length && this.s[this.i] !== "\n") this.i++;
       else {
         const from = this.i;
         const w = this.word(out, wrappers);
         const next = this.s[this.i];
-        if (/^\d+$/.test(w) && (next === "<" || next === ">"))
-          this.redirect(out, wrappers, x);
+        if (/^\d+$/.test(w) && (next === "<" || next === ">")) this.redirect(out, wrappers, x);
         else {
           words.push(w);
           at.push(this.base === null ? null : [this.base + from, this.base + this.i]);
@@ -270,8 +250,7 @@ class Lexer {
     const start = this.i;
     if (this.s[this.i] === "`") {
       let j = this.i + 1;
-      while (j < this.s.length && this.s[j] !== "`")
-        j += this.s[j] === "\\" ? 2 : 1;
+      while (j < this.s.length && this.s[j] !== "`") j += this.s[j] === "\\" ? 2 : 1;
       if (j >= this.s.length) throw new ShellError("unterminated backtick");
       const base = this.base === null ? null : this.base + this.i + 1;
       out.push(...new Lexer(this.s.slice(this.i + 1, j), base).list(false, wrappers));
@@ -313,8 +292,7 @@ class Lexer {
     this.blanks();
     const target = this.word(out, wrappers);
     if (target === "") throw new ShellError(`missing target after ${op}`);
-    if (op === "<<" || op === "<<-")
-      this.heredocs.push({ delim: target, strip: op === "<<-" });
+    if (op === "<<" || op === "<<-") this.heredocs.push({ delim: target, strip: op === "<<-" });
     else if (op === "<<<") x.herestrings.push(target);
     else x.redirects.push(target);
   }
@@ -322,8 +300,7 @@ class Lexer {
   private readHeredocs() {
     for (const h of this.heredocs.splice(0)) {
       for (;;) {
-        if (this.i >= this.s.length)
-          throw new ShellError(`heredoc ${h.delim} has no terminator`);
+        if (this.i >= this.s.length) throw new ShellError(`heredoc ${h.delim} has no terminator`);
         let j = this.s.indexOf("\n", this.i);
         if (j < 0) j = this.s.length;
         const line = this.s.slice(this.i, j);
@@ -334,12 +311,7 @@ class Lexer {
   }
 }
 
-function build(
-  words: string[],
-  at: At[],
-  raw: string,
-  wrappers: string[],
-): SubCommand[] {
+function build(words: string[], at: At[], raw: string, wrappers: string[]): SubCommand[] {
   let i = 0;
   while (i < words.length && RESERVED.has(words[i])) i++;
   const env: Record<string, string> = {};
@@ -368,33 +340,20 @@ function build(
   }
   const sub = make(raw, cmd, rest, env, wrappers, spansOf(at[i], restAt, envAt));
   if (cmd === "find") return [sub, ...findExec(rest, restAt, raw, wrappers)];
-  const script = SHELLS.has(cmd)
-    ? cScript(rest)
-    : cmd === "eval"
-      ? rest.join(" ")
-      : null;
-  return script === null
-    ? [sub]
-    : [sub, ...new Lexer(script).list(false, wrappers)];
+  const script = SHELLS.has(cmd) ? cScript(rest) : cmd === "eval" ? rest.join(" ") : null;
+  return script === null ? [sub] : [sub, ...new Lexer(script).list(false, wrappers)];
 }
 
 const EXEC = new Set(["-exec", "-execdir", "-ok", "-okdir"]);
 
 // Commands find runs: the words after -exec up to `;` or `+`.
-function findExec(
-  rest: string[],
-  restAt: At[],
-  raw: string,
-  wrappers: string[],
-): SubCommand[] {
+function findExec(rest: string[], restAt: At[], raw: string, wrappers: string[]): SubCommand[] {
   const out: SubCommand[] = [];
   for (let i = 0; i < rest.length; i++) {
     if (!EXEC.has(rest[i])) continue;
     let j = i + 1;
     while (j < rest.length && rest[j] !== ";" && rest[j] !== "+") j++;
-    out.push(
-      ...build(rest.slice(i + 1, j), restAt.slice(i + 1, j), raw, [...wrappers, "find"]),
-    );
+    out.push(...build(rest.slice(i + 1, j), restAt.slice(i + 1, j), raw, [...wrappers, "find"]));
     i = j;
   }
   return out;
@@ -425,8 +384,7 @@ function make(
   let positional = false;
   for (const w of words) {
     if (!positional && w === "--") positional = true;
-    else if (!positional && w.length > 1 && w.startsWith("-"))
-      flags.push(w.split("=")[0]);
+    else if (!positional && w.length > 1 && w.startsWith("-")) flags.push(w.split("=")[0]);
     else args.push(w);
   }
   return {

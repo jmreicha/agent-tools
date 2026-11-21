@@ -1,119 +1,105 @@
 ---
 name: findings
 description: |
-  Maintain a per-repo finding file that tracks mistakes, corrections, and
-  what works. Activates EVERY session, unconditionally. Read the finding
-  before doing anything. Write to it continuously as you work — not just at
-  session boundaries. Log your own mistakes, not just user corrections. The
-  finding lives in the repo at `./context/findings.md`.
-version: 1.0.0
+  Maintains a per repo findings file that tracks mistakes, corrections, and
+  what works. Use when starting any session in a repo, and whenever you or
+  the user catch a mistake. Read the file before doing anything else. Write
+  to it as you work, not just at session boundaries, and log your own
+  mistakes as well as user corrections. The file lives in the repo at
+  `./context/findings.md`.
+version: 1.1.0
 tags: [memory, learning, session]
 ---
 
-# Finding
+# Findings
 
-You maintain a per-repo markdown file that tracks mistakes, corrections, and
-patterns that work or don't. You read it before doing anything and update it
-continuously as you work — whenever you learn something worth recording.
+Keep a Markdown file per repo that tracks mistakes, corrections, and patterns that work or don't. Read it before you do anything else, and update it whenever you learn something worth keeping.
 
-**This skill is always active. Every session. No trigger required.**
+This skill runs in every session. It needs no trigger.
 
-## Session Start: Read Your Notes
+## Read the findings file first
 
-First thing, every session — read `./context/findings.md` before doing anything
-else. Internalize what's there and apply it silently. Don't announce that you
-read it. Just apply what you know.
+At the start of every session, read `./context/findings.md` before anything else. Apply what's in it without announcing that you read it. The user wants the mistake not to happen again, not a status update.
 
-If no finding exists yet, create one at `./context/findings.md`:
+If the file doesn't exist, create it:
 
 ```markdown
-# Finding
+# Findings
 
 ## Corrections
 
-| Date | Source | What Went Wrong | What To Do Instead |
+| Date | Source | What went wrong | What to do instead |
 | ---- | ------ | --------------- | ------------------ |
 
-## User Preferences
+## User preferences
 
-- (accumulate here as you learn them)
+- (Add these as you learn them.)
 
-## Patterns That Work
+## Patterns that work
 
-- (approaches that succeeded)
+- (Approaches that succeeded.)
 
-## Patterns That Don't Work
+## Patterns that don't work
 
-- (approaches that failed and why)
+- (Approaches that failed, and why.)
 
-## Domain Notes
+## Domain notes
 
-- (project/domain context that matters)
+- (Project context that matters.)
 ```
 
-Adapt the sections to fit the repo's domain. Design something you can usefully
-consume.
+Change the sections to fit the repo. You're the one reading it next session, so write it for that.
 
-## Continuous Updates
+Note: the file lives in the repo and can get committed. Never put secrets, tokens, or customer data in it.
 
-Update the finding as you work, not just at session start and end. Write to
-it whenever you learn something worth recording:
+## Update it as you work
 
-- **You hit an error and figure out why.** Log it immediately. Don't wait.
-- **The user corrects you.** Log what you did and what they wanted instead.
-- **You catch your own mistake.** Log it. Your mistakes count the same as
-  user corrections — maybe more, because you're the one who knows what went
-  wrong internally.
-- **You try something and it fails.** Log the approach and why it didn't work
-  so you don't repeat it.
-- **You try something and it works well.** Log the pattern.
-- **You re-read the napkin mid-task** because you're about to do something
-  you've gotten wrong before. Good. Do this.
+Write to the file as soon as you learn something, not only at the start and end of a session. Log an entry when:
 
-The finding is a living document. Treat it like working memory that persists
-across sessions, not a journal you write in once.
+- You hit an error and work out why.
+- The user corrects you. Log what you did and what they wanted.
+- You catch your own mistake. It counts as much as a user correction, because only you know what went wrong.
+- An approach fails. Log it and why, so you don't repeat it.
+- An approach works well. Log the pattern.
 
-## What to Log
+Reread the file mid-task when you're about to do something you've gotten wrong before. Treat it as working memory that lasts across sessions, not a journal you write in once.
 
-Log anything that would change your behavior if you read it next session:
+## What to log
 
-- **Your own mistakes**: wrong assumptions, bad approaches, misread code,
-  failed commands, incorrect fixes you had to redo.
-- **User corrections**: anything the user told you to do differently.
-- **Tool/environment surprises**: things about this repo, its tooling, or its
-  patterns that you didn't expect.
-- **Preferences**: how the user likes things done — style, structure, process.
-- **What worked**: approaches that succeeded, especially non-obvious ones.
+Log anything that would change your behavior next session:
 
-Be specific. "Made an error" is useless. "Assumed the API returns a list but
-it returns a paginated object with `.items`" is actionable.
+- Your own mistakes: wrong assumptions, bad approaches, misread code, failed commands, and fixes you had to redo.
+- User corrections: anything the user told you to do differently.
+- Surprises about this repo, its tools, or its patterns.
+- Preferences: how the user likes things done, such as style, structure, and process.
+- What worked, especially when it wasn't obvious.
 
-## Finding Maintenance
+Be specific. "Made an error" doesn't help. "Assumed the API returns a list, but it returns a paginated object with `.items`" does.
 
-Every 5-10 sessions, or when the file exceeds ~150 lines, consolidate:
+## Keep the file short
 
-- Merge redundant entries into a single rule.
-- Promote repeated corrections to User Preferences.
-- Remove entries that are now captured as top-level rules.
-- Archive resolved or outdated notes.
-- Keep total length under 200 lines of high-signal content.
+Every 5 to 10 sessions, or when the file passes 150 lines, consolidate it:
 
-A 50-line napkin of hard-won rules beats a 500-line log of raw entries.
+- Merge duplicate entries into one rule.
+- Move repeated corrections to "User preferences".
+- Remove entries that a top level rule already covers.
+- Archive notes that are resolved or out of date.
+- Keep the file under 200 lines.
+
+A 50-line file of hard-won rules beats a 500-line log of raw entries. Past about 200 lines, the useful entries get buried and stop changing what you do.
 
 ## Example
 
-**Early in a session** — you misread a function signature and pass args in the
-wrong order. You catch it yourself. Log it:
+Early in a session, you pass arguments in the wrong order and catch it yourself. Log it:
 
 ```markdown
-| 2026-02-06 | self | Passed (name, id) to createUser but signature is (id, name) | Check function signatures before calling, this codebase doesn't follow conventional arg ordering |
+| 2026-02-06 | self | Passed (name, id) to createUser, but the signature is (id, name) | Check function signatures before calling. This codebase doesn't follow the usual argument order. |
 ```
 
-**Mid-session** — user corrects your import style. Log it:
+Mid-session, the user corrects your import style. Log it:
 
 ```markdown
-| 2026-02-06 | user | Used relative imports | This repo uses absolute imports from `src/` — always |
+| 2026-02-06 | user | Used relative imports | Use absolute imports from `src/` in this repo. |
 ```
 
-**Later** — you re-read the finding before editing another file and use
-absolute imports without being told. That's the loop working.
+Later, you reread the file before editing another file, and you use absolute imports without being told.

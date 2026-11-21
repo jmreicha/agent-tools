@@ -1,0 +1,4 @@
+[global]
+# Prose isn't wrapped, so line length only adds noise.
+disable = ["MD013"]
+exclude = ["hooks/arbiter/vendor"]

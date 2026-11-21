@@ -40,13 +40,11 @@ function pattern(p: string): RegExp {
 }
 
 const list = <T>(v: T | T[]): T[] => (Array.isArray(v) ? v : [v]);
-const like = (p: string | string[], v: string) =>
-  list(p).some((x) => pattern(x).test(v));
+const like = (p: string | string[], v: string) => list(p).some((x) => pattern(x).test(v));
 const toolIs = (t: string | string[], tool: string) =>
   list(t).some((p) => (REGEX.test(p) ? pattern(p).test(tool) : p === tool));
 
-export const expandHome = (p: string, home: string) =>
-  p.replace(/^~(?=\/|$)/, home);
+export const expandHome = (p: string, home: string) => p.replace(/^~(?=\/|$)/, home);
 
 // Each wanted element matches a later positional than the previous one.
 function inOrder(want: (string | string[])[], have: string[]): boolean {
@@ -61,12 +59,8 @@ function inOrder(want: (string | string[])[], have: string[]): boolean {
 function matchSub(m: Matcher, s: SubCommand, subs: SubCommand[]): boolean {
   if (m.cmd !== undefined && !like(m.cmd, s.cmd)) return false;
   if (m.args !== undefined && !inOrder(m.args, s.args)) return false;
-  if (m.flags !== undefined && !m.flags.every((f) => s.flags.includes(f)))
-    return false;
-  if (
-    m.wrapped_by !== undefined &&
-    !list(m.wrapped_by).some((w) => s.wrappers.includes(w))
-  )
+  if (m.flags !== undefined && !m.flags.every((f) => s.flags.includes(f))) return false;
+  if (m.wrapped_by !== undefined && !list(m.wrapped_by).some((w) => s.wrappers.includes(w)))
     return false;
   if (
     m.env !== undefined &&
@@ -76,10 +70,7 @@ function matchSub(m: Matcher, s: SubCommand, subs: SubCommand[]): boolean {
   if (m.regex !== undefined && !pattern(m.regex).test(s.raw)) return false;
   if (
     m.piped_to !== undefined &&
-    !subs.some(
-      (t) =>
-        t.pipe === s.pipe && t.stage > s.stage && matchSub(m.piped_to!, t, subs),
-    )
+    !subs.some((t) => t.pipe === s.pipe && t.stage > s.stage && matchSub(m.piped_to!, t, subs))
   )
     return false;
   return true;
@@ -96,25 +87,16 @@ const onSub = (ms: Matcher[], s: SubCommand, subs: SubCommand[]) =>
 const firesOn = (r: Rule, s: SubCommand, subs: SubCommand[]) =>
   onSub(r.match, s, subs) && !onSub(r.unless, s, subs);
 
-function fires(
-  r: Rule,
-  subs: SubCommand[],
-  file: string | undefined,
-  home: string,
-): boolean {
+function fires(r: Rule, subs: SubCommand[], file: string | undefined, home: string): boolean {
   const onFile = (ms: Matcher[], f: string) =>
     ms.some(
-      (m) =>
-        m.path !== undefined &&
-        list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
+      (m) => m.path !== undefined && list(m.path).some((p) => pattern(expandHome(p, home)).test(f)),
     );
   if (!r.match.length) return true;
   if (subs.some((s) => firesOn(r, s, subs))) return true;
   const files = [
     ...(file === undefined ? [] : [file]),
-    ...subs.flatMap((s) =>
-      [...s.redirects, ...s.args].map((t) => target(t, home)),
-    ),
+    ...subs.flatMap((s) => [...s.redirects, ...s.args].map((t) => target(t, home))),
   ];
   return files.some((f) => onFile(r.match, f) && !onFile(r.unless, f));
 }
@@ -127,8 +109,7 @@ function line(r: Rule, n?: number): string {
 
 // What a repeat rule's `same` compares: the Bash command, or the file path.
 export function callKey(tool: string, input: Record<string, unknown>): string {
-  if (tool === "Bash" && typeof input.command === "string")
-    return input.command.trim();
+  if (tool === "Bash" && typeof input.command === "string") return input.command.trim();
   return typeof input.file_path === "string" ? input.file_path : "";
 }
 
@@ -139,12 +120,8 @@ function matching(
   rules: Rule[],
   home: string,
 ): Rule[] {
-  const subs =
-    tool === "Bash" && typeof input.command === "string"
-      ? parse(input.command)
-      : [];
-  const file =
-    typeof input.file_path === "string" ? input.file_path : undefined;
+  const subs = tool === "Bash" && typeof input.command === "string" ? parse(input.command) : [];
+  const file = typeof input.file_path === "string" ? input.file_path : undefined;
   return rules.filter((r) => toolIs(r.tool, tool) && fires(r, subs, file, home));
 }
 
@@ -155,9 +132,12 @@ export function matchedRepeat(
   rules: Rule[],
   home: string,
 ): string[] {
-  return matching(tool, input, rules.filter((r) => r.repeat), home).map(
-    (r) => r.id,
-  );
+  return matching(
+    tool,
+    input,
+    rules.filter((r) => r.repeat),
+    home,
+  ).map((r) => r.id);
 }
 
 // This call plus earlier matching calls in the window, back to the latest reset.
@@ -209,13 +189,17 @@ function stepCall(
 ): [string, Record<string, unknown>] {
   if (typeof step !== "string") return [step.tool, {}];
   if (!rule.match.length) return [step, {}];
-  return usesPath
-    ? ["Edit", { file_path: expandHome(step, home) }]
-    : ["Bash", { command: step }];
+  return usesPath ? ["Edit", { file_path: expandHome(step, home) }] : ["Bash", { command: step }];
 }
 
 // Run a sequence through a fresh history; the outcome is the last call's.
-function runSequence(seq: Step[], rule: Rule, rs: Rule[], usesPath: boolean, home: string): Outcome {
+function runSequence(
+  seq: Step[],
+  rule: Rule,
+  rs: Rule[],
+  usesPath: boolean,
+  home: string,
+): Outcome {
   const past: Call[] = [];
   let action: Outcome = "allow";
   for (const step of seq) {
@@ -231,18 +215,13 @@ function runSequence(seq: Step[], rule: Rule, rs: Rule[], usesPath: boolean, hom
 }
 
 export function runRuleTests(rule: Rule, home: string): TestResult[] {
-  const usesPath = [...rule.match, ...rule.unless].some(
-    (m) => m.path !== undefined,
-  );
+  const usesPath = [...rule.match, ...rule.unless].some((m) => m.path !== undefined);
   const tool = usesPath ? "Edit" : "Bash";
   const solo = [{ ...rule, tool }];
   const out: TestResult[] = [];
   if (rule.repeat) {
     const rs = rule.match.length ? solo : [rule];
-    for (const [expected, seqs] of Object.entries(rule.tests) as [
-      Outcome,
-      Step[][],
-    ][]) {
+    for (const [expected, seqs] of Object.entries(rule.tests) as [Outcome, Step[][]][]) {
       if (expected === "rewrite") continue;
       for (const seq of seqs) {
         const actual = runSequence(seq, rule, rs, usesPath, home);
@@ -260,10 +239,7 @@ export function runRuleTests(rule: Rule, home: string): TestResult[] {
     const actual = !r ? v.action : "error" in r ? r.error : r.command;
     out.push({ id: rule.id, input, expected, actual, pass: actual === expected });
   }
-  for (const [expected, inputs] of Object.entries(rule.tests) as [
-    Outcome,
-    string[],
-  ][]) {
+  for (const [expected, inputs] of Object.entries(rule.tests) as [Outcome, string[]][]) {
     if (expected === "rewrite") continue;
     for (const input of inputs) {
       if (!rule.match.length) {
@@ -272,9 +248,7 @@ export function runRuleTests(rule: Rule, home: string): TestResult[] {
         out.push({ id: rule.id, input, expected, actual, pass: actual === expected });
         continue;
       }
-      const arg = usesPath
-        ? { file_path: expandHome(input, home) }
-        : { command: input };
+      const arg = usesPath ? { file_path: expandHome(input, home) } : { command: input };
       const actual = evaluate(tool, arg, solo, home).action;
       out.push({
         id: rule.id,
@@ -334,7 +308,8 @@ function editsFor(r: Rule, s: SubCommand, cmd: string): Edit[] | { error: string
   const out: Edit[] = [];
   const [c0, c1] = sp.cmd;
   if (to.cmd !== undefined) out.push({ from: c0, to: c1, text: fill(to.cmd), id: r.id });
-  if (to.prefix !== undefined) out.push({ from: c0, to: c0, text: `${fill(to.prefix)} `, id: r.id });
+  if (to.prefix !== undefined)
+    out.push({ from: c0, to: c0, text: `${fill(to.prefix)} `, id: r.id });
   if (missing) return { error: `${r.id}: nothing fills ${missing}` };
   for (const [flag, repl] of Object.entries(to.flags ?? {})) {
     for (let i = 0; i < s.words.length; i++) {

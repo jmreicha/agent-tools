@@ -1,15 +1,15 @@
-# arbiter: Design
+# `arbiter` design
 
 See [requirements.md](requirements.md) for scope and [decisions.md](decisions.md) for the
 reasoning behind each choice.
 
 The normative behavior lives in the yass specs under `hooks/arbiter/*.yass.yaml` (start at
-`root.yass.yaml`; browse with `yass list` / `yass query`). Where this overview and a spec
-disagree, the spec wins. Personal rules (e.g. those codified from `~/.claude/CLAUDE.md`) belong in the user layer, `~/.claude/rules/arbiter/`.
+`root.yass.yaml`. Browse with `yass list` / `yass query`). Where this overview and a spec
+disagree, the spec wins. Personal rules (for example, those codified from `~/.claude/CLAUDE.md`) belong in the user layer, `~/.claude/rules/arbiter/`.
 
 ## Architecture
 
-```
+```text
 agent-tools/
 ├── hooks/
 │   ├── hooks.json              modules: ["./arbiter/index.ts"]
@@ -32,15 +32,15 @@ mods API (`$.fs.read`, `$.ui.*`, `$.command.register`).
 1. `session.start` (and `/arbiter reload`): read every `*.yaml`/`*.yml` from the three layers with
    `$.fs.read`, validate, merge into the effective rule set. Record load errors.
 2. `tool.call`: `engine.evaluate(e.tool, e, rules)`.
-   - Bash: parse `e.command` into sub-commands; test each rule against each sub-command.
+   - Bash: parse `e.command` into subcommands. Test each rule against each subcommand.
    - Edit/Write/Read: test `path` against `e.file_path`.
-   - Other tools (incl. MCP): only rule-level `tool` matching applies.
+   - Other tools (incl. MCP): only rule level `tool` matching applies.
 3. Strictest outcome wins: `deny` > `ask` > `warn` > none.
    - `deny` → `{ deny: <descriptions + hints of every matching deny rule> }`
-   - `ask` → `$.ui.ask(…)`; anything but explicit approval, including no one to ask, denies.
+   - `ask` → `$.ui.ask(…)`. Anything but explicit approval, including no one to ask, denies.
    - `warn` → `$.ui.log(…)`, then `next(e)` with the message added to the result's `context`.
    - none → `next(e)`.
-4. Each verdict goes into an in-memory ring buffer (last ~100) that the pane renders.
+4. Each verdict goes into an in memory ring buffer (last ~100) that the pane renders.
 
 ## Rule schema
 
@@ -77,11 +77,7 @@ rules:
     hint: "Pass `--context <existing-context>`."
 
   - id: k8s/no-new-contexts
-    match:
-      {
-        cmd: kubectl,
-        args: [config, [set-context, set-cluster, set-credentials]],
-      }
+    match: { cmd: kubectl, args: [config, [set-context, set-cluster, set-credentials]] }
 
   - id: k8s/kubeconfig-readonly
     tool: [Edit, Write]
@@ -101,51 +97,51 @@ rules:
 | `match`       | yes      | Matcher, or list of matchers (any-of): when the rule applies.                                                                                                                 |
 | `unless`      | no       | Matcher or list (any-of): if it also matches, the rule does not fire.                                                                                                         |
 | `action`      | no       | `deny` (default), `ask`, `warn`, `rewrite` (stub → deny, logs "not implemented").                                                                                             |
-| `to`          | no       | Rewrite target; accepted, unused in v1.                                                                                                                                       |
-| `description` | no       | What the rule enforces and why; shown to Claude, in `/arbiter list` and `/arbiter check`.                                                                                     |
-| `hint`        | no       | What to do instead; shown to Claude.                                                                                                                                          |
+| `to`          | no       | Rewrite target. Accepted, unused in v1.                                                                                                                                       |
+| `description` | no       | What the rule enforces and why. Shown to Claude, in `/arbiter list` and `/arbiter check`.                                                                                     |
+| `hint`        | no       | What to do instead. Shown to Claude.                                                                                                                                          |
 | `tests`       | no       | Map of expected outcome (`deny`/`ask`/`warn`/`allow`) → list of inputs, evaluated against this rule alone. Input is a command string for Bash rules, a path for `path` rules. |
 
 ### Matcher fields
 
-Fields in one matcher are ANDed; a list value means "any of".
+Fields in one matcher are ANDed. A list value means "any of".
 
 | Field        | Matches against                                                                                                                                |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cmd`        | argv[0] after unwrapping. String, list, or `/regex/`.                                                                                          |
-| `args`       | Positionals in order, not necessarily adjacent (flag values count as positionals). Elements are literals or globs; a nested list means any-of. |
+| `args`       | Positionals in order, not necessarily adjacent (flag values count as positionals). Elements are literals or globs. A nested list means any-of. |
 | `flags`      | All listed flags present. `--context` also matches `--context=x`.                                                                              |
-| `wrapped_by` | A wrapper around this sub-command (`aws-vault`, `sudo`, `env`, `op`, …).                                                                       |
-| `env`        | Inline assignments, e.g. `{ AWS_PROFILE: "*" }`.                                                                                               |
-| `regex`      | Raw sub-command text. Fallback for anything structure can't express.                                                                           |
-| `path`       | Glob against `file_path`; `~` expanded.                                                                                                        |
+| `wrapped_by` | A wrapper around this subcommand (`aws-vault`, `sudo`, `env`, `op`, …).                                                                        |
+| `env`        | Inline assignments, for example, `{ AWS_PROFILE: "*" }`.                                                                                       |
+| `regex`      | Raw subcommand text. Fallback for anything structure can't express.                                                                            |
+| `path`       | Glob against `file_path`. `~` expanded.                                                                                                        |
 
 ### Shell parsing
 
-- Split on `&&`, `||`, `;`, `|`, newlines; recurse into `$(…)`, backticks, and `bash -c "…"`.
-- Heredoc bodies and quoted text are data, never commands (so a commit message mentioning
+- Split on `&&`, `||`, `;`, `|`, newlines. Recurse into `$(…)`, backticks, and `bash -c "…"`.
+- Heredoc bodies and quoted text are data, not commands (so a commit message mentioning
   `aws sso login` is not denied).
 - Tokenize respecting single/double quotes and escapes. Leading `VAR=val` → `env`.
-- Unwrap built-in wrappers, recording each in `wrappers`: `sudo`, `env`, `time`, `nice`,
+- Unwrap built in wrappers, recording each in `wrappers`: `sudo`, `env`, `time`, `nice`,
   `timeout <n>`, `xargs`, `aws-vault exec <profile> --`, `op run --`.
-- On parse failure (e.g. unbalanced quote): treat the whole command as one sub-command with only
-  `raw` set, so `regex` rules still apply; log the failure.
+- On parse failure (for example, unbalanced quote): treat the whole command as one subcommand with only
+  `raw` set, so `regex` rules still apply. Log the failure.
 
 ### Layers
 
 Load order, lowest to highest: plugin `rules/*.yaml` → `~/.claude/rules/arbiter/*.yaml` →
-`<repo>/.claude/rules/arbiter/*.yaml`. Within a layer, files load alphabetically; subdirectories are warned about, not loaded. `disable:`
-removes ids from all lower layers. Claude Code only auto-loads `.md` under `.claude/rules/`, so the
+`<repo>/.claude/rules/arbiter/*.yaml`. Within a layer, files load alphabetically. Subdirectories are warned about, not loaded. `disable:`
+removes ids from all lower layers. Claude Code only autoloads `.md` under `.claude/rules/`, so the
 YAML files do not leak into context.
 
 ## Error handling
 
 | Failure                                   | Behavior                                                       |
 | ----------------------------------------- | -------------------------------------------------------------- |
-| YAML syntax or schema error               | Skip that file; toast + pane entry with file, line, message.   |
-| Duplicate id within a layer               | Load error; the second file is skipped.                        |
+| YAML syntax or schema error               | Skip that file. Toast + pane entry with file, line, message.   |
+| Duplicate id within a layer               | Load error. The second file is skipped.                        |
 | `disable:` names an unknown id            | Warning only.                                                  |
-| Shell parse failure                       | `raw`-only sub-command; `regex` rules still apply.             |
+| Shell parse failure                       | `raw`-only subcommand. `regex` rules still apply.              |
 | Guard throws or times out                 | `.catch` handler returns `{ deny: "arbiter failed: <kind>" }`. |
 | `ask` with no one to answer (`claude -p`) | Deny.                                                          |
 
@@ -155,13 +151,13 @@ YAML files do not leak into context.
 | ---------------------------- | -------------------------------------------------------------------------------------------- |
 | `/arbiter`                   | Open the pane: recent verdicts, rule counts per layer, load errors.                          |
 | `/arbiter check "<command>"` | Dry run. Prints the verdict Claude would get and each matching rule with its layer and file. |
-| `/arbiter list [filter\|id]` | Effective rules with layer and disabled state; given an id, prints its YAML.                 |
-| `/arbiter test`              | Run every rule's inline tests; print failures.                                               |
-| `/arbiter reload`            | Re-read all layers.                                                                          |
+| `/arbiter list [filter\|id]` | Effective rules with layer and disabled state. Given an id, prints its YAML.                 |
+| `/arbiter test`              | Run every rule's inline tests. Print failures.                                               |
+| `/arbiter reload`            | Reread all layers.                                                                           |
 
 Example:
 
-```
+```text
 /arbiter check "aws s3 ls --profile prod"
 DENY  "aws s3 ls --profile prod"
   aws/requires-vault  (user: ~/.claude/rules/arbiter/rules.yaml)
@@ -188,6 +184,6 @@ DENY  "aws s3 ls --profile prod"
 
 1. **Gates** (`classic.Stop`): undecided.
 2. **Classifier**: compare `$.model.classify` and Jev (via `$.http.fetch`). Likely shape: an
-   opt-in `judge:` matcher field with a yes/no question and a probability threshold, evaluated
+   opt in `judge:` matcher field with a yes/no question and a probability threshold, evaluated
    only after structural matching narrows the call. Jev sends command text to a third party, so
    it needs secret redaction first and must fail closed on timeout.

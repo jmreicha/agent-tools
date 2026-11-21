@@ -1,4 +1,4 @@
-# arbiter: warn feedback and repeat rules
+# `arbiter`: warn feedback and repeat rules
 
 Two additions borrowed from captain-hook
 ([Less prompts, more guardrails](https://yasyf.com/writing/less-prompts-more-guardrails)):
@@ -25,9 +25,9 @@ second verdict is `warn` gets both notes, rewrite note first. A refusal result g
 
 **Files.**
 
-- `index.ts`: `run()` takes a list of notes; the warn branch passes `v.message`.
+- `index.ts`: `run()` takes a list of notes. The warn branch passes `v.message`.
 - `index.yass.yaml`, `root.yass.yaml`: warn MUST add the message as context.
-- `index.test.ts`: warn result carries `context`; rewrite+warn carries both.
+- `index.test.ts`: warn result carries `context`. Rewrite+warn carries both.
 - `README.md`, `reference.md`: the warn row says Claude reads the line.
 
 ## 2. Repeat rules
@@ -74,13 +74,13 @@ second verdict is `warn` gets both notes, rewrite note first. A refusal result g
   A denied or refused call did not run and is not recorded. A rewritten call is recorded as the
   command that ran.
 - The message line adds the count: `arbiter <id>: <description> <hint> (<n> matching calls in
-the last <within>)`.
+  the last <within>)`.
 - History is per session and in memory: at most 200 calls, cleared at `session.start`. Calls
   from subagents share it, so interleaved subagent work counts toward the same window.
 
 ### Engine (pure)
 
-The engine stays free of state; the caller passes history in.
+The engine stays free of state. The caller passes history in.
 
 ```ts
 export type Call = { tool: string; key: string; matched: string[] };
@@ -97,16 +97,16 @@ export function evaluate(tool, input, rules, home, past?: Call[]): Verdict;
 
 ### Mod (`index.ts`)
 
-- A module-level `calls: Call[]`, capped at 200, cleared on `session.start`.
+- A module level `calls: Call[]`, capped at 200, cleared on `session.start`.
 - `run()` pushes `{ tool, key, matched }` for the call actually passed on, before running it.
-- `guardCall` and the rewrite re-check pass `calls` to `evaluate`. `/arbiter check` does too,
+- `guardCall` and the rewrite recheck pass `calls` to `evaluate`. `/arbiter check` does too,
   so it shows what would happen right now in this session.
 
 ### Rule file and schema
 
-- `rules.ts`: `repeat` in `RULE_KEYS`; validate keys, types, ranges, `reset_on` regexes, and the
+- `rules.ts`: `repeat` in `RULE_KEYS`. Validate keys, types, ranges, `reset_on` regexes, and the
   rewrite exclusion. Parsed rules carry `repeat` with `within` and `same` defaulted.
-- `rule.schema.json`: `repeat` object; test entries may be sequences.
+- `rule.schema.json`: `repeat` object. Test entries may be sequences.
 - `script/arbiter-test` keeps checking key lists against the schema.
 
 ### Inline tests
@@ -119,12 +119,12 @@ sequence on a rule without `repeat`. Results print a sequence as its elements jo
 
 ### Tests to add
 
-- engine: count reached and not; `within` slides past early hits; `reset_on` clears;
-  `same` separates commands; message carries the count; `matchedRepeat` ignores count;
+- engine: count reached and not. `within` slides past early hits. `reset_on` clears.
+  `same` separates commands. Message carries the count. `matchedRepeat` ignores count.
   `runRuleTests` runs sequences.
 - rules: `repeat` validation errors (count < 2, within < count or > 200, unknown key,
   bad regex in `reset_on`, with rewrite, string inputs on a repeat rule, sequences without one).
-- index: a third rerun warns with context; an Edit in between resets; denied calls don't count;
+- index: a third rerun warns with context. An Edit in between resets. Denied calls don't count.
   `session.start` clears history.
 
 ### Docs
@@ -134,6 +134,6 @@ sequence on a rule without `repeat`. Results print a sequence as its elements jo
 
 ## Out of scope
 
-- Classifier/LLM judge behind the repeat counter (the natural next step; see open items).
-- Per-agent windows, once the call event exposes an agent id.
+- Classifier/LLM judge behind the repeat counter (the natural next step, see open items).
+- Per agent windows, once the call event exposes an agent id.
 - Persisting the window across sessions.

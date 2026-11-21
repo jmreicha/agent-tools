@@ -4,7 +4,7 @@ arbiter turns the "always do X, never do Y" lines in your `CLAUDE.md` into rules
 actually enforces. It checks every tool call Claude is about to make against a set of YAML rules
 and denies it, asks you first, or lets it through with a warning.
 
-```
+```text
 You:     list the s3 buckets in prod
 Claude:  aws s3 ls --profile prod
 arbiter: arbiter aws/requires-vault: AWS access goes through aws-vault.

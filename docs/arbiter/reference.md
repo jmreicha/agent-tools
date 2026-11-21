@@ -1,8 +1,8 @@
-# arbiter reference
+# `arbiter` reference
 
 Every field of an arbiter rule file and how arbiter evaluates it. For what arbiter is and why
 you'd use it, start with the [guide](../../hooks/arbiter/README.md). The normative behavior lives
-in the yass specs under `hooks/arbiter/`; this page describes the same rules for people writing
+in the yass specs under `hooks/arbiter/`. This page describes the same rules for people writing
 them. For commented rules you can copy, see
 [`examples/rules.yaml`](../../hooks/arbiter/examples/rules.yaml). Editors can validate rule files against
 [`rule.schema.json`](../../hooks/arbiter/rule.schema.json).
@@ -40,7 +40,7 @@ An empty file, or one with only comments, is fine.
 | `repeat`      |                                  | mapping                       |         | Fire only after several matching calls. Not with `rewrite`. See [Repeat](#repeat).                                      |
 | `description` |                                  | string                        |         | What the rule enforces and why. Claude reads it.                                                                        |
 | `hint`        |                                  | string                        |         | What to do instead. Claude reads it.                                                                                    |
-| `enabled`     |                                  | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`; `/arbiter test` still runs its tests. |
+| `enabled`     |                                  | boolean                       | `true`  | `false` turns the rule off in place. `/arbiter list` marks it `[enabled: false]`. `/arbiter test` still runs its tests. |
 | `tests`       |                                  | mapping                       |         | Expected outcome to list of inputs. See [Tests](#tests).                                                                |
 
 `id` must match `^[a-z0-9][a-z0-9._-]*(/[a-z0-9._-]+)*$`. A rule using the old `reason` key is
@@ -57,18 +57,18 @@ under `match` or `unless` means any of them.
 | `args`       | list of patterns or lists  | Positional arguments, in this order but not necessarily adjacent.                   |
 | `flags`      | list of strings            | All of these flags present. `--context` also matches `--context=x`.                 |
 | `wrapped_by` | string or list             | The command runs inside any of these [wrappers](#wrappers).                         |
-| `env`        | mapping of name to pattern | Leading `NAME=value` assignments, e.g. `{ AWS_PROFILE: "prod*" }`.                  |
+| `env`        | mapping of name to pattern | Leading `NAME=value` assignments, for example, `{ AWS_PROFILE: "prod*" }`.          |
 | `regex`      | `/regex/flags`             | Searched in the simple command's raw text.                                          |
 | `path`       | pattern or list            | The tool call's `file_path`, and Bash redirect targets. A leading `~` is your home. |
-| `piped_to`   | matcher of command keys    | A later stage of the same pipeline, e.g. `{ cmd: [sh, bash] }`.                     |
+| `piped_to`   | matcher of command keys    | A later stage of the same pipeline, for example, `{ cmd: [sh, bash] }`.             |
 
 `cmd`, `args`, `flags`, `wrapped_by`, `env`, `regex`, and `piped_to` are command keys and only
 match Bash calls. `path` matches a call's `file_path` (Edit, Write, Read) and, on Bash, every
-file redirection target (`>`, `>>`, `<`, `&>`, ...) and positional argument, so with `Bash` in
+file redirection target (such as `>`, `>>`, `<`, and `&>`) and positional argument, so with `Bash` in
 `tool` it catches `echo x > ~/.kube/config`, `cp x ~/.kube/config`, and `cat .env`. `$HOME` and
 `${HOME}` count as `~`, and a relative word is matched as `./word`, so `*/.env` catches `.env`.
 Bash can't tell reading from writing, so such a rule blocks both. Other tools, such as `Grep`
-or MCP tools, have nothing to match yet; a [tool-only rule](#tool-only-rules) covers every call to
+or MCP tools, have nothing to match yet. A [tool-only rule](#tool-only-rules) covers every call to
 them. The two kinds can't share a matcher.
 
 ### Tool-only rules
@@ -139,7 +139,7 @@ For each tool call:
 
 Each line Claude reads has the form `arbiter <id>: <description> <hint>`, sorted by id, with a
 missing description or hint left out. A [repeat](#repeat) rule's line ends with
-` (<n> matching calls in the last <within>)`.
+`(<n> matching calls in the last <within>)`.
 
 If arbiter itself throws or times out while deciding, the call is denied with
 `arbiter failed (<kind>): <message>`. If it fails after the call was already passed on, the
@@ -154,10 +154,10 @@ tool has run, so the call keeps its real result instead.
   Substitutions come before the command that contains them.
 - `find … -exec cmd … ;` (also `-execdir`, `-ok`, `-okdir`, ending in `;` or `+`) yields `cmd` as
   a command wrapped by `find`.
-- Redirect targets are recorded for `path` rules; fd duplications like `2>&1` are not.
+- Redirect targets are recorded for `path` rules. fd duplications like `2>&1` are not.
 - Heredoc bodies are data, so commit messages written with `<<'EOF'` never trigger rules.
-- Comments, redirections, and leading reserved words (`if`, `then`, `do`, `!`,
-  ...) are ignored. A bare `--` ends flags.
+- Comments, redirections, and leading reserved words such as `if`, `then`, `do`, and `!`,
+  are ignored. A bare `--` ends flags.
 - If a command can't be parsed (an unclosed quote or substitution, a heredoc with no end), the
   whole command becomes one simple command with only raw text, so only `regex` rules can match.
 
@@ -169,10 +169,10 @@ name, outermost first, and inherits wrappers through `bash -c` and substitutions
 | Wrapper     | Consumes before the wrapped command                                                    |
 | ----------- | -------------------------------------------------------------------------------------- |
 | `sudo`      | flags, with values for `-u -g -U -C -h -p -r -t -D`                                    |
-| `env`       | flags, with values for `-u -C -S`; `NAME=value` words go to the wrapped env            |
+| `env`       | flags, with values for `-u -C -S`. `NAME=value` words go to the wrapped env            |
 | `time`      | flags, with values for `-f -o`                                                         |
 | `nice`      | flags, with a value for `-n`                                                           |
-| `timeout`   | flags, with values for `-s -k --signal --kill-after`; then the duration                |
+| `timeout`   | flags, with values for `-s -k --signal --kill-after`. Then the duration                |
 | `xargs`     | flags, with values for `-I -n -P -L -d -E -s -a`                                       |
 | `aws-vault` | `exec` only: everything through `--`, or `exec`, its flags, and the profile            |
 | `op`        | `run` only, with a `--`: everything through `--`                                       |
@@ -180,8 +180,8 @@ name, outermost first, and inherits wrappers through `bash -c` and substitutions
 | `nohup`     | flags                                                                                  |
 | `doas`      | flags, with values for `-u -C`                                                         |
 | `exec`      | flags, with a value for `-a`                                                           |
-| `watch`     | flags, with values for `-n --interval`; one quoted argument is parsed as a command     |
-| `command`   | flags; not a wrapper with `-v`/`-V`, which only look the name up                       |
+| `watch`     | flags, with values for `-n --interval`. One quoted argument is parsed as a command     |
+| `command`   | flags. Not a wrapper with `-v`/`-V`, which only look the name up                       |
 | `builtin`   | flags                                                                                  |
 
 So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, lytxread]` and
@@ -196,7 +196,7 @@ So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, ly
 | 3     | project | `<repo>/.claude/rules/arbiter/` |
 
 - Every `*.yaml` and `*.yml` file directly in a layer's folder loads, in alphabetical order.
-- Subfolders are not loaded; each one shows a warning in the pane.
+- Subfolders are not loaded. Each one shows a warning in the pane.
 - A rule in a higher layer replaces a lower rule with the same id.
 - `disable` removes rules from lower layers only. An id no lower layer defines is a warning.
 - Two files in the same layer defining the same id is an error: the second file is skipped.
@@ -207,7 +207,7 @@ So `aws-vault exec lytxread -- aws s3 ls` gives `aws-vault` with args `[exec, ly
 ## Rewrite
 
 A `rewrite` rule fixes the command and runs the fixed version instead of denying it. Use it for
-mechanical fixes with one right answer; keep `deny` with a `hint` when the fix needs a choice.
+mechanical fixes with one right answer. Keep `deny` with a `hint` when the fix needs a choice.
 
 ```yaml
 - id: aws/requires-vault
@@ -232,7 +232,7 @@ mechanical fixes with one right answer; keep `deny` with a `hint` when the fix n
 | `env`    | `NAME: null` drops that leading assignment.                                        |
 
 `prefix` and `cmd` may hold templates `{a|b|...}`. Each alternative is a flag (its value), an
-upper-case env name (its assigned value), or a literal; the first one present wins. Values read
+upper-case env name (its assigned value), or a literal. The first one present wins. Values read
 from the command are single-quoted when they hold anything beyond letters, digits, and
 `@%+=:,./_-`. A dropped flag whose value a template read loses that value too.
 
@@ -266,11 +266,11 @@ command line (`cd x && … | head`) is untouched. Then:
 
 A repeat rule fires when its `match` and `unless` hold for the call, as usual, and the call plus
 the earlier calls that matched reach `count`. Earlier calls are counted back from the most recent
-through `within - 1` of them, stopping at a `reset_on` call. Once it fires it fires on each further
+through `within - 1` of them, stopping at a `reset_on` call. Once it fires, it fires on each further
 matching call until a reset or the window slides past.
 
 The window holds the last 200 tool calls that ran in this session, matched or not. A denied or
-refused call didn't run and isn't recorded; a rewritten one is recorded as what ran. Subagent
+refused call didn't run and isn't recorded. A rewritten one is recorded as what ran. Subagent
 calls share the window. It is cleared when a session starts. `/arbiter check` evaluates against
 the current window without adding to it.
 
@@ -286,7 +286,7 @@ tests:
 
 Each input is evaluated against that rule alone. Inputs are Bash commands, or paths for rules
 whose matchers use `path` (a leading `~` is expanded). An input passes when the outcome equals its
-key; `allow` means the rule didn't fire. `rewrite` maps each input to the exact command it must
+key. `allow` means the rule didn't fire. `rewrite` maps each input to the exact command it must
 become: `rewrite: { "pre-commit run": "prek run" }`.
 
 A [repeat](#repeat) rule lists sequences instead: each entry is a list of calls run through a
@@ -309,12 +309,12 @@ tests:
 | `/arbiter list <id>`            | That rule's YAML.                                                                                                                           |
 | `/arbiter check "<command>"`    | The verdict (with `-> "<rewritten>"` for a rewrite), then each fired rule with its file, description, and hint.                             |
 | `/arbiter test`                 | Passed/total, then skipped files by path and failures by id.                                                                                |
-| `/arbiter reload`               | Re-reads rule files and prints counts per layer.                                                                                            |
+| `/arbiter reload`               | Rereads rule files and prints counts per layer.                                                                                             |
 | `/arbiter pane`                 | Opens a pane with counts, load errors, and the last 100 verdicts.                                                                           |
-| `/arbiter history`              | Hits and sessions in the last 90 days, a per-rule ID/HITS/DENY/ASK/WARN/ALLOWED/REFUSED/LAST table sorted by hits, then rules with no hits. |
+| `/arbiter history`              | Hits and sessions in the last 90 days, a per rule ID/HITS/DENY/ASK/WARN/ALLOWED/REFUSED/LAST table sorted by hits, then rules with no hits. |
 | `/arbiter history prune [days]` | Removes history files older than `days` (default 90) and prints the count.                                                                  |
 
-Quotes around the `check` command are optional; one surrounding pair is removed.
+Quotes around the `check` command are optional. One surrounding pair is removed.
 
 ## History
 
@@ -339,21 +339,21 @@ Every `deny`, `ask`, and `warn` verdict (never `allow`) appends one JSON line to
 | `action`  | The verdict's action.                                                                  |
 | `rules`   | Every fired rule with its own action, so a shadowed `warn` still counts.               |
 | `outcome` | `allowed` or `refused`, for `ask` only. A dismissed ask, or `claude -p`, is `refused`. |
-| `target`  | See below.                                                                             |
+| `target`  | The redacted command or file path, described after this table.                         |
 
-`target` is redacted best effort. For `Bash` it is each sub-command's name plus at most two
+`target` is redacted best effort. For `Bash` it is each subcommand's name plus at most two
 leading words matching `^[a-z][a-z0-9-]*$` (`aws sso login AKIA… --profile p` → `aws sso login`),
 joined with `;`. For `Read`, `Edit`, and `Write` it is the file path. Other tools have none.
 
 One file per session means one writer, so concurrent sessions never lose lines. A failed write
 shows one toast and never blocks the call. Files older than 90 days are pruned at session start
-(the current session's file and symbolic links never are); `/arbiter history prune [days]` prunes
-on demand. Query the raw log with `jq`, e.g.
+(the current session's file and symbolic links never are). `/arbiter history prune [days]` prunes
+on demand. Query the raw log with `jq`, for example:
 `jq -s 'map(select(.action=="deny"))' ~/.claude/arbiter/history/*.jsonl`.
 
 ## Indicators
 
 A denied call shows a toast such as
 `arbiter denied aws sso login --profile prod (aws/no-sso-login)`, with the exact command or file path. The status
-line keeps a per-session count, e.g. `arbiter: 2 denied · 1 asked`, and stays empty until
+line keeps a per session count, for example, `arbiter: 2 denied · 1 asked`, and stays empty until
 something fires. Warnings already log a line (and reach Claude), and asks already prompt.

@@ -1,31 +1,29 @@
 ---
 name: pr
-description: Iterate on a PR until CI passes. Use when you need to fix CI failures, address review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.
-version: 1.0.0
+description: Iterate on a PR until CI passes. Use when you need to fix CI failures, resolve review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.
+version: 1.1.0
 tags: [git, ci, github]
 ---
 
-# Iterate on PR Until CI Passes
+# Iterate on a PR until CI passes
 
-Continuously iterate on the current branch until all CI checks pass and review feedback is addressed.
+Keep fixing and pushing the current branch until every CI check passes and the review feedback is resolved.
 
-**Requires**: GitHub CLI (`gh`) authenticated.
+This skill needs the GitHub CLI (`gh`), signed in.
 
 ## Workflow
 
-### 1. Identify PR
+### 1. Find the PR
 
 ```bash
 gh pr view --json number,url,headRefName
 ```
 
-Stop if no PR exists for the current branch.
+Stop if the current branch has no PR. Keep the PR number, because every command after this needs it.
 
-Store the PR number for subsequent commands.
+### 2. Gather review feedback
 
-### 2. Gather Review Feedback
-
-Use `gh` CLI to fetch PR review comments and reviews. You need multiple sources to get complete feedback:
+Use the `gh` CLI to fetch review comments and reviews. Feedback lives in several places, and no single command returns all of it. Inline threads and their resolved status only come from GraphQL:
 
 ```bash
 # Get repo info (owner and repo name)
@@ -68,68 +66,68 @@ gh api repos/{owner}/{repo}/pulls/{number}/comments
 gh api repos/{owner}/{repo}/issues/{number}/comments
 ```
 
-#### Categorizing Feedback
+#### Sort feedback by priority
 
-Categorize feedback using the [LOGAF scale](https://develop.sentry.dev/engineering-practices/code-review/#logaf-scale):
+Sort feedback with the [LOGAF scale](https://develop.sentry.dev/engineering-practices/code-review/#logaf-scale):
 
-**Detect LOGAF markers in comment body:**
+Look for a LOGAF marker in the comment body:
 
 - `h:` or `[h]` or `high:` → **high** priority
 - `m:` or `[m]` or `medium:` → **medium** priority
 - `l:` or `[l]` or `low:` → **low** priority
 
-**If no explicit marker, categorize by keywords:**
+Without a marker, sort by keywords.
 
-_High priority:_
+High priority:
 
-- "must fix", "must change", "security", "critical", "blocker", "will break", "wrong", "incorrect"
+- `must fix`, `must change`, `security`, `critical`, `blocker`, `will break`, `wrong`, `incorrect`
 
-_Low priority:_
+Low priority:
 
-- "nit", "nitpick", "suggestion", "consider", "could also", "optional", "minor", "style", "prefer", "what do you think"
+- `nit`, `nitpick`, `suggestion`, `consider`, `could also`, `optional`, `minor`, `style`, `prefer`, `what do you think`
 
-**Default:** `medium` for regular comments without clear markers.
+Everything else is `medium`.
 
-#### Bot Classification
+#### Sort bot comments
 
-Distinguish between bots that provide actionable feedback vs. informational bots:
+Some bots post feedback you should act on. Others only post information.
 
-_Review bots (actionable - categorize by content):_
+Review bots, which you sort by content like human feedback:
 
 - Sentry, Warden, Cursor, Bugbot, Seer, CodeQL, Copilot, Claude
 
-_Info bots (skip silently):_
+Information bots, which you skip without comment:
 
 - Codecov, Dependabot, Renovate, GitHub Actions, Mergify, Snyk
 
-Review bot feedback goes into high/medium/low buckets with a `review_bot: true` flag. Info bots go into the `bot` bucket (skip).
+Review bot feedback goes into the high, medium, and low buckets with a `review_bot: true` flag. Information bot comments go into the `bot` bucket, which you skip.
 
-#### Categories:
+#### Categories
 
-- `high` - Must address before merge (explicit `h:`, blockers, changes requested, security issues)
-- `medium` - Should address (explicit `m:`, standard feedback without clear priority)
+- `high` - Must fix before merge (explicit `h:`, blockers, changes requested, security issues)
+- `medium` - Should fix (explicit `m:`, standard feedback without clear priority)
 - `low` - Optional (explicit `l:`, nits, suggestions)
-- `bot` - Informational automated comments (Codecov, Dependabot, etc.) - skip silently
+- `bot` - Information-only automated comments, such as Codecov and Dependabot. Skip them.
 - `resolved` - Already resolved threads
 
-### 3. Handle Feedback by LOGAF Priority
+### 3. Triage feedback by LOGAF priority
 
-**Auto-fix (no prompt):**
+Fix these without asking:
 
-- `high` - must address (blockers, security, changes requested)
-- `medium` - should address (standard feedback)
+- `high` - must fix (blockers, security, changes requested)
+- `medium` - should fix (standard feedback)
 
-This includes review bot feedback. Treat it the same as human feedback:
+Treat review bot feedback the same as human feedback. Check each finding:
 
-- Real issue found → fix it
-- False positive → skip, but explain why in a brief comment
-- Never silently ignore review bot feedback — always verify the finding
+- If it's a real issue, fix it.
+- If it's a false positive, skip it, and reply with a short comment that says why.
+- Don't skip review bot feedback without checking it.
 
-**Prompt user for selection:**
+Ask the user about these:
 
-- `low` - present numbered list and ask which to address:
+- `low` - present numbered list and ask which to fix:
 
-```
+```text
 Found 3 low-priority suggestions:
 1. [l] "Consider renaming this variable" - @reviewer in api.py:42
 2. [nit] "Could use a list comprehension" - @reviewer in utils.py:18
@@ -138,14 +136,14 @@ Found 3 low-priority suggestions:
 Which would you like to address? (e.g., "1,3" or "all" or "none")
 ```
 
-**Skip silently:**
+Skip these without comment:
 
 - `resolved` threads
-- `bot` comments (informational only — Codecov, Dependabot, etc.)
+- `bot` comments, such as Codecov and Dependabot
 
-### 4. Check CI Status
+### 4. Check CI status
 
-Get check status with:
+Get the check status:
 
 ```bash
 # Basic check status
@@ -155,16 +153,16 @@ gh pr checks {number}
 gh pr checks {number} --json name,state,bucket,link,workflow
 ```
 
-For failed checks, get detailed logs:
+For failed checks, get the logs:
 
 ```bash
 # Get run IDs from the JSON output, then view failed logs
 gh run view {run-id} --log-failed
 ```
 
-#### Extracting Failure Context
+#### Find the error in the logs
 
-When reading logs, look for common failure patterns to find the relevant error:
+Search the logs for these failure markers:
 
 - `error:`, `failed:`, `failure:`, `traceback`, `exception`
 - `FAILED`, `panic:`, `fatal:`
@@ -172,21 +170,21 @@ When reading logs, look for common failure patterns to find the relevant error:
 - `=== FAILURES ===`, `___ ___` (pytest separators)
 - `npm ERR!`, `yarn error`
 
-Extract context around these markers (5 lines before, up to 50 lines after).
+Read 5 lines before each marker and up to 50 lines after it.
 
-**Wait if pending:** If review bot checks (sentry, warden, cursor, bugbot, seer, codeql) are still running, wait before proceeding—they post actionable feedback that must be evaluated. Informational bots (codecov) are not worth waiting for.
+If review bot checks (Sentry, Warden, Cursor, Bugbot, Seer, CodeQL) are still running, wait for them. They post feedback you need to check. Don't wait for information bots like Codecov.
 
-### 5. Fix CI Failures
+### 5. Fix CI failures
 
 For each failed check:
 
-1. Read the failure logs via `gh run view {run-id} --log-failed`
-2. Read the relevant code before making changes
-3. Fix the issue with minimal, targeted changes
+1. Read the failure logs with `gh run view {run-id} --log-failed`.
+2. Read the code involved before you change it.
+3. Make the smallest change that fixes the failure.
 
-Do NOT assume what failed based on check name alone—always read the logs.
+Read the logs every time. A check's name doesn't tell you what failed.
 
-### 6. Commit and Push
+### 6. Commit and push
 
 ```bash
 git add <files>
@@ -200,25 +198,23 @@ git push
 gh pr checks --watch --interval 30
 ```
 
-### 8. Re-check Feedback After CI
+### 8. Check feedback again after CI
 
-Review bots often post feedback seconds after CI checks complete. Wait briefly, then check again:
+Review bots often post feedback seconds after CI finishes. Wait 10 seconds, then check again:
 
 ```bash
 sleep 10
 # Re-fetch review comments using gh api commands from step 2
 ```
 
-Address any new high/medium feedback the same way as step 3. If new feedback requires code changes, return to step 6 to commit and push.
+Fix any new high and medium feedback the same way as step 3. If new feedback needs code changes, go back to step 6 to commit and push.
 
 ### 9. Repeat
 
-Return to step 2 if CI failed or new feedback appeared in step 8.
+Go back to step 2 if CI failed or step 8 found new feedback.
 
-## Exit Conditions
+## When to stop
 
-**Success:** All checks pass, post-CI feedback re-check is clean (no new unaddressed high/medium feedback including review bot findings), user has decided on low-priority items.
-
-**Ask for help:** Same failure after 3 attempts, feedback needs clarification, infrastructure issues.
-
-**Stop:** No PR exists, branch needs rebase.
+- Done: every check passes, the check after CI finds no new high or medium feedback (including from review bots), and the user has chosen which low-priority items to fix.
+- Ask for help: the same failure happens 3 times, feedback needs clarifying, or the CI infrastructure is broken.
+- Stop: the branch has no PR, or it needs a rebase.

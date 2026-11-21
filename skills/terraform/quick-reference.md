@@ -1,4 +1,4 @@
-# Quick Reference
+# Quick reference
 
 > **Part of:** [terraform-skill](./SKILL.md)
 > **Purpose:** Command cheat sheets and decision flowcharts
@@ -7,19 +7,19 @@ This document provides quick lookup tables, command references, and decision flo
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Command Cheat Sheet](#command-cheat-sheet)
 2. [Decision Flowchart](#decision-flowchart)
-3. [Version-Specific Guidance](#version-specific-guidance)
+3. [Version specific Guidance](#version-specific-guidance)
 4. [Troubleshooting Guide](#troubleshooting-guide)
 5. [Migration Paths](#migration-paths)
 
 ---
 
-## Command Cheat Sheet
+## Command cheat sheet
 
-### Static Analysis
+### Static analysis
 
 Works with both `terraform` and `tofu` commands:
 
@@ -35,7 +35,7 @@ tflint --init && tflint
 checkov -d .
 ```
 
-### Native Tests (1.6+)
+### Native tests (1.6+)
 
 ```bash
 # Run all tests
@@ -48,7 +48,7 @@ terraform test -test-directory=tests/unit/
 terraform test -verbose
 ```
 
-### Plan Validation
+### Plan validation
 
 ```bash
 # Generate and review plan
@@ -63,11 +63,11 @@ terraform show tfplan | grep "will be created"
 
 ---
 
-## Decision Flowchart
+## Decision flowchart
 
-### Testing Approach Selection
+### Testing approach selection
 
-```
+```text
 Need to test Terraform/OpenTofu code?
 │
 ├─ Just syntax/format?
@@ -91,9 +91,9 @@ Need to test Terraform/OpenTofu code?
       └─ Plan to upgrade Terraform/OpenTofu
 ```
 
-### Module Development Workflow
+### Module development workflow
 
-```
+```text
 1. Plan
    ├─ Define inputs (variables.tf)
    ├─ Define outputs (outputs.tf)
@@ -122,7 +122,7 @@ Need to test Terraform/OpenTofu code?
 
 ---
 
-## Version-Specific Guidance
+## Version specific guidance
 
 ### Terraform 1.0-1.5
 
@@ -145,7 +145,7 @@ Need to test Terraform/OpenTofu code?
 - ✅ Use real integration tests for final validation
 - ✅ Faster test iteration
 
-### Terraform vs OpenTofu Comparison
+### Terraform or OpenTofu comparison
 
 Both Terraform and OpenTofu are fully supported by this skill. The choice depends on your requirements:
 
@@ -154,13 +154,13 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 | Factor                 | Terraform                         | OpenTofu                               |
 | ---------------------- | --------------------------------- | -------------------------------------- |
 | **Licensing**          | Business Source License (BSL) 1.1 | Mozilla Public License 2.0 (MPL 2.0)   |
-| **Governance**         | HashiCorp (single vendor)         | Linux Foundation (community-driven)    |
-| **Latest Version**     | 1.14+                             | 1.11+                                  |
+| **Governance**         | HashiCorp (single vendor)         | Linux Foundation (community driven)    |
+| **Version (2026-11)**  | 1.14+                             | 1.11+                                  |
 | **Native Testing**     | 1.6+                              | 1.6+                                   |
 | **Mock Providers**     | 1.7+                              | 1.7+                                   |
 | **Feature Parity**     | Reference implementation          | Compatible fork with some additions    |
 | **Enterprise Support** | HCP Terraform, Terraform Cloud    | Multiple vendors                       |
-| **Migration Path**     | N/A                               | Drop-in replacement for Terraform ≤1.5 |
+| **Migration Path**     | N/A                               | Drop in replacement for Terraform ≤1.5 |
 
 **When to choose Terraform:**
 
@@ -170,25 +170,25 @@ Both Terraform and OpenTofu are fully supported by this skill. The choice depend
 
 **When to choose OpenTofu:**
 
-- Prefer open-source governance model
+- Prefer open source governance model
 - Want to avoid vendor lock-in concerns
-- Building on community-driven development
+- Building on community driven development
 - BSL 1.1 license doesn't fit your use case
 
 **For this skill:**
 
 - Commands are shown for both: `terraform` and `tofu`
 - Most patterns work identically, though differences exist (see release notes)
-- Version-specific features noted (1.6+, 1.7+, etc.)
+- Version specific features noted (1.6+, 1.7+, etc.)
 - **Note:** Since OpenTofu 1.6, the platforms have diverged with unique features
 
-**When creating modules, Claude will ask your preference** to generate appropriate commands and documentation.
+**When creating modules, Claude asks your preference** to generate appropriate commands and documentation.
 
 ---
 
-## Troubleshooting Guide
+## Troubleshooting guide
 
-### Issue: Tests fail in CI but pass locally
+### Issue: tests fail in CI but pass locally
 
 **Symptoms:**
 
@@ -217,7 +217,7 @@ terraform {
 }
 ```
 
-### Issue: Parallel tests conflict
+### Issue: parallel tests conflict
 
 **Symptoms:**
 
@@ -236,7 +236,7 @@ uniqueId := random.UniqueId()
 bucketName := fmt.Sprintf("test-bucket-%s", uniqueId)
 ```
 
-### Issue: High test costs
+### Issue: high test costs
 
 **Symptoms:**
 
@@ -280,9 +280,9 @@ bucketName := fmt.Sprintf("test-bucket-%s", uniqueId)
 
 ---
 
-## Migration Paths
+## Migration paths
 
-### From Manual Testing → Automated
+### From manual testing → automated
 
 **Phase 1:** Static analysis
 
@@ -308,19 +308,19 @@ terraform plan -out=tfplan
 - GitHub Actions / GitLab CI
 - Automated apply on main branch
 
-### From Terratest → Native Tests (1.6+)
+### From Terratest → native tests (1.6+)
 
 **Strategy:** Gradual migration
 
 1. **Keep Terratest for:**
    - Complex integration tests
-   - Multi-step workflows
+   - Multistep workflows
    - Cross-provider tests
 
 2. **Migrate to native tests:**
    - Simple unit tests
    - Logic validation
-   - Mock-friendly tests
+   - Mock friendly tests
 
 3. **During transition:**
    - Maintain both frameworks
@@ -329,7 +329,7 @@ terraform plan -out=tfplan
 
 **Example:** Mixed approach
 
-```
+```text
 tests/
 ├── unit/                    # Native tests
 │   └── validation.tftest.hcl
@@ -339,7 +339,7 @@ tests/
 
 ### From Terraform → OpenTofu
 
-**Good news:** OpenTofu is a drop-in replacement!
+**Good news:** OpenTofu is a drop in replacement.
 
 1. **No code changes needed**
    - All Terraform syntax works
@@ -366,9 +366,9 @@ tests/
 
 ---
 
-## Pre-Commit Checklist
+## Pre-commit checklist
 
-### Formatting & Validation
+### Formatting & validation
 
 Run these commands before every commit:
 
@@ -380,7 +380,7 @@ terraform fmt -recursive
 terraform validate
 ```
 
-### Naming Convention Review
+### Naming convention review
 
 - [ ] All identifiers use `_` not `-`
 - [ ] No resource names repeat resource type (no `aws_vpc.main_vpc`)
@@ -391,7 +391,7 @@ terraform validate
 - [ ] Output names follow `{name}_{type}_{attribute}` pattern
 - [ ] No double negatives in variable names
 
-### Code Structure Review
+### Code structure review
 
 - [ ] `count`/`for_each` at top of resource blocks (blank line after)
 - [ ] `tags` as last real argument in resources
@@ -400,16 +400,16 @@ terraform validate
 - [ ] Variables ordered: description → type → default → sensitive → nullable → validation
 - [ ] Only `#` comments used (no `//` or `/* */`)
 
-### Modern Features Check
+### Modern features check
 
 - [ ] Using `try()` not `element(concat())`
 - [ ] Secrets use write-only arguments or external data sources (not in state)
-- [ ] `nullable = false` set on non-null variables
+- [ ] `nullable = false` set on not null variables
 - [ ] `optional()` used in object types where applicable (Terraform 1.3+)
 - [ ] Variable validation blocks added where constraints needed
 - [ ] Consider cross-variable validation for related variables (Terraform 1.9+)
 
-### Architecture Review
+### Architecture review
 
 - [ ] `terraform.tfvars` only at composition level (not in modules)
 - [ ] Remote state configured (never local state)
@@ -417,7 +417,7 @@ terraform validate
 - [ ] `terraform_remote_state` used for cross-composition dependencies
 - [ ] File structure follows standard: main.tf, variables.tf, outputs.tf, versions.tf
 
-### Documentation Check
+### Documentation check
 
 Required documentation for all modules:
 
@@ -429,9 +429,9 @@ Required documentation for all modules:
 
 ---
 
-## Version Management Quick Reference
+## Version management quick reference
 
-### Constraint Syntax
+### Constraint syntax
 
 | Syntax            | Meaning                          | Use Case                  |
 | ----------------- | -------------------------------- | ------------------------- |
@@ -441,7 +441,7 @@ Required documentation for all modules:
 | `">= 5.0, < 6.0"` | Range                            | Any 5.x version           |
 | `">= 5.0"`        | Minimum                          | Risky (breaking changes)  |
 
-### Strategy by Component
+### Strategy by component
 
 | Component          | Recommendation               | Example                       |
 | ------------------ | ---------------------------- | ----------------------------- |
@@ -450,7 +450,7 @@ Required documentation for all modules:
 | **Modules (prod)** | Pin exact version            | `version = "5.1.2"`           |
 | **Modules (dev)**  | Allow patch updates          | `version = "~> 5.1"`          |
 
-### Update Workflow
+### Update workflow
 
 ```bash
 # Step 1: Lock versions initially
@@ -467,7 +467,7 @@ git add .terraform.lock.hcl
 git commit -m "Update provider versions"
 ```
 
-### Update Strategy
+### Update strategy
 
 **Security patches:**
 
@@ -490,11 +490,11 @@ git commit -m "Update provider versions"
 
 ---
 
-## Refactoring Quick Reference
+## Refactoring quick reference
 
-### Common Refactoring Patterns
+### Common refactoring patterns
 
-#### Pattern 1: Count to For_Each Migration
+#### Pattern 1: count to for_each migration
 
 **When:** Need stable resource addressing or items might be reordered
 
@@ -508,7 +508,7 @@ git commit -m "Update provider versions"
 
 **Key principle:** Use `moved` blocks to preserve existing resources
 
-#### Pattern 2: Legacy to Modern Terraform
+#### Pattern 2: legacy to modern Terraform
 
 **0.12/0.13 → 1.x checklist:**
 
@@ -520,7 +520,7 @@ git commit -m "Update provider versions"
 - [ ] Use `moved` blocks for refactoring (1.1+)
 - [ ] Add cross-variable validation (1.9+)
 
-#### Pattern 3: Secrets Remediation
+#### Pattern 3: secrets remediation
 
 **Goal:** Move secrets out of Terraform state
 
@@ -535,9 +535,9 @@ aws secretsmanager create-secret --name prod-db-password --secret-string "..."
 terraform show | grep -i password  # Should not appear
 ```
 
-### Refactoring Decision Tree
+### Refactoring decision tree
 
-```
+```text
 What are you refactoring?
 
 ├─ Resource addressing (count[0] → for_each["key"])
@@ -553,7 +553,7 @@ What are you refactoring?
    └─ Use: moved blocks to preserve resources
 ```
 
-### Migration Best Practices
+### Migration best practices
 
 **Before refactoring:**
 
@@ -580,9 +580,9 @@ What are you refactoring?
 
 ---
 
-## Common Patterns
+## Common patterns
 
-### Resource Naming
+### Resource naming
 
 ```hcl
 # ✅ Good: Descriptive, contextual
@@ -594,7 +594,7 @@ resource "aws_instance" "main" { }
 resource "aws_s3_bucket" "bucket" { }
 ```
 
-### Variable Naming
+### Variable naming
 
 ```hcl
 # ✅ Good: Context-specific
@@ -606,9 +606,9 @@ var.cidr
 var.instance_class
 ```
 
-### File Organization
+### File organization
 
-```
+```text
 Standard module structure:
 ├── main.tf          # Primary resources
 ├── variables.tf     # Input variables
@@ -619,4 +619,4 @@ Standard module structure:
 
 ---
 
-**Back to:** [Main Skill File](../SKILL.md)
+**Back to:** [Main Skill File](SKILL.md)
