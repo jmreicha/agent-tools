@@ -5,6 +5,6 @@ level: warning
 ignorecase: true
 nonword: true
 tokens:
-  - '\b(?:re|sub|non|multi|semi|per|auto|self|co)-[a-z]+\b'
+  - '\b(?:re|sub|non|multi|semi|per|auto|self|co|hand)-[a-z]+\b'
   - '\b[a-z]+-(?:specific|based|driven|level|facing|ready|related|wide|aware|friendly|time|term|quality|world|depth|effort|making|known|free|heavy|first|style|like)\b'
-  - '\b(?:built-in|open-source|one-line|one-off|off-center|left-to-right|right-to-left|top-to-bottom|least-privilege|drop-in|in-memory|in-process|follow-up|up-to-date|third-party|cross-functional|half-formed|free-floating|black-and-white|before-and-after|hand-edit|opt-in|single-file|full-detail|so-called|well-defined|long-running|short-lived|long-lived|hard-coded?|step-by-step|out-of-the-box|day-to-day)\b'
+  - '\b(?:built-in|open-source|one-line|one-off|one-shot|long-form|off-center|left-to-right|right-to-left|top-to-bottom|least-privilege|drop-in|in-memory|in-process|follow-up|up-to-date|third-party|cross-functional|half-formed|free-floating|black-and-white|before-and-after|commented-out|best-practice|opt-in|single-file|full-detail|so-called|well-defined|long-running|short-lived|long-lived|hard-coded?|step-by-step|out-of-the-box|day-to-day)s?\b'
