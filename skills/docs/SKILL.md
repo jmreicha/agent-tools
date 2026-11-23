@@ -47,7 +47,8 @@ Ask two questions to pick the mode:
 Map common docs to a mode:
 
 - Runbook: how-to.
-- ADR, RFC, design doc: explanation.
+- ADR, RFC: explanation.
+- Design doc: explanation, with its own outline in [references/page-types.md](references/page-types.md). Use it for new design docs only.
 - API, CLI, and config docs: reference.
 - Onboarding guide: tutorial.
 - README: a short how-to (install, first run) that links to the other modes. Use the README outline in [references/page-types.md](references/page-types.md) for new READMEs only.
@@ -118,6 +119,7 @@ Readers land on one section from search, and agents retrieve one chunk at a time
 ## Voice and specifics
 
 - PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute. Don't paste agent logs, SHA lists, or metric tables. Link them.
+- Diagrams: invoke the **diagram** skill (`agent-tools:diagram`) for every diagram, including Mermaid. It owns the house style, when to suggest a diagram, and how to embed one. Don't draw diagrams by hand.
 - Code comments: 1-2 lines, say why, not what.
 - Product UI strings are not documentation. Use the product's copy guidelines for those.
 - Match the repo's existing code snippet indentation. Write real paths. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.

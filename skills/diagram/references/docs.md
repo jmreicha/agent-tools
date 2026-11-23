@@ -10,7 +10,7 @@ When editing a doc, suggest a diagram if the text makes the reader hold a pictur
 - a flow already explained in 2+ paragraphs
 
 Skip it for a single component, a list the text already covers, or anything that changes faster than anyone updates a picture.
-Suggest first, and draw only on a yes. Place one diagram per section, under the paragraph that introduces it.
+Suggest first, and draw only on a yes. Design docs are the exception: draw diagrams without asking, one per section that needs one. Place one diagram per section, under the paragraph that introduces it.
 
 ## Embedding
 

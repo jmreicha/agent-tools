@@ -106,6 +106,67 @@ A tutorial must not fail. Pin versions, show the output of every step, and give 
 - Say what the concept is not, as flat bullets.
 - Use a comparison table when there is a real either-or.
 
+## Design doc
+
+A design doc is explanation mode for a system you plan to build or change. Use this outline only for a new design doc. Leave an existing design doc alone: don't restructure or restyle it, and change only what the user asks for.
+
+```markdown
+# <System or change name>
+
+<1-2 paragraphs: what the doc covers and why now. End with what it doesn't cover: "X is not meant to replace Y.">
+
+## Problem
+
+<The current state and what it costs: toil, risk, incidents. Use real numbers, and name their source and date.>
+
+## Goals and non-goals
+
+**Must have:**
+
+1. <Requirement with a literal value: "RPO 24 hours".>
+
+**Nice to have:**
+
+1. <Requirement.>
+
+**Non-goals:**
+
+- <What the design deliberately leaves out, and why.>
+
+## Proposal
+
+<The design, with a diagram of it.>
+
+## Alternatives
+
+<Each option with its tradeoffs. Use a comparison table when there are 3 or more options. Pair each downside with its mitigation in the same bullet.>
+
+## Security
+
+## Cost
+
+## Observability
+
+## <Whatever else the design needs>
+
+## Rollout
+
+### Phase 1: <name>
+
+## Open questions
+
+- <Question. When it's resolved, keep it and put the answer under it.>
+
+## References
+
+- <Links to the references page, tickets, and the full design in the repo.>
+```
+
+- Use these section names exactly, so every design doc reads the same. Leave out a section that has nothing in it, except Problem, Proposal, and Open questions.
+- Security, Cost, and Observability go in that order, when they apply.
+- Use diagrams liberally: one in each section that describes components, a flow, a boundary, or phases. Problem can show the current state, Proposal the design, Alternatives each option, and Rollout the phases. Draw them with the **diagram** skill (`agent-tools:diagram`), which also covers embedding.
+- No status line, owner, or decision date at the top.
+
 ## Troubleshooting
 
 Keep entries inline on the relevant page until there are about 5, then move them to a `Troubleshooting <area>` page.
