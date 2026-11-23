@@ -104,8 +104,20 @@ def check_page(page):
                 problems.append(f"{name} is {off:g}px out of line")
                 break
     return (problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
-            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells) + badges(cells, geo))
+            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells) + badges(cells, geo) + account_labels(cells))
 
+
+
+def account_labels(cells):
+    """Account groups read `Name (123456789012)` or the bare ID; the group already says account."""
+    out = []
+    for i, c in cells.items():
+        if "group_account" not in str(c.get("style")):
+            continue
+        v = re.sub(r"<[^>]+>", " ", c.get("value") or "").strip()
+        if re.search(r"\baccount\b", v, re.I) or not re.fullmatch(r"\d{12}|.+ \(\d{12}\)", v):
+            out.append(f"{i}: account label {v!r}; use `Name (123456789012)`")
+    return out
 
 
 def badges(cells, geo):

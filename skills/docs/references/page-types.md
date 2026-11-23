@@ -41,6 +41,45 @@ Title it with the task as a verb phrase: "Rotate a signing key". No "How to" pre
 - Include a Verify section, and end with Next steps rather than the last step. (Vale)
 - Leave out Prerequisites only when there are truly none.
 
+## README
+
+Use this outline only for a new README. Leave an existing README alone: don't restructure or restyle it, and change only what the user asks for.
+
+```markdown
+# <Project name>
+
+<One sentence: what it is and who it's for.>
+
+<Optional: one screenshot or demo, for a UI or CLI tool.>
+
+## Highlights
+
+- <Optional. 3-5 bullets, only when the reason to use it isn't obvious.>
+
+## Quick start
+
+<Copyable install commands, then a first run and the output to expect.>
+
+## Usage
+
+<1-3 common tasks.>
+
+## <Whatever the project needs: Configuration, Docs, Plugins>
+
+## Development
+
+<Optional. How to run the tests and lint, or a link to CONTRIBUTING.md.>
+
+## License
+
+<Optional. One line that links to LICENSE.>
+```
+
+- Quick start is always the first heading. Readers decide from the first screen, then copy a command.
+- No badges.
+- Link to the changelog and to longer docs. Don't copy them in.
+- Past about 300 lines, the README is turning into the manual. Move sections into `docs/`, or add a table of contents.
+
 ## Tutorial
 
 Use the how-to outline, with two changes:

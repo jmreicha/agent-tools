@@ -50,7 +50,7 @@ Map common docs to a mode:
 - ADR, RFC, design doc: explanation.
 - API, CLI, and config docs: reference.
 - Onboarding guide: tutorial.
-- README: a short how-to (install, first run) that links to the other modes.
+- README: a short how-to (install, first run) that links to the other modes. Use the README outline in [references/page-types.md](references/page-types.md) for new READMEs only.
 
 Ask the questions again at the section and paragraph level. A "why" paragraph in a how-to, or a step list in an explanation, means the doc mixes modes. Move it out and link to it.
 

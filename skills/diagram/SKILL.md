@@ -27,7 +27,7 @@ The look stays close to draw.io defaults. Color is for vendor icons and the occa
 
 - **Accurate.** Put each thing where it actually lives. Use a vendor icon only for the real product, and a plain box for a generic concept.
 
-- **Specific names.** Label every account, resource, and service with its real name (`internalservices-stg 320343233951`, `claude-gateway-prod-reports`), not a placeholder named after what it holds or does (`Claude Gateway account`). If the source gives only an ID, look the name up (`~/.aws/config`, `organizations describe-account`, tags, the repo). If you can't find it, use the ID alone.
+- **Specific names.** Label every account, resource, and service with its real name (`InternalServices-Stg (320343233951)`, `claude-gateway-prod-reports`), not a placeholder named after what it holds or does (`Claude Gateway account`). If the source gives only an ID, look the name up (`~/.aws/config`, `organizations describe-account`, tags, the repo). If you can't find it, use the ID alone.
 
 ## Wabi-sabi
 
@@ -176,7 +176,7 @@ A diagram that looks fine in the XML often isn't once it renders, so check it bo
    python3 <this skill dir>/scripts/check-layout.py <name>.drawio
    ```
 
-   It flags edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off center title or subtitle, content closer than 60px to the heading, low contrast, lines through labels, edge labels on borders or on each other, logos without the standard tile, and icon labels moved off the bottom with no line there.
+   It flags edge jogs (line up the two ends exactly, or add waypoints if the bend is on purpose), uneven padding, an off center title or subtitle, content closer than 60px to the heading, low contrast, lines through labels, edge labels on borders or on each other, logos without the standard tile, account labels not in `Name (ID)` form, and icon labels moved off the bottom with no line there.
 
 2. Before the first render, write down the reading path you planned: entry → … → exit.
 

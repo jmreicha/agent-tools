@@ -117,4 +117,14 @@ d.badge(2, "dst")
 found = problems(d)
 assert has(found, "badge on src's label"), found
 assert not has(found, "badge on dst's label"), found
+# Account groups read `Name (ID)`; the magenta group already says "account".
+d = base()
+d.group("wordy", "InternalServices-Prod account 135330967441", "account", 300, 300, 300, 200, "aws")
+d.group("bare_id", "InternalServices-Prod 135330967441", "account", 700, 300, 300, 200, "aws")
+d.group("tidy", "InternalServices-Prod (135330967441)", "account", 300, 600, 300, 200, "aws")
+d.group("id_only", "135330967441", "account", 700, 600, 300, 200, "aws")
+found = problems(d)
+assert has(found, "wordy: account label"), found
+assert has(found, "bare_id: account label"), found
+assert not has(found, "tidy:") and not has(found, "id_only:"), found
 print("ok")
