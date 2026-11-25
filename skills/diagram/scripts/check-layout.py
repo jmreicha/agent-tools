@@ -60,6 +60,50 @@ def check(path):
     for page in pages:
         prefix = f"[{page.get('name')}] " if len(pages) > 1 else ""
         out += [prefix + p for p in check_page(page)]
+    return out + full_union(pages)
+
+
+def node_name(value):
+    """A node's name: the first line of its label, without markup."""
+    return re.sub(r"<[^>]+>", "", re.split(r"<br\s*/?>", value or "")[0]).strip()
+
+
+def named_edges(page):
+    cells = {c.get("id"): c for c in page.iter("mxCell")}
+    names = {i: node_name(c.get("value")) for i, c in cells.items() if c.get("vertex") == "1"}
+    edges = {(names.get(c.get("source")), names.get(c.get("target")))
+             for c in cells.values() if c.get("edge") == "1"}
+    return {n for n in names.values() if n}, {e for e in edges if all(e)}
+
+
+def reaches(edges, src, tgt):
+    """True if Full connects src to tgt, directly or through hops a concern page skipped."""
+    seen, todo = {src}, [src]
+    while todo:
+        n = todo.pop()
+        for a, b in edges:
+            if a == n and b not in seen:
+                if b == tgt:
+                    return True
+                seen.add(b)
+                todo.append(b)
+    return False
+
+
+def full_union(pages):
+    """Full combines the concern pages, so a concern-page edge whose two ends are on Full
+    must be on Full too. Brief collapses on purpose, so it's exempt."""
+    by_name = {p.get("name"): p for p in pages}
+    if "Full" not in by_name:
+        return []
+    full_nodes, full_edges = named_edges(by_name["Full"])
+    out = []
+    for name, page in by_name.items():
+        if name in ("Full", "Brief"):
+            continue
+        for src, tgt in sorted(named_edges(page)[1]):
+            if src in full_nodes and tgt in full_nodes and not reaches(full_edges, src, tgt):
+                out.append(f"[{name}] Full is missing {src} -> {tgt}; Full combines every concern page")
     return out
 
 
@@ -67,6 +111,9 @@ def check_page(page):
     cells = {c.get("id"): c for c in page.iter("mxCell")}
     geo = geometry(cells)
     problems, paths = [], {}
+    # The dict above keeps only the last cell per id, so catch repeats first.
+    ids = [c.get("id") for c in page.iter("mxCell")]
+    problems += [f"{i}: duplicate cell id" for i in sorted({i for i in ids if ids.count(i) > 1})]
     for c in cells.values():
         if c.get("edge") != "1":
             continue
@@ -79,7 +126,7 @@ def check_page(page):
         name = f"{c.get('id')}: {c.get('source')} -> {c.get('target')}"
         # A cloud's outline only touches its box at the middle of each side.
         for end, fx, fy in (("source", ex, ey), ("target", nx, ny)):
-            if "cloud" in str(cells[c.get(end)].get("style")) and (fx, fy) not in CLOUD_PORTS:
+            if style(cells[c.get(end)].get("style")).get("shape") == "cloud" and (fx, fy) not in CLOUD_PORTS:
                 problems.append(f"{name}: {end} cloud port ({fx:g},{fy:g}) is not a side midpoint")
         pts = [port(src, ex, ey)]
         g = c.find("mxGeometry")
@@ -103,9 +150,87 @@ def check_page(page):
             if 1 <= off < JOG:
                 problems.append(f"{name} is {off:g}px out of line")
                 break
-    return (problems + padding(cells, geo) + title(cells, geo) + contrasts(cells, geo)
-            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells) + badges(cells, geo) + account_labels(cells))
+    return (problems + padding(cells, geo) + title(cells, geo) + key_corner(cells, geo) + columns(cells, geo) + spills(cells, geo) + mirrors(cells, paths) + hugs(cells, geo, paths) + contrasts(cells, geo)
+            + crossings(cells, geo, paths) + tiles(cells, geo) + side_labels(cells) + badges(cells, geo) + account_labels(cells) + group_labels(cells)
+            + vendor_clouds(cells) + iconless(cells))
 
+
+# Named edge/CDN vendors that have icons; the cloud shape is only the public internet.
+CDN_VENDORS = ("Cloudflare", "CloudFront", "Akamai", "Fastly", "Imperva", "Zscaler")
+
+
+# Labels that name a product or construct with a draw.io shape or logo (icons.md).
+ICONED = [
+    (r"docker|container|compose", "Docker"), (r"\botel\b|opentelemetry", "OpenTelemetry"),
+    (r"new relic", "New Relic"), (r"honeycomb", "Honeycomb"), (r"datadog", "Datadog"),
+    (r"grafana", "Grafana"), (r"prometheus", "Prometheus"), (r"kafka", "Kafka"), (r"redis", "Redis"),
+    (r"postgres", "PostgreSQL"), (r"mysql", "MySQL"), (r"nginx", "NGINX"),
+    (r"kubernetes|\bk8s\b(?!-)|\bpod\b|service ?account", "Kubernetes"), (r"\beks\b(?!-)", "EKS"),
+    (r"peer(ed|ing)|\bpcx-", "VPC peering"), (r"\bvpc\b", "VPC"),
+    (r"\biam\b|\brole\b|polic(y|ies)", "IAM"), (r"\bs3\b|bucket", "S3"), (r"lambda", "Lambda"),
+    (r"\bebs\b|\bvolume\b|\bgp3\b", "EBS"), (r"nat gateway", "NAT gateway"),
+    (r"load balancer|\b[an]lb\b", "Elastic Load Balancing"), (r"route ?53", "Route 53"),
+    (r"secrets manager", "Secrets Manager"), (r"systems manager|\bssm\b", "Systems Manager"),
+]
+
+
+def iconless(cells):
+    """A plain box, or a card without its icon, whose label names something that has an icon."""
+    out = []
+    for i, c in cells.items():
+        st = style(c.get("style"))
+        raw = str(c.get("style") or "")
+        if (c.get("vertex") != "1" or not raw.startswith("rounded=1;") or "shape" in st
+                or st.get("container") == "1" or st.get("spacing") == "8"):
+            continue  # not a node box: icons, groups, boundaries, notes
+        card = "spacingLeft" in st
+        if card and f"{i}_i" in cells:
+            continue
+        label = c.get("value") or ""
+        text = node_name(label) if card else re.sub(r"<[^>]+>", " ", label)
+        for pat, product in ICONED:
+            if re.search(pat, text, re.I):
+                out.append(f"{i}: box names {product}; give it its icon (icons.md)")
+                break
+    return out
+
+
+def vendor_clouds(cells):
+    """A cloud shape labeled with a real CDN/edge product hides it as generic internet."""
+    out = []
+    for i, c in cells.items():
+        if style(c.get("style")).get("shape") != "cloud":
+            continue
+        label = (c.get("value") or "").lower()
+        for v in CDN_VENDORS:
+            if v.lower() in label:
+                out.append(f"{i}: {v} drawn as a cloud; use its vendor icon (icons.md)")
+                break
+    return out
+
+
+
+DETAIL = re.compile(r"\b(?:vpc|subnet|rtb|sg|igw|nat|pcx|vpce|eni|i)-[0-9a-f]{4,}\b|\b\d{1,3}(?:\.\d{1,3}){3}(?:/\d+)?|\b\d{12}\b")
+
+
+def group_labels(cells):
+    """Group and boundary labels read `Name (detail, detail)`, like accounts: IDs, CIDRs, and
+    qualifiers go in parens, not run on or split with ` · `."""
+    out = []
+    for i, c in cells.items():
+        st = str(c.get("style"))
+        if "group_account" in st:
+            continue  # account_labels covers these
+        if "grIcon=" in st or "container=1" in st:
+            v = c.get("value") or ""
+            if not v:  # Diagram.boundary puts the label in its own `<id>_l` text cell
+                lab = cells.get(f"{i}_l")
+                v = lab.get("value") if lab is not None else ""
+            v = re.sub(r"<[^>]+>", " ", v or "").strip()
+            bare = re.sub(r"\([^)]*\)", "", v)
+            if " · " in bare or DETAIL.search(bare):
+                out.append(f"{i}: label {v!r}; put details in parens: `Name (id, 10.0.0.0/16)`")
+    return out
 
 
 def account_labels(cells):
@@ -172,6 +297,8 @@ def padding(cells, geo):
     kinds = {}
     for pid, boxes in kids.items():
         st = style(cells[pid].get("style"))
+        if st.get("fixedLayout") == "1":
+            continue  # drawio_lib's Diagram.fixed: padding is deliberate
         kind = st.get("grIcon") or st.get("shape") or "box"
         _, y, _, h = geo[pid]
         pad = (min(b[1] for b in boxes) - y, y + h - max(b[1] + b[3] for b in boxes))
@@ -180,7 +307,7 @@ def padding(cells, geo):
     # Child groups must sit centered in their parent (equal left/right margins).
     for pid, boxes in kids.items():
         groups = [geo[c.get("id")] for c in cells.values() if c.get("parent") == pid and c.get("id") in kids]
-        if groups:
+        if groups and style(cells[pid].get("style")).get("fixedLayout") != "1":
             x, _, w, _ = geo[pid]
             left, right = min(b[0] for b in groups) - x, x + w - max(b[0] + b[2] for b in groups)
             if abs(left - right) >= 2:
@@ -217,6 +344,112 @@ def title_axis(cells, geo):
     main = max(boxes, key=lambda b: b[2], default=None)
     axis = main[0] + main[2] / 2 if main and main[2] >= (right - left) / 2 else (left + right) / 2
     return t, sub, axis, min(b[1] for b in body.values()) - head_bottom
+
+
+def hugs(cells, geo, paths):
+    """A line segment through a card or icon (not its own ends), or within 10px of running along its top or
+    bottom edge, reads as tangled. Give the lane room: 20px or more from any shape it passes."""
+    shapes = {i: geo[i] for i, c in cells.items() if c.get("vertex") == "1" and geo.get(i)
+              and "container" not in str(c.get("style")) and "text" not in str(c.get("style"))
+              and not any(k.get("parent") == i for k in cells.values()) and geo[i][2] >= 40 and geo[i][3] >= 40}
+    out = []
+    for e, pts in paths.items():
+        ends = (cells[e].get("source"), cells[e].get("target"))
+        hit = None
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            for i, (x, y, w, h) in shapes.items():
+                if i in ends or hit:
+                    continue
+                if abs(ay - by) < 1 and min(ax, bx) < x + w - 5 and max(ax, bx) > x + 5:  # horizontal
+                    if y + 5 < ay < y + h - 5:
+                        hit = f"{e}: line runs through {i}"
+                    elif abs(ay - y) <= 10 or abs(ay - (y + h)) <= 10:
+                        hit = f"{e}: line runs along {i}'s edge; give the lane 20px"
+                elif abs(ax - bx) < 1 and min(ay, by) < y + h - 5 and max(ay, by) > y + 5:  # vertical
+                    if x + 5 < ax < x + w - 5:
+                        hit = f"{e}: line runs through {i}"
+                    elif abs(ax - x) <= 10 or abs(ax - (x + w)) <= 10:
+                        hit = f"{e}: line runs along {i}'s edge; give the lane 20px"
+        if hit:
+            out.append(hit)
+    return out
+
+
+def mirrors(cells, paths):
+    """Two branches out of one side (exit 0.25 and 0.75) should turn at the same distance, or they look uneven."""
+    sides = {}
+    for i, pts in paths.items():
+        st = style(cells[i].get("style"))
+        ex, ey = float(st.get("exitX", 0.5)), float(st.get("exitY", 0.5))
+        if ex in (0, 1) and ey != 0.5:
+            sides.setdefault((cells[i].get("source"), ex), []).append((i, ey, pts))
+        elif ey in (0, 1) and ex != 0.5:
+            sides.setdefault((cells[i].get("source"), "y", ey), []).append((i, ex, pts))
+    out = []
+    for key, items in sides.items():
+        horiz = key[1] != "y"
+        for a, fa, pa in items:
+            for b, fb, pb in items:
+                straight = lambda p: len(p) == 2 and abs(p[0][1 if horiz else 0] - p[1][1 if horiz else 0]) < 1
+                if a < b and abs(fa + fb - 1) < 0.01 and not (straight(pa) or straight(pb)):
+                    ba = pa[1][0 if horiz else 1] if len(pa) > 2 else None
+                    bb = pb[1][0 if horiz else 1] if len(pb) > 2 else None
+                    if ba != bb:
+                        out.append(f"{b}: mirrors {a} but bends at {bb} vs {ba}; give both the same waypoint {'x' if horiz else 'y'}")
+    return out
+
+
+def spills(cells, geo):
+    """A child past its container's border reads as outside it: widen the container instead."""
+    out = []
+    for i, c in cells.items():
+        p, b = c.get("parent"), geo.get(i)
+        if c.get("vertex") == "1" and b and geo.get(p):
+            px, py, pw, ph = geo[p]
+            if b[0] < px - 1 or b[1] < py - 1 or b[0] + b[2] > px + pw + 1 or b[1] + b[3] > py + ph + 1:
+                out.append(f"{i}: spills past {p}'s border; widen {p} or move it in")
+    return out
+
+
+def columns(cells, geo):
+    """A shape stacked over another (x ranges overlap, nothing between) should share its center line."""
+    shapes = {i: geo[i] for i, c in cells.items() if c.get("vertex") == "1" and geo.get(i)
+              and "text" not in str(c.get("style")) and "container" not in str(c.get("style"))
+              and not any(k.get("parent") == i for k in cells.values())
+              and not str(c.get("value") or "").startswith("<b>")  # skip cards/notes: they stack by left edge
+              and 40 <= geo[i][2] <= 200 and 40 <= geo[i][3] <= 200}  # node-sized: not badges, key rows, screenshots
+    # Any shape between two breaks the stack, cards and groups included, not just nodes.
+    blockers = {i: geo[i] for i, c in cells.items() if c.get("vertex") == "1" and geo.get(i) and "text" not in str(c.get("style"))}
+    out = []
+    for a, (ax, ay, aw, ah) in shapes.items():
+        for b, (bx, by, bw, bh) in shapes.items():
+            if cells[a].get("parent") != cells[b].get("parent") or by <= ay + ah or not (ax < bx + bw and bx < ax + aw):
+                continue
+            between = any(o not in (a, b) and oy >= ay + ah and oy + oh <= by and ox < max(ax + aw, bx + bw) and ox + ow > min(ax, bx)
+                          for o, (ox, oy, ow, oh) in blockers.items())
+            off = (bx + bw / 2) - (ax + aw / 2)
+            if not between and 2 <= abs(off) <= aw / 2 + bw / 2 - 1:
+                out.append(f"{b}: off {a}'s center line by {off:g}px; stacked shapes share one center")
+    return out
+
+
+def key_corner(cells, geo):
+    """Readers look for the key in one place: under the lowest shape, flush with the leftmost."""
+    top = {i: geo[i] for i, c in cells.items() if geo.get(i) and c.get("parent") == "1"}
+    keys = [i for i in top if "keyNote=1" in str(cells[i].get("style"))
+            or str(cells[i].get("value") or "").startswith("<b>Key</b>")]
+    body = [b for i, b in top.items() if "spacing=8;fontSize=11" not in str(cells[i].get("style"))
+            and style(cells[i].get("style")).get("fontSize") != "36" and "text" not in str(cells[i].get("style"))
+            and not str(cells[i].get("value") or "").startswith("Updated")]
+    inside = lambda b, k: k[0] <= b[0] and b[0] + b[2] <= k[0] + k[2] and k[1] <= b[1] and b[1] + b[3] <= k[1] + k[3]
+    body = [b for b in body if not any(inside(b, top[k]) for k in keys)]  # the key's own rows
+    if not keys or not body:
+        return []
+    left, bottom = min(b[0] for b in body), max(b[1] + b[3] for b in body)
+    out = [f"{k}: title the key by what it decodes (`Line types`), not just Key"
+           for k in keys if str(cells[k].get("value") or "").strip() == "<b>Key</b>"]
+    return out + [f"{k}: put the key in the bottom-left, 40px under the lowest shape at x={left:g}, y={bottom + 40:g}"
+            for k in keys if abs(top[k][0] - left) > 10 or not bottom + 30 <= top[k][1] <= bottom + 60]
 
 
 def title(cells, geo):

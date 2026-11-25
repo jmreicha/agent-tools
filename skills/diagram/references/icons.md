@@ -1,6 +1,9 @@
 # Icons and logos
 
-Anything that has an icon gets one: K8s, AWS, GCP, Azure, Cisco, network gear, users, SaaS tools.
+Anything that has an icon gets one, and a generic concept (a device type, a job, a queue of work) stays a plain box. check-layout.py flags a plain box or icon-less card whose label names an iconed product or construct, but it can't see what a label leaves out, so sweep by hand too: K8s, AWS, GCP, Azure, Cisco, network gear, users, SaaS tools.
+- **Containers** get their runtime's logo (Docker) even when the label is only the app name, inside a boundary for the runtime (`docker compose`). Host services (systemd agents, packages) sit outside that boundary with their own logo.
+- **Volumes, policies, peering, VPCs**: use the AWS library shape (`elastic_block_store_volume_gp3`, `permissions`, `peering`, `vpc`), not a bare card. The EBS shape is only for a real EBS volume. A host folder or bind mount (`./media_files:/data`) lives on that volume: list it as a fact on the volume's card (`mounted into 3 containers`), not as its own volume.
+
 The label goes below the icon, and icons are 60×60 (about 48×48 for K8s objects inside a boundary).
 Every icon also gets `verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;aspect=fixed;`.
 **People:** every user, client, or team is the same plain outline silhouette: `person("user")` for one, `person("team")` for a group (`shape=mxgraph.aws4.user` / `users`, fill `light-dark(#232F3E,#D5DBDB)`). Never use figures, avatars, or clip art (Cisco `people.*`, office people). To tell user types apart, change only the silhouette's color (blue `#2875E2`, green `#7AA116`, purple `#8C4FFF`) and give each color a key row.
@@ -27,7 +30,7 @@ Look styles up in this order:
 | Azure             | `shape=image;image=img/lib/azure2/<category>/<Service>.svg;`                                                                                                                                                                                                                                                                                                                                                                                                     |
 | GitHub            | `shape=mxgraph.azure.github_code;fillColor=light-dark(#181717,#E6E6E6);strokeColor=none;` (never the simple-icons image)                                                                                                                                                                                                                                                                                                                                         |
 | Cisco             | `shape=mxgraph.cisco.<category>.<device>;fillColor=#036897;strokeColor=light-dark(#ffffff,#ffffff);` (for example `routers.router`, `security.firewall`)                                                                                                                                                                                                                                                                                                         |
-| Cloudflare        | `cloudflare("<product>")` in drawio_lib, then embed-icons.py, which tiles it orange on peach (the tile rule, which matches Cloudflare's own diagrams). Products are the file names in [cloudflare-docs/src/icons](https://github.com/cloudflare/cloudflare-docs/tree/production/src/icons) (`workers`, `r2`, `d1`, `kv`, `dns`, `waf`, `tunnel`, `access`, `load-balancing`…). Use `image("https://cdn.simpleicons.org/cloudflare")` for the Cloudflare boundary |
+| Cloudflare        | `cloudflare("<product>")` in drawio_lib, then embed-icons.py, which tiles it orange on peach (the tile rule, which matches Cloudflare's own diagrams). Products are the file names in [cloudflare-docs/src/icons](https://github.com/cloudflare/cloudflare-docs/tree/production/src/icons) (`workers`, `r2`, `d1`, `kv`, `dns`, `waf`, `tunnel`, `access`, `load-balancing`…). Use the logo, `image("https://cdn.simpleicons.org/cloudflare")`, for Cloudflare as a whole: a proxied hostname (`api.example.com`), the edge, or its boundary. Product icons are only for a named product the source uses (Workers, R2, WAF) |
 
 draw.io's GCP set (`gcp2`) is Google's pre-2025 style. In the current system, about 19 flagship products
 (GKE, Cloud Run, BigQuery, Cloud SQL, Cloud Storage, Compute Engine…) have unique icons, and every other
@@ -43,6 +46,12 @@ Use the URL like any logo below. If the icon already sits on its own tile (Digit
 
 Find one with `python3 <this skill dir>/scripts/find-logo.py <name> [--domain example.com] [--github org]`.
 It tries simple-icons, CNCF artwork, the GitHub org avatar, then the vendor site's icons, and prints every working URL. The first one is the pick.
+Some picks are settled:
+
+- **OpenTelemetry:** the color logo, `image("https://raw.githubusercontent.com/cncf/artwork/main/projects/opentelemetry/icon/color/opentelemetry-icon-color.svg")`. Simple Icons only has black, which disappears in dark mode.
+- **Terragrunt:** no official logo, so use a plain box.
+- **VPC endpoints:** `vpc_privatelink` for a PrivateLink (interface) endpoint, the endpoints icon for gateway endpoints, and the endpoints icon for a card that lists both.
+
 It rejects rasters under 64px and flags all-black SVGs. If it finds nothing, try the vendor's press kit.
 
 **The tile rule.** Every icon is either a library shape or a logo on the standard tile. There are no other cases.
@@ -59,4 +68,4 @@ An outline set with no color of its own passes its brand color as a URL suffix: 
 Don't pick tile colors by hand. check-layout.py flags any image icon without the tile. The script exits nonzero if any fetch fails or a URL returns something that isn't an image.
 A library icon with a dark fill (`#232F3E`) gets lightened in dark mode and its white glyph washes out. Pin it: `fillColor=light-dark(#232F3E,#232F3E)`.
 
-If no source has a logo, use a cloud shape for an edge or CDN service and a plain box for anything else.
+If no source has a logo, use a plain box. The cloud shape is only for the public internet or an unnamed CDN. A named CDN or edge provider drawn as a cloud reads as generic internet, and check-layout.py flags it.

@@ -7,14 +7,15 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self che
 ## Full detail card
 
 - Use `Diagram.card(id, name, facts, icon, x, y, w, h, parent)`: the icon is 36×36 at the left, the name bold, and the facts at 10px in the default color, one per line.
-- Leave `h` out and `card()` sizes it from the fact count (64px minimum, +12px per fact).
+- Leave `h` out and `card()` sizes it from the fact count (64px minimum, +15px per fact, which is how tall a 10px line renders).
 - Rows step 80-90px. Two columns are 480px wide with a 40px gap between them.
-- Icon labels on Brief stay under ~20 characters, so they fit under a 60px icon. Long IDs belong on Full cards.
+- Icon labels on Brief use the real name in its shortest unique form (`prod-us-blue-public`, not `ALB`). Long IDs belong on Full cards.
 - Plain lists (subnets, VLANs) go in a `LIST` text block inside their group, not in a card: one line per item, in the format `AZ  CIDR  name`.
 
 ## Spacing
 
-- Groups pad 35px above their first content, which leaves room for the label, and 30px below. Every sibling of the same kind matches.
+- A group with only icons or cards inside pads 35px above its first content, which leaves room for the label, and 30px below. A group that holds other groups uses the nested rule below. Either way, every sibling of the same kind matches. Subnets and SG boxes share an AWS icon, so check-layout.py treats them as one kind: give both the same top and bottom padding (50 and 30 work).
+- Boxes inside a subnet (SG boxes) pad their children 50px at the top and 30px at the bottom, the same as the subnets around them. The 60px rule below is for labeled groups nesting in their parent.
 - Nested AWS groups (Cloud > Region > VPC > subnet) sit 60px inside their parent at the top, which leaves room for the label, 30px at the sides, and 40px at the bottom. Tighter nesting stacks the labels into a cluttered staircase.
 - Boundaries are containers (`d.boundary(..., icon=...)`): put their children inside with `parent=`. Their label row takes 40px, so content starts 60px below the top.
 - A gateway (IGW) sits inside the VPC's left margin. Widen the VPC so both margins stay equal.
@@ -36,6 +37,7 @@ Its docstring has a usage example, and `python3 drawio_lib.py` runs its self che
 When 3 or more edges go from one source to a column of targets:
 
 - Give every edge the same exit port, and center the target column on it.
+- A fan-out label with no room: widen the gap first. If it's still crowded, put the port in the target's label (`ALB · HTTPS 443`) and leave the branch unlabeled.
 - Use `d.fanout(prefix, src, targets, trunk_x)`. Put `trunk_x` 50px before the targets. Keep it off container borders and out from under labels.
 - One trunk branching cleanly is the exception to "never merge edges". Skip zip ties (`shape=tie`).
 
@@ -51,10 +53,21 @@ When 3 or more edges go from one source to a column of targets:
 - A note placed right next to the path needs no link.
 - To emphasize an icon-only node (Brief), make its label red and bold and color the path into it. Never recolor the icon.
 
-## Brief and full pages
+## Brief, concern, and Full pages
 
-- Draw Full first. Make Brief by collapsing it: counts instead of lists, shortened IDs, icons instead of cards.
-- Keep the same relative positions on both pages, so switching pages doesn't jump around.
+- Collect the facts before you draw: one table in the build script holds every node and edge (name, ID, hop, port, protocol, rule, role). Every page draws from it, so a fact found late reaches every page.
+- Order pages from least to most detail: Brief, then concern pages from narrowest to widest zoom, then Full.
+- Full is the union of the concern pages' nodes and edges: every path on a concern page is on Full too. check-layout.py flags a concern-page edge missing from Full.
+- Full has no Node-page detail (containers, host agents, volumes). It stays at the network and service zoom, and the Node page is the zoom in.
+- **Detail tables** (SG rules, IAM policies, any list a reader scans row by row) all share one layout. `Diagram.detail` puts the icon top-left, the bold title (`name (id)`), a blank line, then 10px rows, with equal room above and below the text. Rows a reader compares column by column (SG rules) are tuples, which render as a borderless table with a bold header row. Notes that aren't rows go as plain lines above the table, and a string among the table rows spans it as a section heading. IAM role cards are an `action | resource` table: `arrow_rows` splits `action → resource` lines, keeps the trust lines above, and makes each policy name a heading. When the grid is wider than its container, widen the container (the account) instead of shrinking the cards. `Diagram.detail_grid` lays out the set:
+  - every card gets the widest card's fitted width, so titles stay on one line without trailing space
+  - table columns share one set of widths across the grid, so columns line up from card to card
+  - each card stacks under the shortest column, so short cards pack together instead of leaving row gaps
+  - the grid centers in its container, and its heading sits flush with the grid's left edge
+  Use fewer columns rather than wrapping a title. SG cards come from `sg_rows` (inbound before outbound) and take the SG color.
+- Detail tables (SG rule cards, IAM policy cards) live only on the concern page they belong to: SG rules on Network, role policies at the bottom of Security. Full keeps the SG boxes and role names, not the tables, or it gets too busy to read.
+- Make Brief by collapsing Full: counts instead of lists, shortened IDs, icons instead of cards.
+- Keep the same relative positions on every page, so switching pages doesn't jump around.
 - Write both pages with `save_pages(path, [("Brief", brief, w, h), ("Full", full, w, h)])`.
 
 ## Reading a source image

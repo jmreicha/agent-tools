@@ -17,7 +17,7 @@ All solid. Border colors are AWS's own. The label colors are the same hues, dark
 | VPC                                             | `#8C4FFF` purple              | `light-dark(#7A3EF0,#B394FF)` | none             | `group(kind="vpc")`            |
 | Public subnet                                   | `#7AA116` green               | `light-dark(#1E6B10,#A6E06A)` | `#DCEBC6` at 40% | `group(kind="public")`         |
 | Private subnet                                  | `#00A4A6` teal                | `light-dark(#0B5A8A,#8ED3F5)` | `#C9E9EE` at 40% | `group(kind="private")`        |
-| Security group                                  | `#DD3522` red                 | `light-dark(#C42B1C,#FF7A6B)` | none             | `group(kind="security_group")` |
+| Security group                                  | `light-dark(#CF6F63,#D9776B)` softened AWS red (bright `#DD3522` competes with severity chips) | `light-dark(#A8443A,#F0958A)` | none             | `group(kind="security_group")` |
 | Auto Scaling group                              | `#ED7100` orange              | `light-dark(#B35500,#FF9A3D)` | none             | `group(kind="asg")`            |
 | EKS / Kubernetes cluster                        | `#ED7100` orange              | `light-dark(#B35500,#FF9A3D)` | none             | `boundary(kind="eks")`         |
 | Kubernetes namespace                            | `#326CE5` K8s blue            | `light-dark(#2457C5,#7FA6F5)` | none             | `boundary(kind="namespace")`   |
