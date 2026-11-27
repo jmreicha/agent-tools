@@ -1,5 +1,5 @@
 ---
-name: terraform-skill
+name: terraform
 description: Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework), reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions
 version: 1.1.0
 tags: [infrastructure, terraform, iac, testing]

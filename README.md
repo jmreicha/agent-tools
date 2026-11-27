@@ -25,20 +25,20 @@ Skills live in `skills/<skill-name>/SKILL.md` and are invoked as `/agent-tools:<
 
 <!-- skills-table-start -->
 
-| Skill              | Invocation                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| diagram            | `/agent-tools:diagram`            | Use when asked to draw, diagram, sketch, or visualize architecture, infrastructure, network/traffic paths, request flows, or systems as a draw.io (.drawio), Excalidraw, or Mermaid diagram, to export a diagram to PNG/SVG/PDF, or when an existing doc would read better with a diagram.                                                                                                                                                 |
-| docs               | `/agent-tools:docs`               | Technical-writing standard for engineers, with Diátaxis page types, Google developer style, STE and Global English rules, and lint checks for Markdown and prose. Use whenever writing, editing, or reviewing prose for engineers, such as READMEs, docs pages and sites, tutorials, how-tos, reference, troubleshooting, runbooks, ADRs, RFCs, design docs, changelogs, PR descriptions, commit messages, issue bodies, or code comments. |
-| findings           | `/agent-tools:findings`           | Maintains a per repo findings file that tracks mistakes, corrections, and what works. Use when starting any session in a repo, and whenever you or the user catch a mistake. Read the file before doing anything else. Write to it as you work, not just at session boundaries, and log your own mistakes as well as user corrections. The file lives in the repo at `./context/findings.md`.                                              |
-| goal               | `/agent-tools:goal`               | Use when starting a task, to set a measurable goal and done-criteria, then keep the work aimed at it. Triggers on "/goal", "set a goal", or "what does done look like".                                                                                                                                                                                                                                                                    |
-| optimize           | `/agent-tools:optimize`           | Use when code or infrastructure is slow and needs a performance fix. Measure first, find the bottleneck, change it, and measure again. Triggers on "/optimize", "make this faster", or "performance".                                                                                                                                                                                                                                      |
-| pr                 | `/agent-tools:pr`                 | Iterate on a PR until CI passes. Use when you need to fix CI failures, resolve review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.                                                                                                                                                                                                                                         |
-| project-management | `/agent-tools:project-management` | Manage issues, milestones, and project tracking via GitHub CLI. Use when triaging bugs, planning sprints, updating issue status, or reporting on project progress.                                                                                                                                                                                                                                                                         |
-| research           | `/agent-tools:research`           | Use when about to implement a new feature, to gather context from documentation, real world code examples, and web resources. Provides structured findings to inform implementation decisions.                                                                                                                                                                                                                                             |
-| review             | `/agent-tools:review`             | Performs structured code reviews that check correctness, security, style, and test coverage. Use when reviewing PRs, auditing unfamiliar code, or verifying a change before merge.                                                                                                                                                                                                                                                         |
-| rubber-duck        | `/agent-tools:rubber-duck`        | Use when thinking through system design, architecture, API shape, data modeling, or any design decision before building. A conversational thinking partner that asks questions and offers perspectives, and doesn't write code or make changes.                                                                                                                                                                                            |
-| terraform-skill    | `/agent-tools:terraform`          | Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework), reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions                                                                                                                                     |
-| testing            | `/agent-tools:testing`            | Use to choose and apply TDD or BDD based on the change, enforcing fast Red-Green-Refactor and Given-When-Then loops.                                                                                                                                                                                                                                                                                                                       |
+| Skill       | Invocation                 | Description                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| diagram     | `/agent-tools:diagram`     | Use when asked to draw, diagram, sketch, or visualize architecture, infrastructure, network/traffic paths, request flows, or systems as a draw.io (.drawio), Excalidraw, or Mermaid diagram, to export a diagram to PNG/SVG/PDF, or when an existing doc would read better with a diagram.                                                                                                                                                        |
+| docs        | `/agent-tools:docs`        | Technical-writing standard for engineers, with Diátaxis page types, Google developer style, STE and Global English rules, and lint checks for Markdown and prose. Use whenever writing, editing, or reviewing prose for engineers, such as READMEs, docs pages and sites, tutorials, how-tos, reference, troubleshooting, runbooks, ADRs, RFCs, design docs, changelogs, PR descriptions, commit messages, issue bodies, or code comments.        |
+| learn       | `/agent-tools:learn`       | Turn mistakes and corrections into lasting changes. Reflect mines the session transcript for lessons and routes each one to a skill, a `CLAUDE.md` rule, or memory. Correct finds mistakes agents repeat in a repo and makes them impossible with architecture, types, lints, or tests. Use for /learn, "reflect", "what did we learn", "make sure this never happens again", or when the user corrects the same mistake twice.                   |
+| optimize    | `/agent-tools:optimize`    | Use when code or infrastructure is slow and needs a performance fix. Measure first, find the bottleneck, change it, and measure again. Triggers on "/optimize", "make this faster", or "performance".                                                                                                                                                                                                                                             |
+| planning    | `/agent-tools:planning`    | Manage issues, milestones, and project tracking via GitHub CLI. Use when triaging bugs, planning sprints, updating issue status, or reporting on project progress.                                                                                                                                                                                                                                                                                |
+| pr          | `/agent-tools:pr`          | Iterate on a PR until CI passes. Use when you need to fix CI failures, resolve review feedback, or continuously push fixes until all checks are green. Automates the feedback-fix-push-wait cycle.                                                                                                                                                                                                                                                |
+| research    | `/agent-tools:research`    | Gather context before building, from current library docs and source (context7), real code on GitHub, and the web, then recommend one approach. Use when about to implement a feature, adopt or upgrade a library, choose between approaches or technologies, or see how other projects solved a similar problem.                                                                                                                                 |
+| review      | `/agent-tools:review`      | Performs structured code reviews that check correctness, security, style, and test coverage. Use when reviewing PRs, auditing unfamiliar code, or verifying a change before merge.                                                                                                                                                                                                                                                                |
+| rubber-duck | `/agent-tools:rubber-duck` | Use when thinking through system design, architecture, API shape, data modeling, or any design decision before building. A conversational thinking partner that asks questions and offers perspectives, and doesn't write code or make changes.                                                                                                                                                                                                   |
+| sdlc        | `/agent-tools:sdlc`        | Entry point for software work. Sets a measurable goal with done checks, finds the lifecycle stage (design, spec, test, implement, security review, observe, refactor, docs, ship, learn), and routes to the matching agent-tools skill and any domain skill, such as Terraform. Use when starting any coding, infrastructure, or docs task, when asked "where do I start", "set a goal", or "what does done look like", or when invoked as /sdlc. |
+| terraform   | `/agent-tools:terraform`   | Use when working with Terraform or OpenTofu - creating modules, writing tests (native test framework), reviewing configurations, choosing between testing approaches, debugging state issues, implementing security scanning (trivy, checkov), or making infrastructure-as-code architecture decisions                                                                                                                                            |
+| testing     | `/agent-tools:testing`     | Test first development that picks TDD or BDD for each change and runs a fast red, green, refactor loop. Use when adding a feature, fixing a bug or regression, changing behavior, refactoring, adding tests to untested code, or when the user mentions TDD, BDD, a failing test, a regression test, or Given-When-Then.                                                                                                                          |
 
 <!-- skills-table-end -->
 
@@ -71,23 +71,13 @@ Read [references/voice.md](skills/docs/references/voice.md) first, and write in 
 
 ---
 
-### `findings`
+### `learn`
 
-**Invocation:** `/agent-tools:findings`
+**Invocation:** `/agent-tools:learn`
 
-Keep a Markdown file per repo that tracks mistakes, corrections, and patterns that work or don't. Read it before you do anything else, and update it whenever you learn something worth keeping.
+Change something durable so the next agent doesn't repeat the mistake. A lesson that only lives in chat is lost at the end of the session.
 
-This skill runs in every session. It needs no trigger.
-
----
-
-### `goal`
-
-**Invocation:** `/agent-tools:goal`
-
-Set one measurable goal for the current task before starting work.
-
-<!-- TODO: flesh out the workflow. -->
+Run **reflect** by default. Run **correct** when the user asks for it, or when reflect finds a mistake that has happened at least twice.
 
 ---
 
@@ -101,6 +91,14 @@ Improve performance with evidence, not guesses.
 
 ---
 
+### `planning`
+
+**Invocation:** `/agent-tools:planning`
+
+_No documentation yet._
+
+---
+
 ### `pr`
 
 **Invocation:** `/agent-tools:pr`
@@ -111,27 +109,11 @@ This skill needs the GitHub CLI (`gh`), signed in.
 
 ---
 
-### `project-management`
-
-**Invocation:** `/agent-tools:project-management`
-
-_No documentation yet._
-
----
-
 ### `research`
 
 **Invocation:** `/agent-tools:research`
 
-Gather context from documentation, real code, and the web before you implement a feature, so the plan rests on how the library and other projects actually work.
-
-**When to use:**
-
-- Planning or implementing a new feature. Use it by default.
-- Working with a library or framework you don't know well.
-- Weighing architectural approaches or design patterns.
-- Seeing how others solved a similar problem.
-- Choosing a technology.
+Find out how the library and other projects actually work before you build, so the plan rests on facts instead of memory.
 
 ---
 
@@ -151,7 +133,15 @@ A Socratic thinking partner for design decisions, adapted from [rubber duck debu
 
 ---
 
-### `terraform-skill`
+### `sdlc`
+
+**Invocation:** `/agent-tools:sdlc`
+
+Set the goal, find the stage, and hand off to the skill that owns it. Every skill below also works on its own.
+
+---
+
+### `terraform`
 
 **Invocation:** `/agent-tools:terraform`
 
@@ -181,13 +171,6 @@ Don't use this skill for:
 Pick test driven development (TDD) or behavior driven development (BDD) for each change, and switch between them as the work moves.
 
 Use TDD to design and verify internal behavior with fast feedback. Use BDD to define what users see: workflows and acceptance criteria. Choose by scope, not preference. Most features end up using both: BDD for the outside, TDD for the parts.
-
-**When to use:**
-
-- Adding features, flows, or APIs.
-- Fixing bugs or regressions.
-- Refactoring behavior or changing requirements.
-- Adding tests to untested code.
 
 <!-- skills-details-end -->
 

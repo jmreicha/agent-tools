@@ -1,6 +1,6 @@
 # Code patterns & structure
 
-> **Part of:** [terraform-skill](./SKILL.md)
+> **Part of:** [terraform](./SKILL.md)
 > **Purpose:** Comprehensive patterns for Terraform/OpenTofu code structure and modern features
 
 This document provides detailed code patterns, structure guidelines, and modern Terraform features. For high level principles, see the [main skill file](SKILL.md).

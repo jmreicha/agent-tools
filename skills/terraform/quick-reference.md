@@ -1,6 +1,6 @@
 # Quick reference
 
-> **Part of:** [terraform-skill](./SKILL.md)
+> **Part of:** [terraform](./SKILL.md)
 > **Purpose:** Command cheat sheets and decision flowcharts
 
 This document provides quick lookup tables, command references, and decision flowcharts for rapid consultation during development.

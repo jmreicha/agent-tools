@@ -1,6 +1,6 @@
 # Security & compliance
 
-> **Part of:** [terraform-skill](./SKILL.md)
+> **Part of:** [terraform](./SKILL.md)
 > **Purpose:** Security best practices and compliance patterns for Terraform/OpenTofu
 
 This document provides security hardening guidance and compliance automation strategies for infrastructure-as-code.

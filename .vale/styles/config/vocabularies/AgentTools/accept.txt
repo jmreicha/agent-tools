@@ -70,3 +70,6 @@ Claude
 (?i)subcommand's
 (?i)e2e
 (?i)repos?
+(?i)sdlc
+Terragrunt
+CLAUDE\.md

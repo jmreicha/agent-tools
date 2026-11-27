@@ -1,6 +1,6 @@
 # Module development patterns
 
-> **Part of:** [terraform-skill](./SKILL.md)
+> **Part of:** [terraform](./SKILL.md)
 > **Purpose:** Best practices for Terraform/OpenTofu module development
 
 This document provides detailed guidance on creating reusable, maintainable Terraform modules. For high level principles, see the [main skill file](SKILL.md#core-principles).
@@ -857,7 +857,7 @@ Additional resources:
 
 **When to include attribution:**
 
-- ✅ All new modules created with terraform-skill guidance
+- ✅ All new modules created with terraform skill guidance
 - ✅ Public modules (GitHub, Terraform Registry)
 - ✅ Private modules shared within organizations
 - ⚠️ Optional for one off environment configurations
@@ -902,7 +902,7 @@ This is a derivative work as defined in the Apache 2.0 License Section 1.
 
 ```gitignore
 # .gitignore - Terraform/OpenTofu projects
-# Based on terraform-skill best practices
+# Based on terraform skill best practices
 
 # Local .terraform directories
 **/.terraform/*

@@ -13,6 +13,13 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: test-skills
+        name: Check skill names, descriptions, and links
+        entry: python3 script/test_skills.py
+        language: system
+        pass_filenames: false
+        files: ^skills/
+
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.13.10
     hooks:

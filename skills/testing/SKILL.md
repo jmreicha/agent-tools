@@ -1,7 +1,7 @@
 ---
 name: testing
-description: Use to choose and apply TDD or BDD based on the change, enforcing fast Red-Green-Refactor and Given-When-Then loops.
-version: 1.1.0
+description: Test first development that picks TDD or BDD for each change and runs a fast red, green, refactor loop. Use when adding a feature, fixing a bug or regression, changing behavior, refactoring, adding tests to untested code, or when the user mentions TDD, BDD, a failing test, a regression test, or Given-When-Then.
+version: 2.0.0
 tags: [testing, tdd, bdd]
 ---
 
@@ -11,19 +11,24 @@ Pick test driven development (TDD) or behavior driven development (BDD) for each
 
 Use TDD to design and verify internal behavior with fast feedback. Use BDD to define what users see: workflows and acceptance criteria. Choose by scope, not preference. Most features end up using both: BDD for the outside, TDD for the parts.
 
-## When to use this skill
+## Find the test setup first
 
-- Adding features, flows, or APIs.
-- Fixing bugs or regressions.
-- Refactoring behavior or changing requirements.
-- Adding tests to untested code.
+Before you write a test, find how this repo already tests:
+
+- The test command, from the `Makefile`, `package.json`, CI config, or README.
+- The framework, the helpers, and where tests live.
+- The closest existing test for the code you're changing. Copy its style.
+
+Run the smallest command that covers your test, not the whole suite.
 
 ## Rules
 
 - Write no production code until a test fails first.
 - Watch the test fail, and confirm it fails for the reason you expect. A test you never saw fail might not test anything.
-- Test behavior, not implementation. Tests tied to internals break on every refactor, and people stop trusting them.
-- Use the smallest loop that proves the next behavior.
+- Test behavior through the public interface, not implementation. Tests tied to internals break on every refactor, and people stop trusting them.
+- Take expected values from an independent source: a known-good literal, a worked example, or the spec. Never compute them the way the code does.
+- Work in vertical slices: one test, then the code for it, then the next test. Don't write all the tests first.
+- Never delete, skip, or weaken a test to make it pass.
 
 A test doesn't count as evidence when:
 
@@ -52,62 +57,33 @@ Switch as the work changes:
 ## Loop
 
 1. Pick one behavior.
-2. Write a failing test: a TDD unit test or a BDD scenario.
-3. Run the smallest test command, and watch it fail.
+2. Write a failing test: a TDD unit test, such as `TestRetryStopsAfterThreeFailures`, or a BDD scenario, such as `Given … When the user fails login again Then the account is locked`.
+3. Run the smallest test command, and watch it fail for the expected reason.
 4. Write the least code that makes it pass.
-5. Run the smallest test command again, and watch it pass.
+5. Run the command again, and watch it pass.
 6. Refactor while the tests stay green.
 
-### TDD: red, green, refactor
+For a bug fix, the failing test is the reproduction. When you commit, put the failing test in its own commit before the fix, so the history shows the bug and then the cure.
 
-Red: write one failing test for the next behavior.
+## When a test isn't worth it
 
-```go
-func TestRetryStopsAfterThreeFailures(t *testing.T) {
-    attempts := 0
-    err := Retry(func() error {
-        attempts++
-        return errors.New("fail")
-    })
+Don't force a test that needs broad harness setup, brittle mocks, slow end-to-end infrastructure, production-only state, or a lot of unrelated fixtures. A bad test is worse than no test.
 
-    if err == nil {
-        t.Fatalf("expected error")
-    }
-    if attempts != 3 {
-        t.Fatalf("expected 3 attempts, got %d", attempts)
-    }
-}
-```
-
-Green: write the smallest change that makes the test pass.
-
-Refactor: clean up names, structure, and duplication while the tests stay green.
-
-### BDD: given, when, then
-
-Write the scenario in the terms users and the business use:
-
-```gherkin
-Scenario: lock account after failed logins
-  Given a user account exists
-  And the user has failed login attempts
-  When the user fails login again
-  Then the account is locked
-```
-
-Run the scenario and confirm it fails for the right reason. Then build each step definition with the TDD loop, and rerun the scenario to check the whole flow.
+Use the closest executable check instead: a short script, a reproduction command, a log assertion, or a focused integration check. Run it before and after the fix, the same way you would run a test, and say why a test wasn't practical.
 
 ## Avoid
 
 - Writing the code first and the tests later.
+- Tautological tests, where the assertion repeats the code's own logic, such as `expect(add(a, b)).toBe(a + b)`. They can never fail.
 - Mocking so much that the test no longer checks real behavior.
 - One test that covers several unrelated behaviors.
 - Large BDD scenarios that hide missing unit tests.
 - Refactoring before the tests pass.
 
-## Done when
+## Report
 
-- Every new behavior had a test that you watched fail first.
-- BDD scenarios use the same words as the acceptance criteria.
-- TDD tests cover edge cases and error paths.
-- All tests pass, with clean output.
+Paste the evidence, not a summary of it:
+
+- The test or check, and the failing output it printed before the fix.
+- The passing output after the fix, and any nearby tests you ran.
+- If you couldn't show a failure first, why, and the check you used instead.
