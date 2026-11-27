@@ -20,6 +20,23 @@ repos:
         pass_filenames: false
         files: ^skills/
 
+      # Evals cost money and take minutes, so run them only on request:
+      # pre-commit run eval-changed --hook-stage manual
+      - id: eval-changed
+        name: Run evals for changed skills
+        entry: python3 script/eval-changed.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [manual]
+
+      - id: test-scripts
+        name: Test repo scripts
+        entry: bash -c 'for t in script/test_*.py; do python3 "$t" || exit 1; done'
+        language: system
+        pass_filenames: false
+        files: ^script/
+
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.13.10
     hooks:
@@ -41,6 +58,8 @@ repos:
     hooks:
       - id: oxfmt
         types_or: [javascript, ts, json, yaml, markdown]
+        # Templates are Jinja, and formatting breaks the YAML they render.
+        exclude: ^skills/[^/]+/templates/
 
   - repo: https://github.com/oxc-project/mirrors-oxlint
     rev: v1.94.0

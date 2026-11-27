@@ -21,7 +21,13 @@ The voice is an engineer who did the work, showing a peer how. It's plain, candi
 - Call out each gotcha or workaround where it bites, and say why the clean path didn't work.
 - Link the canonical upstream doc instead of restating it.
 - Be plain and candid. Name the pain directly ("cumbersome", "the barrier to entry is high"), but never insult people or their requests in shared docs.
+
+<!-- vale Docs.Hyphen = NO -->
+
 - Don't hyphenate words in prose. Write "open source", "built in", "one off", "follow up", "long form", and "rerun", not "open-source", "built-in", "one-off", "follow-up", "long-form", and "re-run". Hyphens belong in code, flags, file names, and identifiers. Write the open form instead of swapping in a different phrase, and reword only when the open form is ambiguous.
+
+<!-- vale Docs.Hyphen = YES -->
+
 - Use the short forms: "repo", "app", "VM", and "e2e" for `end to end` testing. Spell out the rest, like "configuration", "environment", "production", and "Kubernetes".
 - Put periods and commas outside quotation marks: `set it to "true".`
 - Keep comparison lists as short fragment bullets: "Only supports Terraform." "Python based, a little slow." Rank the options and recommend one.

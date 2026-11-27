@@ -52,6 +52,8 @@ def test_local_links_resolve():
         # Links inside code are examples, not navigation.
         prose = re.sub(r"```.*?```|`[^`\n]*`", "", f.read_text(), flags=re.DOTALL)
         for target in LOCAL_LINK.findall(prose):
+            if "{{" in target:
+                continue  # A template variable, filled in when the template renders.
             assert (f.parent / target).exists(), f"{f}: broken link {target}"
 
 

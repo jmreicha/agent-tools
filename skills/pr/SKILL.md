@@ -19,7 +19,13 @@ This skill needs the GitHub CLI (`gh`), signed in.
 gh pr view --json number,url,headRefName
 ```
 
-Stop if the current branch has no PR. Keep the PR number, because every command after this needs it.
+If the current branch has no PR and the user asked for one, open it first:
+
+1. Run `agent-tools:review` on the branch. Don't open a PR graded high unless the user approves.
+2. Write the body with the PR outline in `agent-tools:docs`, including the merge risk line from the review.
+3. Run `gh pr create --title "<title>" --body-file <file>`.
+
+Otherwise, stop. Keep the PR number, because every command after this needs it.
 
 ### 2. Gather review feedback
 

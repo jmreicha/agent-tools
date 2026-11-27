@@ -64,7 +64,7 @@ When 3 or more edges go from one source to a column of targets:
   - table columns share one set of widths across the grid, so columns line up from card to card
   - each card stacks under the shortest column, so short cards pack together instead of leaving row gaps
   - the grid centers in its container, and its heading sits flush with the grid's left edge
-  Use fewer columns rather than wrapping a title. SG cards come from `sg_rows` (inbound before outbound) and take the SG color.
+    Use fewer columns rather than wrapping a title. SG cards come from `sg_rows` (inbound before outbound) and take the SG color.
 - Detail tables (SG rule cards, IAM policy cards) live only on the concern page they belong to: SG rules on Network, role policies at the bottom of Security. Full keeps the SG boxes and role names, not the tables, or it gets too busy to read.
 - Make Brief by collapsing Full: counts instead of lists, shortened IDs, icons instead of cards.
 - Keep the same relative positions on every page, so switching pages doesn't jump around.

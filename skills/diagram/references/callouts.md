@@ -7,7 +7,7 @@ Also number pieces a reader can't work out from their labels (jobs, sync loops, 
 
 - **Which pages:** badges go on any page whose numbered `How it works` note explains them (Brief, Network, Full). Security uses severity chips instead, so it has no badges.
 - Badge: `Diagram.badge(n, target)` (style `BADGE`: a 22×22 dark circle with `light-dark()` colors). Every badge is the same size.
-- **Placement:** center the badge on the top-left corner of the node that performs the step (bottom-left when its label is on top). `badge()` does this, and check-layout flags a badge on a label). A step with no node of its own (a return trip, a hand-off) gets its badge on its arrow, just above the line. Never put a badge on a line or a label.
+- **Placement:** center the badge on the top-left corner of the node that performs the step (bottom-left when its label is on top). `badge()` does this, and check-layout flags a badge on a label). A step with no node of its own (a return trip, a handoff) gets its badge on its arrow, just above the line. Never put a badge on a line or a label.
 - **Order:**
   - Count in reading order: left to right, top to bottom, or clockwise.
   - A return trip keeps counting.

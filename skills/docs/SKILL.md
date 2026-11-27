@@ -47,7 +47,9 @@ Ask two questions to pick the mode:
 Map common docs to a mode:
 
 - Runbook: how-to.
-- ADR, RFC: explanation.
+- ADR: explanation. Invoke the **adr** skill (`agent-tools:adr`). It owns where ADRs go, their template, and the `adrs` CLI.
+- Spec: invoke the **spec** skill (`agent-tools:spec`). A spec is a contract of checkable behavior, not prose in a Diátaxis mode.
+- RFC: explanation.
 - Design doc: explanation, with its own outline in [references/page-types.md](references/page-types.md). Use it for new design docs only.
 - API, CLI, and config docs: reference.
 - Onboarding guide: tutorial.
@@ -70,6 +72,7 @@ Use the outline for the mode in [references/page-types.md](references/page-types
 - Say who does what. Passive is fine only when the actor is unknown or beside the point.
 - Write instructions as commands. Put the condition before the instruction and the common case first.
 - No buzzwords, no figurative language, no "please", and never "simply", "easy", or "quickly" in a procedure.
+- No emojis anywhere: not in headings, lists, tables, status markers, or commit messages. Write the word instead, such as "Yes", "No", "Good", or "Bad". The `Docs.Emoji` Vale rule flags them.
 - Don't pre-announce, and don't start consecutive sentences with the same phrase.
 - Link with words that say where the link goes.
 - Headings carry the point, in sentence case. One h1 per page, no skipped levels.
@@ -118,7 +121,7 @@ Readers land on one section from search, and agents retrieve one chunk at a time
 
 ## Voice and specifics
 
-- PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute. Don't paste agent logs, SHA lists, or metric tables. Link them.
+- PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute, about 150 words. Use the PR outline in [references/page-types.md](references/page-types.md), and keep review findings out of it. Don't paste agent logs, SHA lists, or metric tables. Link them.
 - Diagrams: invoke the **diagram** skill (`agent-tools:diagram`) for every diagram, including Mermaid. It owns the house style, when to suggest a diagram, and how to embed one. Don't draw diagrams by hand.
 - Code comments: 1-2 lines, say why, not what.
 - Product UI strings are not documentation. Use the product's copy guidelines for those.

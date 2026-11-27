@@ -1,4 +1,5 @@
 [global]
 # Prose isn't wrapped, so line length only adds noise.
 disable = ["MD013"]
-exclude = ["hooks/arbiter/vendor"]
+# Eval prompts and graders are model input, not docs.
+exclude = ["hooks/arbiter/vendor", "evals/*/prompt.md", "evals/*/graders", "skills/*/templates"]

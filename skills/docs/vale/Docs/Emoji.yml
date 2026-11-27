@@ -1,0 +1,6 @@
+extends: existence
+message: "Remove the emoji '%s'. Use words: 'Yes', 'No', 'Good', 'Bad'."
+level: error
+nonword: true
+tokens:
+  - '[\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{1F000}-\x{1FAFF}]'

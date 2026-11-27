@@ -40,7 +40,7 @@ Modeled on the [Terraform registry](https://registry.terraform.io/browse/provide
 ## Rules
 
 - Be complete or say what's left out. If a subset lives elsewhere, the first line says where.
-- Generate the page from the code or schema when you can, such as `terraform-docs`, OpenAPI, or `--help` output. Hand-written reference drifts.
+- Generate the page from the code or schema when you can, such as `terraform-docs`, OpenAPI, or `--help` output. Handwritten reference drifts.
 - Put a quick-lookup table before the entries when readers scan for one value.
 - Only describe. If an entry says "to do this, first…", move the steps to a how-to and link it.
 - Keep every entry visible. Don't hide entries in tabs or collapsed sections.

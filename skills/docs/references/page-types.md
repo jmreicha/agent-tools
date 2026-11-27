@@ -190,4 +190,45 @@ Keep entries inline on the relevant page until there are about 5, then move them
 
 Use the how-to outline. Match detail to how often it runs: give rare procedures every step and assume no prior knowledge. Add `lastVerified: <date>` to the frontmatter, and update it when someone runs every step of the procedure.
 
+## PR description
+
+<!-- The sketch, before and after evidence, and door wording come from mattpocock/skills pr (MIT), which credits humanlayer show-me. -->
+
+A PR description is a briefing a reviewer reads in under a minute. Aim for about 150 words of prose, and stay under 200. Code blocks don't count. When the repo has a PR template (`.github/pull_request_template.md`), fill in that template instead, and keep each section to a few lines.
+
+```markdown
+<The problem, and why it matters now. One or two sentences.>
+
+<What this change does about it, at the level of behavior. Name the main function, file, or flag.>
+
+<Optional sketch: the smallest view that shows the change. See the list after this outline.>
+
+**Evidence:** <before: the failing test, error, or screenshot. After: the same thing passing.>
+
+**Merge risk:** <low, medium, or high>. <One-way or two-way door>. Blast radius: <one to three words>.
+```
+
+- Skip headings in a small PR. Add them only when the PR spans several areas.
+
+- Describe what the change does, not every line it touches. The diff shows the lines.
+
+- Add a sketch only when the change has a shape that prose describes badly. Pick one: pseudocode for logic, a call tree for control flow, a file tree for a layout change, or a Mermaid sequence for interaction between parts. Draw it as a `diff` block when the point is what changed in a shape that already exists:
+
+  ```diff
+   submitForm
+     createSession
+  +    expandSkillMention
+       launchAgent
+  ```
+
+- Show evidence as before and after. A screenshot is best for a visual change. Test or command output is next best. Name the exact test.
+
+- Take the merge risk line from `agent-tools:review`. A two-way door is undone by reverting the commit. A one-way door, such as dropping data, isn't.
+
+- Don't review the change in its own description. Bugs, missing cleanup, or doubtful defaults you spot in the diff go to the author or into review comments. When you write the description for someone else's change, put those findings after it, clearly outside the description.
+
+- Use the project's domain words from `GLOSSARY.md` when the repo has one.
+
+- Link issues, logs, and benchmarks. Don't paste them.
+
 For reference pages, see [reference.md](reference.md).

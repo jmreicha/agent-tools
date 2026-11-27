@@ -8,21 +8,21 @@ Every text color passes WCAG contrast in both themes, and `check-layout.py` chec
 
 All solid. Border colors are AWS's own. The label colors are the same hues, darker in light mode and lighter in dark mode, so they stay readable.
 
-| Element                                         | Border                        | Label                         | Fill             | Helper                         |
-| ----------------------------------------------- | ----------------------------- | ----------------------------- | ---------------- | ------------------------------ |
-| AWS Cloud (several accounts)                    | `light-dark(#232F3E,#D5DBDB)` | same                          | none             | `group(kind="cloud")`          |
-| Account                                         | `#CD2264` magenta             | `light-dark(#B81D58,#F06A9A)` | none             | `group(kind="account")`        |
-| Region                                          | `#00A4A6` teal                | `light-dark(#0F6A9E,#5FB4E8)` | none             | `group(kind="region")`         |
-| AZ                                              | `#147EBA` blue                | `light-dark(#0F6A9E,#5FB4E8)` | none             | AZ style in aws-network.md     |
-| VPC                                             | `#8C4FFF` purple              | `light-dark(#7A3EF0,#B394FF)` | none             | `group(kind="vpc")`            |
-| Public subnet                                   | `#7AA116` green               | `light-dark(#1E6B10,#A6E06A)` | `#DCEBC6` at 40% | `group(kind="public")`         |
-| Private subnet                                  | `#00A4A6` teal                | `light-dark(#0B5A8A,#8ED3F5)` | `#C9E9EE` at 40% | `group(kind="private")`        |
+| Element                                         | Border                                                                                         | Label                         | Fill             | Helper                         |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------- | ---------------- | ------------------------------ |
+| AWS Cloud (several accounts)                    | `light-dark(#232F3E,#D5DBDB)`                                                                  | same                          | none             | `group(kind="cloud")`          |
+| Account                                         | `#CD2264` magenta                                                                              | `light-dark(#B81D58,#F06A9A)` | none             | `group(kind="account")`        |
+| Region                                          | `#00A4A6` teal                                                                                 | `light-dark(#0F6A9E,#5FB4E8)` | none             | `group(kind="region")`         |
+| AZ                                              | `#147EBA` blue                                                                                 | `light-dark(#0F6A9E,#5FB4E8)` | none             | AZ style in aws-network.md     |
+| VPC                                             | `#8C4FFF` purple                                                                               | `light-dark(#7A3EF0,#B394FF)` | none             | `group(kind="vpc")`            |
+| Public subnet                                   | `#7AA116` green                                                                                | `light-dark(#1E6B10,#A6E06A)` | `#DCEBC6` at 40% | `group(kind="public")`         |
+| Private subnet                                  | `#00A4A6` teal                                                                                 | `light-dark(#0B5A8A,#8ED3F5)` | `#C9E9EE` at 40% | `group(kind="private")`        |
 | Security group                                  | `light-dark(#CF6F63,#D9776B)` softened AWS red (bright `#DD3522` competes with severity chips) | `light-dark(#A8443A,#F0958A)` | none             | `group(kind="security_group")` |
-| Auto Scaling group                              | `#ED7100` orange              | `light-dark(#B35500,#FF9A3D)` | none             | `group(kind="asg")`            |
-| EKS / Kubernetes cluster                        | `#ED7100` orange              | `light-dark(#B35500,#FF9A3D)` | none             | `boundary(kind="eks")`         |
-| Kubernetes namespace                            | `#326CE5` K8s blue            | `light-dark(#2457C5,#7FA6F5)` | none             | `boundary(kind="namespace")`   |
-| Data center, office, on-prem                    | `#7D8998` gray                | `light-dark(#5A6573,#AEB8C4)` | none             | `group(kind="datacenter")`     |
-| Anything else (SaaS, vendor cloud, environment) | default                       | default                       | none             | `boundary()`                   |
+| Auto Scaling group                              | `#ED7100` orange                                                                               | `light-dark(#B35500,#FF9A3D)` | none             | `group(kind="asg")`            |
+| EKS / Kubernetes cluster                        | `#ED7100` orange                                                                               | `light-dark(#B35500,#FF9A3D)` | none             | `boundary(kind="eks")`         |
+| Kubernetes namespace                            | `#326CE5` K8s blue                                                                             | `light-dark(#2457C5,#7FA6F5)` | none             | `boundary(kind="namespace")`   |
+| Data center, office, on-prem                    | `#7D8998` gray                                                                                 | `light-dark(#5A6573,#AEB8C4)` | none             | `group(kind="datacenter")`     |
+| Anything else (SaaS, vendor cloud, environment) | default                                                                                        | default                       | none             | `boundary()`                   |
 
 ## Network lines
 

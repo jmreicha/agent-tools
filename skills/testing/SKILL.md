@@ -15,7 +15,7 @@ Use TDD to design and verify internal behavior with fast feedback. Use BDD to de
 
 Before you write a test, find how this repo already tests:
 
-- The test command, from the `Makefile`, `package.json`, CI config, or README.
+- The test command: `script/test` when the repo has one, else the command from the `Makefile`, `package.json`, CI config, or README.
 - The framework, the helpers, and where tests live.
 - The closest existing test for the code you're changing. Copy its style.
 
@@ -64,6 +64,16 @@ Switch as the work changes:
 6. Refactor while the tests stay green.
 
 For a bug fix, the failing test is the reproduction. When you commit, put the failing test in its own commit before the fix, so the history shows the bug and then the cure.
+
+## Test at the fastest level that proves it
+
+The levels, fastest first, are a pure function, a service with fakes, a route handler or component, and the whole app in a browser or e2e run. Write each test at the fastest level that can prove what it checks.
+
+- Keep a slow test only for what only its level can prove, such as one journey per critical flow or real SQL behavior.
+- When a slow test checks a decision (a branch, a calculation, a parse), pull that decision into a small pure function named for the domain, and test it there.
+- One assertion per thing the test checks, in the order a reader asks: what came back, then each effect. Compare whole values. Match a value the test can't know, such as a generated ID, by its shape, not by "any string".
+
+Before you delete or move a test, prove another test covers it: break that behavior in the code, confirm a remaining test goes red, then revert the break.
 
 ## When a test isn't worth it
 

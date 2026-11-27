@@ -27,6 +27,7 @@ Write this before any code. Keep it under 10 lines.
 ```
 
 - Write every done check so the transcript proves it: a command and the output it must print. "Tests pass" is vague. "`go test ./retry/...` exits 0" is a check.
+- Quote the repo's entry points in done checks: `script/test` or `make test` when they exist. A check that quotes the verb survives a tool change.
 - Never delete, skip, or weaken a test to meet a check.
 - After 3 failed attempts at the same check, stop. Report the root cause and the decision you need.
 - For long, mechanical work with a clear stop (a migration, a coverage lift), give the user a line to paste into the `/goal` command: `/goal <done check>, without weakening tests`. The `/goal` evaluator reads only the transcript, so the check must print its result.
@@ -35,30 +36,31 @@ Write this before any code. Keep it under 10 lines.
 
 The lifecycle runs in this order. Most tasks enter partway through.
 
-| Stage              | Skill                                                                                                             | Stage is done when                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Issue, design, ADR | `agent-tools:rubber-duck` to think, `agent-tools:research` for docs and prior art, `agent-tools:docs` to write it | The decision and its reason are written down      |
-| Specs              | `agent-tools:docs` (design doc outline)                                                                           | Each acceptance criterion is a pass or fail check |
-| Failing tests      | `agent-tools:testing`                                                                                             | A test failed for the expected reason             |
-| Implement          | `agent-tools:testing` loop, plus the domain skill                                                                 | The done checks pass                              |
-| Security review    | `agent-tools:review`, the `/security-review` command                                                              | Every finding is fixed or recorded                |
-| Observe            | Run the real artifact. Use the Honeycomb skills when the service sends traces there.                              | Evidence from the running system, not a proxy     |
-| Refactor           | The `/simplify` command, then `/code-review`                                                                      | Tests still pass                                  |
-| Docs and diagrams  | `agent-tools:docs`, `agent-tools:diagram`                                                                         | The prose checks in the docs skill pass           |
-| Ship               | `agent-tools:pr`                                                                                                  | CI is green                                       |
-| Learn              | `agent-tools:learn`                                                                                               | Accepted lessons are in a skill, rule, or check   |
+| Stage              | Skill                                                                                                                                                            | Stage is done when                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Issue, design, ADR | `agent-tools:rubber-duck` to think, `agent-tools:research` for docs and prior art, `agent-tools:adr` to record the decision, `agent-tools:docs` for a design doc | The decision and its reason are written down                                                       |
+| Specs              | `agent-tools:spec`                                                                                                                                               | Each behavior is an obligation the user approved, which a test can check                           |
+| Failing tests      | `agent-tools:testing`                                                                                                                                            | A test failed for the expected reason                                                              |
+| Implement          | `agent-tools:testing` loop, plus the domain skill                                                                                                                | The done checks pass                                                                               |
+| Security review    | `agent-tools:review` (bugs, security, and merge risk)                                                                                                            | Every proven finding is fixed or recorded, and merge risk is low, or medium with the reason stated |
+| Observe            | Run the real artifact. Use the Honeycomb skills when the service sends traces there.                                                                             | Evidence from the running system, not a proxy                                                      |
+| Refactor           | `agent-tools:refactor`, then the `/simplify` command                                                                                                             | The pinned tests still pass, and any bug found is reported with a skipped test                     |
+| Docs and diagrams  | `agent-tools:docs`, `agent-tools:diagram`                                                                                                                        | The prose checks in the docs skill pass                                                            |
+| Ship               | `agent-tools:pr`                                                                                                                                                 | CI is green                                                                                        |
+| Learn              | `agent-tools:learn`                                                                                                                                              | Accepted lessons are in a skill, rule, or check                                                    |
 
 ## Add the domain skill
 
 Apply a domain skill alongside the stage skill whenever its trigger matches. Don't wait to be asked.
 
-| Trigger                                                        | Skill                   |
-| -------------------------------------------------------------- | ----------------------- |
-| `.tf`, `.tfvars`, `.hcl`, Terraform, OpenTofu, or Terragrunt   | `agent-tools:terraform` |
-| Any diagram, or a doc that would read better with one          | `agent-tools:diagram`   |
-| Any prose: docs, READMEs, PR bodies, commit messages, comments | `agent-tools:docs`      |
-| Slow code or infrastructure                                    | `agent-tools:optimize`  |
-| Issues, milestones, or project status                          | `agent-tools:planning`  |
+| Trigger                                                             | Skill                     |
+| ------------------------------------------------------------------- | ------------------------- |
+| `.tf`, `.tfvars`, `.hcl`, Terraform, OpenTofu, or Terragrunt        | `agent-tools:terraform`   |
+| Any diagram, or a doc that would read better with one               | `agent-tools:diagram`     |
+| Any prose: docs, READMEs, PR bodies, commit messages, comments      | `agent-tools:docs`        |
+| Slow code or infrastructure                                         | `agent-tools:optimize`    |
+| Issues, milestones, or project status                               | `agent-tools:planning`    |
+| A new file, script, or workflow, or a "where does this go" question | `agent-tools:conventions` |
 
 For anything else, check the full skill list and use the one whose description matches.
 
