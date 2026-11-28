@@ -45,22 +45,31 @@ Pin `--model` and `--judge-model` when you compare runs, so a model change doesn
 
 ## Cases
 
-| Case                             | Checks                                                                                                          |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `docs-readme`                    | A README for a small CLI: real flags only, a copyable first run, and no filler words                            |
-| `docs-pr-body`                   | A PR description that reads as a one-minute briefing                                                            |
-| `docs-skips-code-fix`            | A code-only bug fix, where neither `docs` nor `diagram` fires                                                   |
-| `diagram-aws-drawio`             | An AWS draw.io diagram from a short description: one page, AWS icons, the style contract, and `check-layout.py` |
-| `diagram-mermaid`                | A short Mermaid flowchart with terse labels and no color styling                                                |
-| `diagram-adapt`                  | An edit to someone else's diagram that keeps their style                                                        |
-| `conventions-strta`              | A repo with code but no entry points: a `script/` dir with verbs and CI that calls it                           |
-| `conventions-match`              | An existing `scripts/` dir wins: new steps follow its naming, no Makefile or second dir                         |
-| `conventions-skips-bug-fix`      | A code-only bug fix, where the conventions skill must not fire                                                  |
-| `conventions-release-greenfield` | No release tooling: cocogitto with `cog.toml`, a `cog verify` commit-msg hook, and `script/release`             |
-| `conventions-release-match`      | An existing semantic-release config is kept, with no cocogitto added                                            |
-| `review-risky-migration`         | A one-way-door migration with no tests: review grades merge risk high and names each risk                       |
-| `review-docs-only`               | A README typo fix: review grades it low and doesn't invent risk                                                 |
-| `refactor-pins-bug`              | A dedupe that hides a `>` versus `>=` mismatch: behavior stays, the bug gets a pinned and a skipped test        |
+| Case                             | Checks                                                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `docs-readme`                    | A README for a small CLI: real flags only, a copyable first run, and no filler words                                            |
+| `docs-pr-body`                   | A PR description that reads as a one-minute briefing                                                                            |
+| `docs-skips-code-fix`            | A code-only bug fix, where neither `docs` nor `diagram` fires                                                                   |
+| `diagram-aws-drawio`             | An AWS draw.io diagram from a short description: one page, AWS icons, the style contract, and `check-layout.py`                 |
+| `diagram-mermaid`                | A short Mermaid flowchart with terse labels and no color styling                                                                |
+| `diagram-adapt-key`              | Extend someone else's diagram: every line stays in its key, nothing else changes, and existing problems get reported, not fixed |
+| `conventions-strta`              | A repo with code but no entry points: a `script/` dir with verbs and CI that calls it                                           |
+| `conventions-make`               | A repo on make: the lint step goes in the `Makefile` in its style, with no `script/` dir, and one offer to migrate              |
+| `conventions-skips-bug-fix`      | A code-only bug fix, where the conventions skill must not fire                                                                  |
+| `conventions-release-greenfield` | No release tooling: cocogitto with `cog.toml`, a `cog verify` commit-msg hook, and `script/release`                             |
+| `conventions-release-match`      | An existing semantic-release config is kept, with no cocogitto added                                                            |
+| `terraform-count-to-foreach`     | A deployed module switched from `count` to `for_each`: `moved` blocks keep every subnet, no state commands                      |
+| `terraform-db-secret`            | A new RDS instance: the password stays out of state, and the instance is locked down                                            |
+| `terraform-optional-defaults`    | New module settings become an object variable with `optional()` defaults, read directly in `main.tf`                            |
+| `terraform-tofu-enabled`         | An OpenTofu 1.11 on/off resource uses `lifecycle { enabled }`, not `count`                                                      |
+| `terraform-emulator-test`        | An apply test for a bucket module runs against AWS Emulator, not a real account                                                 |
+| `adr-greenfield`                 | No ADRs yet: the first one lands in `docs/adrs` with `adrs.toml`, and records the rejected option and the costs                 |
+| `adr-match`                      | Existing MADR records in `docs/decisions`: the new one takes the next number, the same folder, and the MADR sections            |
+| `spec-greenfield`                | No specs yet: the yass process starts with proposed answers, and no code before the user approves                               |
+| `spec-match`                     | Existing Gherkin features: the new behavior is a `.feature` file in their style, with no yass files                             |
+| `review-risky-migration`         | A one-way-door migration with no tests: review grades merge risk high and names each risk                                       |
+| `review-docs-only`               | A README typo fix: review grades it low and doesn't invent risk                                                                 |
+| `refactor-pins-bug`              | A dedupe that hides a `>` versus `>=` mismatch: behavior stays, the bug gets a pinned and a skipped test                        |
 
 ## Write a new case
 
@@ -70,6 +79,9 @@ Pin `--model` and `--judge-model` when you compare runs, so a model change doesn
 - Give each case one requirement. A case that bundles several fails more often than any of them, and its failure doesn't say which one broke. Split it into one grader per criterion at least.
 - Check each thing with the cheapest grader that can decide it. A judge asked what a regex could decide costs a call and adds noise. A regex that guesses at meaning fails good replies.
 - Give an `llm` judge everything it needs to decide: the source, the config, and the facts. A judge that can't see the source marks true claims as invented.
+- One requirement per `llm` grader. A judge that checks four things in a long file splits its votes. When a file runs past a few thousand characters, pass `--judge-model sonnet`.
+- `file_exists` globs skip dotfiles, and the eval sandbox blocks writes to `.pre-commit-config.yaml`. Check either through the trace instead.
+- `--case` takes one glob, and a repeated `--case` keeps only the last. It doesn't support `[...]` classes.
 - Read the outputs yourself when a score surprises you. A judge can be wrong, and a vague grader is worse than none.
 
 See the [plugin evals docs](https://code.claude.com/docs/en/plugin-evals) for every grader option.

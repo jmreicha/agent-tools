@@ -96,3 +96,5 @@ goreleaser
 [Cc]ommitizen
 dotfiles
 [Cc]ommitlint
+azurerm
+[Oo]rchestrator('s)?

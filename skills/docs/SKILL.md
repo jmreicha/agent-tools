@@ -23,6 +23,7 @@ Read [references/voice.md](references/voice.md) first, and write in that voice f
 
 - Read the repo first: existing docs, their folder layout, frontmatter, and naming. Match them.
 - Ask the user for the real specifics: commands, UI labels, endpoints, and expected output. Never invent product behavior.
+- State only behavior you read in the code or saw in a run. Before you write an exit code, error, or limit, trace the code path that produces it, including errors that nothing catches. Name a tested platform only when the user or CI tested it, not your own sandbox.
 - If the page already exists, don't overwrite it. Review it against this skill and suggest edits.
 
 ## Vary the rhythm
