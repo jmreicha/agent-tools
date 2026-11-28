@@ -30,6 +30,37 @@ Add `--dry-run` to print the commands without running them. Flags after `--` go 
 
 Results and the HTML report go to `evals/results/`, which git ignores. Each run is a full Claude session on your account, so the cost is cases × runs × 2 arms. A single run of one case costs about $0.20.
 
+## Compare against the baseline
+
+`evals/baseline.json` holds the last accepted score for each case: the with-plugin and without-plugin scores, each grader's pass rate, the Claude Code version, and the commit. It's committed, so a change to a skill is judged against what the current version earns.
+
+Compare new results against it:
+
+```bash
+script/eval-baseline.py compare evals/results/<case>.json
+```
+
+The output is similar to this:
+
+```text
+case                                base   now  delta   w/o  lost graders
+diagram-mermaid                     1.00  0.50  -0.50  0.50  terse-one-direction
+Regressed past 0.1: diagram-mermaid
+```
+
+- A drop of more than 0.1 counts as a regression, and the command exits 1. Change it with `--tolerance`. One run per case is noisy, so rerun a regressed case with `--runs 3` before you trust the drop.
+- `lost graders` lists graders that always passed in the baseline and now fail. Start there.
+- A case with no baseline shows as `new`.
+- When the new scores are the ones to keep, record them, and commit `evals/baseline.json` with the change that earned them:
+
+```bash
+script/eval-baseline.py record evals/results/<case>.json
+```
+
+- Rerun a case and record it again after you change its graders, prompt, or scaffold. Its old score no longer measures the same thing.
+- `script/eval-changed.py` saves each case to `evals/results/<case>.json` and ends with this comparison.
+- `script/eval-changed.py` runs two cases at once, and each case runs its with-plugin and without-plugin arms at the same time. Change that with `--jobs` and `--concurrency`. Every run shares one account rate limit, so raise them only a little.
+
 ## Compare two versions of a skill
 
 The default comparison is the plugin against no plugin. To compare the old and new versions of a skill, run the same case on both git refs and compare the scores:
@@ -53,6 +84,10 @@ Pin `--model` and `--judge-model` when you compare runs, so a model change doesn
 | `diagram-aws-drawio`             | An AWS draw.io diagram from a short description: one page, AWS icons, the style contract, and `check-layout.py`                 |
 | `diagram-mermaid`                | A short Mermaid flowchart with terse labels and no color styling                                                                |
 | `diagram-adapt-key`              | Extend someone else's diagram: every line stays in its key, nothing else changes, and existing problems get reported, not fixed |
+| `diagram-full-detail`            | A network inventory for a change review: one file with Brief then Full pages, and Full keeps every ID and the source date       |
+| `diagram-location`               | A repo with diagrams in `docs/architecture`: the new one goes next to them, kebab-case, with a named page                       |
+| `diagram-excalidraw`             | A whiteboard sketch request: an Excalidraw file with the house font and bound labels, and no draw.io file                       |
+| `diagram-styled-asks`            | A polished, customer-facing diagram with no brand guide: the agent asks for one instead of inventing brand colors               |
 | `conventions-strta`              | A repo with code but no entry points: a `script/` dir with verbs and CI that calls it                                           |
 | `conventions-make`               | A repo on make: the lint step goes in the `Makefile` in its style, with no `script/` dir, and one offer to migrate              |
 | `conventions-skips-bug-fix`      | A code-only bug fix, where the conventions skill must not fire                                                                  |

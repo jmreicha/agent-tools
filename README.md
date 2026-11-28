@@ -237,16 +237,22 @@ Requires Claude Code ≥ 2.1.287. Run `/arbiter init` in a session to get starte
 `.lsp.json` connects language servers for the languages Anthropic's official LSP plugins don't
 cover. Claude gets diagnostics after each edit and an `LSP` tool for definitions and references.
 
-| Server                 | Files            | Install the binary                               |
-| ---------------------- | ---------------- | ------------------------------------------------ |
-| `bash-language-server` | `.sh`, `.bash`   | `npm i -g bash-language-server` (+ `shellcheck`) |
-| `yaml-language-server` | `.yaml`, `.yml`  | `npm i -g yaml-language-server`                  |
-| `terraform-ls`         | `.tf`, `.tfvars` | `mise use -g aqua:hashicorp/terraform-ls`        |
-| `docker-langserver`    | `.dockerfile`    | `npm i -g dockerfile-language-server-nodejs`     |
+| Server                        | Files             | Install with mise                                         |
+| ----------------------------- | ----------------- | --------------------------------------------------------- |
+| `bash-language-server`        | `.sh`, `.bash`    | `mise use -g npm:bash-language-server`, plus `shellcheck` |
+| `yaml-language-server`        | `.yaml`, `.yml`   | `mise use -g npm:yaml-language-server`                    |
+| `terraform-ls`                | `.tf`, `.tfvars`  | `mise use -g aqua:hashicorp/terraform-ls`                 |
+| `docker-langserver`           | `.dockerfile`     | `mise use -g npm:dockerfile-language-server-nodejs`       |
+| `vale-ls`                     | `.md`             | `mise use -g github:vale-cli/vale-ls`, plus `vale`        |
+| `terragrunt-ls`               | `.hcl`            | `mise use -g github:gruntwork-io/terragrunt-ls`           |
+| `vscode-json-language-server` | `.json`, `.jsonc` | `mise use -g npm:vscode-langservers-extracted`            |
+| `taplo`                       | `.toml`           | `mise use -g aqua:tamasfe/taplo`                          |
+| `regal`                       | `.rego`           | `mise use -g aqua:open-policy-agent/regal`                |
 
-The plugin doesn't include the servers. Each binary must be on the `PATH` of the shell you start
-`claude` from. A missing one shows up in the `/plugin` **Errors** tab, and the other servers
-still work.
+The plugin doesn't include the servers. Install them with mise, which puts each binary on the
+`PATH` of the shell you start `claude` from. A missing one shows up in the `/plugin` **Errors**
+tab, and the other servers still work. Install the servers for Anthropic's official plugins the
+same way, such as `mise use -g npm:pyright` or `mise use -g go:golang.org/x/tools/gopls`.
 
 - `.zsh` isn't mapped, because shellcheck doesn't support zsh and reports false errors.
 - YAML uses SchemaStore schemas (GitHub Actions, compose and so on). Kubernetes schemas apply to
@@ -254,4 +260,15 @@ still work.
   to change that.
 - Claude Code matches files by extension only, so a plain `Dockerfile` (no extension) isn't
   covered. Only names like `app.dockerfile` are.
-- `terraform-ls` doesn't understand `terragrunt.hcl`.
+- `terraform-ls` doesn't understand `terragrunt.hcl`, so `terragrunt-ls` covers it. It runs on every
+  `.hcl` file, because Claude Code can't match file names, so other HCL files, such as Packer or
+  Nomad configs, may get Terragrunt diagnostics. It's at version 0.0.x, and runs with its `exec`
+  and command features off.
+- JSON checks files against the schema in their `$schema` key, plus SchemaStore schemas for
+  `package.json`, `tsconfig*.json`, `renovate.json`, and Claude Code settings files. Add more under
+  `settings.json.schemas` in `.lsp.json`.
+- `taplo` uses a schema when the TOML file names one, and `regal` lints Rego with the repo's
+  `.regal/config.yaml` when it has one.
+- `vale-ls` lints Markdown with the repo's `.vale.ini`, or your global one when the repo has none.
+  It uses the `vale` on your `PATH` and doesn't run `vale sync`, so run `vale sync` once per repo
+  to download its styles.

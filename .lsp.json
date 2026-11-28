@@ -2,16 +2,24 @@
   "bash": {
     "command": "bash-language-server",
     "args": ["start"],
-    "extensionToLanguage": { ".sh": "shellscript", ".bash": "shellscript" }
+    "extensionToLanguage": {
+      ".sh": "shellscript",
+      ".bash": "shellscript"
+    }
   },
   "yaml": {
     "command": "yaml-language-server",
     "args": ["--stdio"],
-    "extensionToLanguage": { ".yaml": "yaml", ".yml": "yaml" },
+    "extensionToLanguage": {
+      ".yaml": "yaml",
+      ".yml": "yaml"
+    },
     "settings": {
       "yaml": {
         "validate": true,
-        "schemaStore": { "enable": true },
+        "schemaStore": {
+          "enable": true
+        },
         "schemas": {
           "kubernetes": ["**/k8s/**/*.yaml", "**/manifests/**/*.yaml", "**/kubernetes/**/*.yaml"]
         }
@@ -21,11 +29,84 @@
   "terraform": {
     "command": "terraform-ls",
     "args": ["serve"],
-    "extensionToLanguage": { ".tf": "terraform", ".tfvars": "terraform-vars" }
+    "extensionToLanguage": {
+      ".tf": "terraform",
+      ".tfvars": "terraform-vars"
+    }
   },
   "dockerfile": {
     "command": "docker-langserver",
     "args": ["--stdio"],
-    "extensionToLanguage": { ".dockerfile": "dockerfile" }
+    "extensionToLanguage": {
+      ".dockerfile": "dockerfile"
+    }
+  },
+  "markdown": {
+    "command": "vale-ls",
+    "extensionToLanguage": {
+      ".md": "markdown"
+    },
+    "initializationOptions": {
+      "installVale": false,
+      "syncOnStartup": false,
+      "showMetrics": false
+    }
+  },
+  "terragrunt": {
+    "command": "terragrunt-ls",
+    "extensionToLanguage": {
+      ".hcl": "hcl"
+    }
+  },
+  "json": {
+    "command": "vscode-json-language-server",
+    "args": ["--stdio"],
+    "extensionToLanguage": {
+      ".json": "json",
+      ".jsonc": "jsonc"
+    },
+    "initializationOptions": {
+      "provideFormatter": false,
+      "handledSchemaProtocols": ["file", "http", "https"]
+    },
+    "settings": {
+      "json": {
+        "validate": {
+          "enable": true
+        },
+        "schemas": [
+          {
+            "fileMatch": ["package.json"],
+            "url": "https://www.schemastore.org/package.json"
+          },
+          {
+            "fileMatch": ["tsconfig*.json"],
+            "url": "https://www.schemastore.org/tsconfig.json"
+          },
+          {
+            "fileMatch": ["renovate.json"],
+            "url": "https://docs.renovatebot.com/renovate-schema.json"
+          },
+          {
+            "fileMatch": ["**/.claude/settings*.json"],
+            "url": "https://www.schemastore.org/claude-code-settings.json"
+          }
+        ]
+      }
+    }
+  },
+  "toml": {
+    "command": "taplo",
+    "args": ["lsp", "stdio"],
+    "extensionToLanguage": {
+      ".toml": "toml"
+    }
+  },
+  "rego": {
+    "command": "regal",
+    "args": ["language-server"],
+    "extensionToLanguage": {
+      ".rego": "rego"
+    }
   }
 }

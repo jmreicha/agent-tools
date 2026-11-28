@@ -22,12 +22,11 @@ modules/<name>/
   main.tf
   variables.tf
   outputs.tf
-  examples/
-    basic/          # The smallest working call, also a test fixture
-    complete/       # Every optional feature turned on
   tests/
     <name>.tftest.hcl
 ```
+
+Add an `examples/` directory only when the repo's other modules have one. Otherwise the examples live in `README.md`.
 
 In a repo of many modules, keep each one under `modules/<name>/` and the roots under a separate tree, such as `live/` or `envs/`. A module published to a registry gets its own repo, named `terraform-<provider>-<name>`.
 
@@ -48,13 +47,59 @@ The variables and outputs are the module's API. Treat a change to them like an A
 
 ## Docs
 
-Generate the inputs and outputs table with `terraform-docs`, between its markers in `README.md`. Write the rest by hand with `agent-tools:docs`: what the module does, one usage example, and anything a caller must know, such as a required provider alias or a resource that takes 20 minutes to create.
+A module's `README.md` has two parts: prose and examples you write, and an inputs and outputs reference that `terraform-docs` generates. Follow an existing module's README when the repo has one. Otherwise use this outline:
+
+1. **What it does.** One or two sentences: what the module creates and when to use it. Add anything a caller must know, such as a required provider alias or a resource that takes 20 minutes to create.
+2. **Examples, plenty of them.** Start with the smallest working call, then one example per common setup and per optional feature. Show each as plain Terraform and as a Terragrunt unit:
+
+````markdown
+## Examples
+
+### Private bucket with logging
+
+```hcl
+module "exports" {
+  source = "git::https://github.com/acme/infra-modules.git//modules/bucket?ref=v2.3.0"
+
+  name = "billing-exports"
+  logging = {
+    enabled = true
+    prefix  = "exports/"
+  }
+}
+```
+
+With Terragrunt:
+
+```hcl
+terraform {
+  source = "git::https://github.com/acme/infra-modules.git//modules/bucket?ref=v2.3.0"
+}
+
+inputs = {
+  name    = "billing-exports"
+  logging = { enabled = true, prefix = "exports/" }
+}
+```
+````
+
+3. **Reference.** The generated inputs, outputs, providers, and requirements, between the `terraform-docs` markers:
+
+```markdown
+<!-- BEGIN_TF_DOCS -->
+<!-- END_TF_DOCS -->
+```
+
+Generate the reference with `terraform-docs`:
 
 ```bash
 terraform-docs markdown table --output-file README.md --output-mode inject .
 ```
 
-Don't edit the generated table by hand. The next run overwrites it.
+- Use the repo's `.terraform-docs.yml` when it has one, and its settings win. In a repo of many modules, `terraform-docs markdown table --recursive --recursive-path modules --output-file README.md .` updates every module's README.
+- Run it after every change to variables or outputs, and commit the result. A README whose table doesn't match `variables.tf` is wrong.
+- Don't edit between the markers by hand. The next run overwrites it.
+- Write the prose and examples with `agent-tools:docs`. Pin every example `source` to a real tag, and use the module's real variable names, so each example works when copied.
 
 ## Reference modules
 

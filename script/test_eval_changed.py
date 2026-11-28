@@ -29,9 +29,15 @@ def test_tags_parse_from_prompt_frontmatter():
     assert ec.parse_tags(text) == {"docs", "negative"}
 
 
+def test_command_runs_both_arms_at_once_and_writes_its_result():
+    cmd = ec.build_cmd("docs-readme", runs="1", max_cost="5", concurrency="2", out="evals/results/docs-readme.json", extra=[])
+    assert cmd[cmd.index("--concurrency") + 1] == "2"
+    assert cmd[cmd.index("--json") + 1] == "evals/results/docs-readme.json"
+
 if __name__ == "__main__":
     test_skill_change_selects_cases_tagged_with_it()
     test_case_change_selects_only_that_case()
     test_unrelated_change_selects_nothing()
     test_tags_parse_from_prompt_frontmatter()
+    test_command_runs_both_arms_at_once_and_writes_its_result()
     print("ok")

@@ -117,5 +117,5 @@ A set's members are known only after apply, so this needs `command = apply`, aga
 
 ## Beyond `terraform test`
 
-- An `examples/` directory doubles as a fixture. Run `init -backend=false` and `validate` in each example.
+- When the module has an `examples/` directory, run `init -backend=false` and `validate` in each example. README examples aren't run, so check their variable names against `variables.tf` by hand.
 - Use Terratest only when the repo already does, or when a test must call the deployed system, such as an HTTP check against a load balancer.

@@ -1,0 +1,435 @@
+{
+  "adr-greenfield": {
+    "with": 1.0,
+    "without": 0.4,
+    "runs": 1,
+    "graders": {
+      "adrs-toml": 1.0,
+      "alternatives-and-costs": 1.0,
+      "in-docs-adrs": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:01:08.474Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "adr-match": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "madr-sections": 1.0,
+      "next-number": 1.0,
+      "no-second-folder": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:08:45.080Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "conventions-make": {
+    "with": 1.0,
+    "without": 0.778,
+    "runs": 1,
+    "graders": {
+      "lint-target": 1.0,
+      "no-justfile": 1.0,
+      "no-script-dir": 1.0,
+      "no-taskfile": 1.0,
+      "offers-migration": 1.0,
+      "phony-and-comment": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:09:55.455Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "conventions-release-greenfield": {
+    "with": 1.0,
+    "without": 0.2,
+    "runs": 1,
+    "graders": {
+      "cog-toml": 1.0,
+      "commit-msg-check": 1.0,
+      "no-semantic-release": 1.0,
+      "release-script": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-27T21:18:37.931Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "conventions-release-match": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "kept-releaserc": 1.0,
+      "no-cog-toml": 1.0,
+      "releases-via-semantic-release": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:10:45.335Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "conventions-skips-bug-fix": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "fixed": 1.0,
+      "no-repo-skill": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-27T20:57:58.754Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "conventions-strta": {
+    "with": 1.0,
+    "without": 0.3,
+    "runs": 1,
+    "graders": {
+      "bootstrap-exists": 1.0,
+      "ci-calls-script": 1.0,
+      "no-justfile": 1.0,
+      "no-makefile": 1.0,
+      "no-taskfile": 1.0,
+      "skill-fired": 1.0,
+      "test-exists": 1.0,
+      "thin-bootstrap": 1.0,
+      "thin-test": 1.0,
+      "workflow-exists": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:13:44.435Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-adapt-key": {
+    "with": 1.0,
+    "without": 0.857,
+    "runs": 1,
+    "graders": {
+      "has-s3": 1.0,
+      "key-row": 1.0,
+      "leaves-rest-alone": 1.0,
+      "reports-contrast": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:36:13.904Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-aws-drawio": {
+    "with": 1.0,
+    "without": 0.75,
+    "runs": 1,
+    "graders": {
+      "aws-icons": 1.0,
+      "file-exists": 1.0,
+      "full-page": 1.0,
+      "names-missing-facts": 1.0,
+      "no-decoration": 1.0,
+      "no-hardcoded-black-white": 1.0,
+      "no-page-1": 1.0,
+      "no-remote-images": 1.0,
+      "no-sticky-notes": 1.0,
+      "orthogonal-edges": 1.0,
+      "placement": 1.0,
+      "ran-layout-check": 1.0,
+      "real-edges": 1.0,
+      "skill-fired": 1.0,
+      "terse-labels": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:35:22.384Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-excalidraw": {
+    "with": 1.0,
+    "without": 0.5,
+    "runs": 1,
+    "graders": {
+      "bound-labels": 1.0,
+      "house-font": 1.0,
+      "no-drawio": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T18:58:58.307Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-full-detail": {
+    "with": 1.0,
+    "without": 0.714,
+    "runs": 1,
+    "graders": {
+      "brief-then-full": 1.0,
+      "keeps-418273645190": 1.0,
+      "keeps-nat": 1.0,
+      "keeps-subnet": 1.0,
+      "keeps-vpc": 1.0,
+      "skill-fired": 1.0,
+      "source-date": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T18:53:52.521Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-location": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "kebab-name": 1.0,
+      "next-to-existing": 1.0,
+      "no-second-folder": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:02:54.953Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-mermaid": {
+    "with": 1.0,
+    "without": 0.5,
+    "runs": 1,
+    "graders": {
+      "mermaid-block": 1.0,
+      "no-color-styling": 1.0,
+      "skill-fired": 1.0,
+      "terse-one-direction": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:31:48.004Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "diagram-styled-asks": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "asks-for-brand-guide": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:00:12.646Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "docs-pr-body": {
+    "with": 1.0,
+    "without": 0.25,
+    "runs": 1,
+    "graders": {
+      "briefing": 1.0,
+      "no-em-dash": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:30:30.410Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "docs-readme": {
+    "with": 1.0,
+    "without": 0.955,
+    "runs": 2,
+    "graders": {
+      "no-em-dash": 1.0,
+      "no-filler-words": 1.0,
+      "no-positional-refs": 1.0,
+      "no-shell-prompt": 1.0,
+      "readme-accurate": 1.0,
+      "readme-exists": 1.0,
+      "readme-first-run": 1.0,
+      "readme-opening": 1.0,
+      "readme-structure": 1.0,
+      "real-flag": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:35:03.874Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "docs-skips-code-fix": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "fixed": 1.0,
+      "no-docs-or-diagram-skill": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T02:30:30.410Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "refactor-pins-bug": {
+    "with": 1.0,
+    "without": 0.714,
+    "runs": 1,
+    "graders": {
+      "behavior-preserved": 1.0,
+      "reports-bug": 1.0,
+      "skill-fired": 1.0,
+      "skipped-bug-test": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-27T20:41:05.816Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "review-docs-only": {
+    "with": 1.0,
+    "without": 0.25,
+    "runs": 1,
+    "graders": {
+      "grade-low": 1.0,
+      "proportionate": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:06:29.618Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "review-risky-migration": {
+    "with": 1.0,
+    "without": 0.4,
+    "runs": 1,
+    "graders": {
+      "grade-high": 1.0,
+      "names-the-risks": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-27T20:32:14.753Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "spec-greenfield": {
+    "with": 1.0,
+    "without": 0.714,
+    "runs": 1,
+    "graders": {
+      "asks-approval": 1.0,
+      "follows-yass": 1.0,
+      "no-code-yet": 1.0,
+      "proposes-answers": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:16:54.082Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "spec-match": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "new-feature-file": 1.0,
+      "no-yass": 1.0,
+      "scenarios": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:01:56.663Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "terraform-count-to-foreach": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "moved-blocks": 1.0,
+      "no-state-changes": 1.0,
+      "outputs-still-work": 1.0,
+      "skill-fired": 1.0,
+      "uses-for-each": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:14:37.237Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "terraform-db-secret": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "locked-down": 1.0,
+      "no-plain-password": 1.0,
+      "no-state-changes": 1.0,
+      "secret-out-of-state": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:13:32.193Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "terraform-emulator-test": {
+    "with": 1.0,
+    "without": 0.429,
+    "runs": 1,
+    "graders": {
+      "apply-test": 1.0,
+      "no-real-account": 1.0,
+      "no-state-changes": 1.0,
+      "skill-fired": 1.0,
+      "uses-emulator": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T19:06:57.424Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "terraform-optional-defaults": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "no-defaults-in-main": 1.0,
+      "no-state-changes": 1.0,
+      "optional-defaults": 1.0,
+      "skill-fired": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:11:52.624Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  },
+  "terraform-tofu-enabled": {
+    "with": 1.0,
+    "without": 1.0,
+    "runs": 1,
+    "graders": {
+      "no-count": 1.0,
+      "no-state-changes": 1.0,
+      "output-handles-off": 1.0,
+      "skill-fired": 1.0,
+      "uses-enabled": 1.0
+    },
+    "claude": "2.1.332",
+    "started": "2026-11-28T03:12:59.015Z",
+    "commit": "d18523a",
+    "recorded": "2026-11-28"
+  }
+}
