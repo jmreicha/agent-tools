@@ -52,6 +52,9 @@ def record(baseline, results, commit):
     for result in sorted(results, key=lambda r: r.get("startedAt") or ""):
         for name, summary in summarize(result).items():
             if summary["with"] is not None:
+                # A/B runs skip the no-plugin arm, so keep the last no-plugin score we have.
+                if summary["without"] is None and name in baseline:
+                    summary["without"] = baseline[name].get("without")
                 baseline[name] = {**summary, "commit": commit, "recorded": date.today().isoformat()}
     return dict(sorted(baseline.items()))
 

@@ -63,14 +63,19 @@ script/eval-baseline.py record evals/results/<case>.json
 
 ## Compare two versions of a skill
 
-The default comparison is the plugin against no plugin. To compare the old and new versions of a skill, run the same case on both git refs and compare the scores:
+Use `script/eval-ab.py` to A/B test a change before you keep it. Make the variant a full copy of the plugin, edit the skill there, and run the same cases on both:
 
 ```bash
-git worktree add /tmp/agent-tools-old main
-claude plugin eval /tmp/agent-tools-old --case 'docs-*' --scaffold --trust-plugin --no-publish --allow-tools Write Edit Bash
-claude plugin eval . --case 'docs-*' --scaffold --trust-plugin --no-publish --allow-tools Write Edit Bash
-git worktree remove /tmp/agent-tools-old
+git worktree add /tmp/agent-tools-b HEAD   # or: rsync -a --exclude .git ./ /tmp/agent-tools-b/
+# edit /tmp/agent-tools-b/skills/<skill>/SKILL.md
+script/eval-ab.py /tmp/agent-tools-b --case 'diagram-*' --runs 2
 ```
+
+- A is this repo, and B is the variant. Use `--a` to compare two other copies, such as a worktree of `main`.
+- Both arms run at the same time, each with `--concurrency 3`, and skip the no-plugin run.
+- Each arm grades with its own `evals/` folder, so copy the variant after you finish changing graders.
+- The output lists each case's A score, B score, the change, and the graders B lost. The command exits 1 when B is worse by more than `--tolerance` (default 0.1).
+- Results and logs go to `evals/results/ab-<timestamp>/`. Use 2 or more runs: one run can't tell a real change from noise.
 
 Pin `--model` and `--judge-model` when you compare runs, so a model change doesn't look like a skill change.
 

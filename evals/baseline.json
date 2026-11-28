@@ -115,7 +115,7 @@
   "diagram-adapt-key": {
     "with": 1.0,
     "without": 0.857,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "has-s3": 1.0,
       "key-row": 1.0,
@@ -124,14 +124,14 @@
       "skill-fired": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T02:36:13.904Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:22:12.920Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-aws-drawio": {
     "with": 1.0,
     "without": 0.75,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "aws-icons": 1.0,
       "file-exists": 1.0,
@@ -150,14 +150,14 @@
       "terse-labels": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T02:35:22.384Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:22:12.920Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-excalidraw": {
     "with": 1.0,
     "without": 0.5,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "bound-labels": 1.0,
       "house-font": 1.0,
@@ -165,14 +165,14 @@
       "skill-fired": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T18:58:58.307Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:22:12.920Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-full-detail": {
     "with": 1.0,
     "without": 0.714,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "brief-then-full": 1.0,
       "keeps-418273645190": 1.0,
@@ -183,14 +183,14 @@
       "source-date": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T18:53:52.521Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:22:12.920Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-location": {
     "with": 1.0,
     "without": 1.0,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "kebab-name": 1.0,
       "next-to-existing": 1.0,
@@ -198,14 +198,14 @@
       "skill-fired": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T19:02:54.953Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:22:12.920Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-mermaid": {
     "with": 1.0,
     "without": 0.5,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "mermaid-block": 1.0,
       "no-color-styling": 1.0,
@@ -213,21 +213,21 @@
       "terse-one-direction": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T02:31:48.004Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:28:10.896Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "diagram-styled-asks": {
     "with": 1.0,
     "without": 1.0,
-    "runs": 1,
+    "runs": 2,
     "graders": {
       "asks-for-brand-guide": 1.0,
       "skill-fired": 1.0
     },
     "claude": "2.1.332",
-    "started": "2026-11-28T19:00:12.646Z",
-    "commit": "d18523a",
+    "started": "2026-11-28T19:28:30.285Z",
+    "commit": "466d298",
     "recorded": "2026-11-28"
   },
   "docs-pr-body": {

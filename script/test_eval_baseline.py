@@ -52,6 +52,12 @@ def test_compare_ignores_noise_inside_tolerance_and_new_cases():
     assert [r["case"] for r in rows] == ["x", "y"] and rows[1]["baseline"] is None
 
 
+def test_record_keeps_the_old_no_plugin_score_when_the_new_run_has_none():
+    base = {"x": {"with": 1.0, "without": 0.4, "graders": {}}}
+    new = result("x", "2026-11-28T00:00:00Z", [run(1.0, [])], None)
+    assert eb.record(base, [new], "abc123")["x"]["without"] == 0.4
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
